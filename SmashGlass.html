@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SmashGlass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: radial-gradient(ellipse at 50% 0%, #1a1f3a 0%, #0a0c1a 60%, #050510 100%);
+    touch-action: none;
+    font-family: "BIZ UDPGothic", -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+  }
+  #gameCanvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  #counter {
+    position: fixed;
+    top: env(safe-area-inset-top, 16px);
+    right: 0;
+    color: #eaf0ff;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.6;
+    text-align: right;
+    text-shadow: 0 0 12px rgba(120,160,255,0.6);
+    pointer-events: none;
+    z-index: 10;
+  }
+  .spawnInfo {
+    font-size: 10px;
+  }
+  #overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(5,5,16,0.55);
+    z-index: 20;
+    text-align: center;
+    padding: 20px;
+    pointer-events: none;
+  }
+  #overlay.hidden { display: none; }
+  .title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    text-shadow: 0 0 20px rgba(120,160,255,0.7);
+  }
+  .subtitle {
+    font-size: 13px;
+    color: #9fb0e0;
+    letter-spacing: 0.5px;
+  }
+  .tapHint {
+    margin-top: 34px;
+    font-size: 12px;
+    color: #7ee8ff;
+    opacity: 0.85;
+    pointer-events: auto;
+    cursor: pointer;
+    padding: 12px 24px;
+    touch-action: manipulation;
+  }
+  body.flash::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    z-index: 30;
+    pointer-events: none;
+    animation: flashFade 0.4s ease-out;
+  }
+  @keyframes flashFade {
+    0%   { opacity: 0.85; }
+    100% { opacity: 0; }
+  }
+  #countdownNum {
+    font-size: 9pt;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 0 30px rgba(120,160,255,0.8);
+  }
+  #countdownNum.pulse {
+    animation: countdownPulse 1s cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+  @keyframes countdownPulse {
+    0%   { transform: scale(2.4); opacity: 0; letter-spacing: 10px; }
+    15%  { opacity: 1; }
+    35%  { transform: scale(0.9); }
+    45%  { transform: scale(1.08); }
+    60%  { transform: scale(1); }
+    80%  { opacity: 1; }
+    100% { transform: scale(1); opacity: 0.35; }
+  }
+  #gameOverScreen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(5,5,16,0.75);
+    z-index: 20;
+    text-align: center;
+    padding: 20px;
+    pointer-events: none;
+  }
+  #gameOverScreen.hidden { display: none; }
+  .goTitle {
+    font-size: 17px;
+    font-weight: 700;
+    color: #ff2d3d;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+    text-shadow: 0 0 20px rgba(255,45,61,0.7);
+  }
+  .goScore {
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: #eaf0ff;
+    margin-bottom: 30px;
+  }
+  .retryHint {
+    font-size: 12px;
+    color: #7ee8ff;
+    opacity: 0.85;
+    pointer-events: auto;
+    cursor: pointer;
+    padding: 12px 24px;
+    touch-action: manipulation;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+<div id="counter">LEVEL 0／SCORE 0<br><span class="spawnInfo">(1000ms)</span></div>
+
+<div id="overlay">
+  <div class="title">Smash Glass</div>
+  <div class="subtitle">10 glasses must not exist in this space.</div>
+  <div class="tapHint" id="tapHint">TAP TO START</div>
+  <div id="countdownNum" style="display:none;"></div>
+</div>
+
+<div id="gameOverScreen" class="hidden">
+  <div class="goTitle">GAME OVER</div>
+  <div class="goScore" id="goScoreText">LEVEL 0／SCORE 0<br><span class="spawnInfo">(1000ms)</span></div>
+  <div class="retryHint" id="retryHint">TAP TO RETRY</div>
+</div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, DPR;
+
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W * DPR;
+    canvas.height = H * DPR;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const counterEl = document.getElementById('counter');
+  const overlayEl = document.getElementById('overlay');
+  const tapHintEl = document.getElementById('tapHint');
+  const countdownNumEl = document.getElementById('countdownNum');
+  const gameOverEl = document.getElementById('gameOverScreen');
+  const goScoreText = document.getElementById('goScoreText');
+  const retryHintEl = document.getElementById('retryHint');
+
+  const HUES = [330, 0, 25, 50, 130, 185, 220, 275]; // ピンク,レッド,オレンジ,イエロー,グリーン,シアン,ブルー,パープル
+  const MAX_SQUARES = 25;
+  const BASE_SPAWN_INTERVAL = 1000; // ms (レベル0の出現間隔)
+  const SPAWN_STEP = 50; // ms、レベルアップごとに短縮
+  const MIN_SPAWN_INTERVAL = 250; // ms、これ以上は短くならない
+  const OVERFLOW_LIMIT = 10; // 同時に存在してはいけない数
+  const LEVEL_UP_BREAKS = 10; // 何回分裂させたらレベルアップか
+
+  let squares = [];
+  let particles = [];
+  let brokenCount = 0;
+  let level = 0;
+  let spawnTimer = 0;
+  let lastTime = 0;
+
+  // state: 'title' | 'countdown' | 'playing' | 'gameover'
+  let state = 'title';
+  let countdownSeq = [];
+  let countdownIndex = 0;
+  let countdownTimer = 0;
+
+  function rand(a, b){ return a + Math.random() * (b - a); }
+  function pick(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+  function currentSpawnInterval(){
+    return Math.max(MIN_SPAWN_INTERVAL, BASE_SPAWN_INTERVAL - level * SPAWN_STEP);
+  }
+
+  // --- 効果音(Web Audio APIで合成、外部ファイル不要) ---
+  // HUESの並び(ピンク,レッド,オレンジ,イエロー,グリーン,シアン,ブルー,パープル)に
+  // ド,レ,ミ,ファ,ソ,ラ,シ,ド(1オクターブ上)を対応させる
+  const SCALE_STEPS = [0, 2, 4, 5, 7, 9, 11, 12]; // ド レ ミ ファ ソ ラ シ ド(1oct上)
+  const BASE_NOTE_FREQ = 1046.50; // ド (C6、機械的な高音)
+
+  function noteFreqForHue(hueIndex){
+    const degree = hueIndex % HUES.length; // 0=ド 1=レ ... 6=シ 7=ド(1oct上)
+    const semitones = SCALE_STEPS[degree];
+    return BASE_NOTE_FREQ * Math.pow(2, semitones / 12);
+  }
+
+  let audioCtx = null;
+  function getAudioCtx(){
+    if (!audioCtx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) audioCtx = new AC();
+    }
+    if (audioCtx && audioCtx.state === 'suspended'){
+      audioCtx.resume();
+    }
+    return audioCtx;
+  }
+
+  function unlockAudio(){
+    const ac = getAudioCtx();
+    if (!ac) return;
+    // 無音バッファを1サンプル再生し、モバイルブラウザの自動再生制限を確実に解除する
+    const buffer = ac.createBuffer(1, 1, ac.sampleRate);
+    const src = ac.createBufferSource();
+    src.buffer = buffer;
+    src.connect(ac.destination);
+    src.start(0);
+  }
+
+  async function playBreakSound(hueIndex){
+    const ac = getAudioCtx();
+    if (!ac) return;
+    if (ac.state !== 'running'){
+      try { await ac.resume(); } catch(e) { /* noop */ }
+    }
+    playBreakSoundNow(ac, hueIndex);
+  }
+
+  function playBreakSoundNow(ac, hueIndex){
+    const now = ac.currentTime;
+    const freq = noteFreqForHue(hueIndex);
+
+    // 音階のトーン(スコアに対応したドレミファソラシド、機械的なビープ音、ごく控えめに)
+    const noteOsc = ac.createOscillator();
+    const noteGain = ac.createGain();
+    noteOsc.type = 'square';
+    noteOsc.frequency.setValueAtTime(freq, now);
+    noteGain.gain.setValueAtTime(0.001, now);
+    noteGain.gain.linearRampToValueAtTime(0.012, now + 0.005);
+    noteGain.gain.setValueAtTime(0.012, now + 0.09);
+    noteGain.gain.exponentialRampToValueAtTime(0.0005, now + 0.15);
+    noteOsc.connect(noteGain).connect(ac.destination);
+    noteOsc.start(now);
+    noteOsc.stop(now + 0.16);
+
+    // 高音のクリック(ガラスが弾ける瞬間、アタック感を足す)
+    const clickOsc = ac.createOscillator();
+    const clickGain = ac.createGain();
+    clickOsc.type = 'square';
+    clickOsc.frequency.setValueAtTime(freq * 2, now);
+    clickGain.gain.setValueAtTime(0.008, now);
+    clickGain.gain.exponentialRampToValueAtTime(0.0005, now + 0.04);
+    clickOsc.connect(clickGain).connect(ac.destination);
+    clickOsc.start(now);
+    clickOsc.stop(now + 0.05);
+
+    // ノイズバースト(砕ける質感、高音寄り・長めの余韻)
+    const bufferSize = Math.floor(ac.sampleRate * 0.6);
+    const buffer = ac.createBuffer(1, bufferSize, ac.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++){
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 1.3);
+    }
+    const noise = ac.createBufferSource();
+    noise.buffer = buffer;
+    const noiseFilter = ac.createBiquadFilter();
+    noiseFilter.type = 'highpass';
+    noiseFilter.frequency.value = rand(3200, 4200);
+    const noiseGain = ac.createGain();
+    noiseGain.gain.setValueAtTime(0.22, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+    noise.connect(noiseFilter).connect(noiseGain).connect(ac.destination);
+    noise.start(now);
+
+    // ガラス片のキラキラした高調波(バリーンという響きの核になる部分、より高音で長く余韻)
+    const shardFreqs = [freq * 4, freq * 6.5, freq * 9, freq * 12, freq * 15];
+    shardFreqs.forEach((sf, idx) => {
+      const shardOsc = ac.createOscillator();
+      const shardGain = ac.createGain();
+      shardOsc.type = 'sine';
+      const jitter = rand(-20, 20);
+      shardOsc.frequency.setValueAtTime(sf + jitter, now);
+      shardOsc.frequency.exponentialRampToValueAtTime((sf + jitter) * 0.75, now + 0.6);
+      const delay = idx * 0.015;
+      shardGain.gain.setValueAtTime(0.0001, now);
+      shardGain.gain.linearRampToValueAtTime(0.055, now + delay + 0.008);
+      shardGain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.6);
+      shardOsc.connect(shardGain).connect(ac.destination);
+      shardOsc.start(now);
+      shardOsc.stop(now + 0.65);
+    });
+  }
+
+  function spawnSquare(size, x, y, hue, tappable){
+    const speed = rand(0.35, 0.9) * 4.0;
+    const angle = rand(0, Math.PI * 2);
+    return {
+      x: x, y: y,
+      size: size,
+      vx: Math.cos(angle) * speed * 60,
+      vy: Math.sin(angle) * speed * 60,
+      rot: rand(0, Math.PI * 2),
+      rotSpeed: rand(-1.6, 1.6) * (tappable ? 1 : 1.6),
+      hue: hue,
+      pulsePhase: rand(0, Math.PI * 2),
+      tappable: tappable,
+      fadeAlpha: 1,
+      fadeDelay: tappable ? 0 : rand(500, 1100),
+      fadeTimer: 0,
+      fadeDuration: rand(500, 900)
+    };
+  }
+
+  function spawnWave(){
+    const size = rand(46, 78) * (W < 420 ? 0.85 : 1);
+    const margin = size;
+    const x = rand(margin, W - margin);
+    const y = rand(margin, H * 0.65);
+    const hueIndex = Math.floor(Math.random() * HUES.length);
+    squares.push(spawnSquare(size, x, y, hueIndex, true));
+  }
+
+  function breakSquare(sq){
+    const hue = sq.hue;
+    // particle burst
+    for (let i = 0; i < 14; i++){
+      const a = rand(0, Math.PI * 2);
+      const sp = rand(80, 320);
+      particles.push({
+        x: sq.x, y: sq.y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp,
+        size: rand(4, 10),
+        rot: rand(0, Math.PI * 2),
+        rotSpeed: rand(-8, 8),
+        hue: hue,
+        life: 1,
+        decay: rand(0.9, 1.6)
+      });
+    }
+
+    // 16 fragments (4x4 grid), 3x scatter speed, non-tappable, fade out
+    if (sq.size > 26){
+      const grid = 4;
+      const childSize = sq.size / grid;
+      for (let row = 0; row < grid; row++){
+        for (let col = 0; col < grid; col++){
+          const ox = (col - (grid - 1) / 2) / ((grid - 1) / 2);
+          const oy = (row - (grid - 1) / 2) / ((grid - 1) / 2);
+          const cx = sq.x + ox * (sq.size / 2) * 0.7;
+          const cy = sq.y + oy * (sq.size / 2) * 0.7;
+          const child = spawnSquare(childSize, cx, cy, hue, false);
+          child.vx += ox * rand(60, 140) * 3;
+          child.vy += oy * rand(60, 140) * 3;
+          squares.push(child);
+        }
+      }
+    }
+
+    brokenCount += 1;
+    if (brokenCount % LEVEL_UP_BREAKS === 0){
+      level += 1;
+    }
+    // playBreakSound(hue); // 効果音は無効化
+    updateCounterDisplay();
+  }
+
+  function updateCounterDisplay(){
+    counterEl.innerHTML = 'LEVEL ' + level + '／SCORE ' + brokenCount.toLocaleString() +
+      '<br><span class="spawnInfo">(' + currentSpawnInterval() + 'ms)</span>';
+  }
+
+  function pointInSquare(px, py, sq){
+    const dx = px - sq.x;
+    const dy = py - sq.y;
+    const cos = Math.cos(-sq.rot);
+    const sin = Math.sin(-sq.rot);
+    const lx = dx * cos - dy * sin;
+    const ly = dx * sin + dy * cos;
+    const half = sq.size / 2;
+    return Math.abs(lx) <= half && Math.abs(ly) <= half;
+  }
+
+  function handleTap(clientX, clientY){
+    if (state !== 'playing') return;
+    const rect = canvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+
+    for (let i = squares.length - 1; i >= 0; i--){
+      const sq = squares[i];
+      if (!sq.tappable) continue;
+      if (pointInSquare(x, y, sq)){
+        squares.splice(i, 1);
+        breakSquare(sq);
+        return;
+      }
+    }
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    handleTap(e.clientX, e.clientY);
+  });
+
+  tapHintEl.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    unlockAudio();
+    if (state === 'title'){
+      startCountdown();
+    }
+  });
+
+  retryHintEl.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    unlockAudio();
+    resetToTitle();
+  });
+
+  function playCountdownStep(){
+    const text = countdownSeq[countdownIndex];
+    countdownNumEl.textContent = text;
+    countdownNumEl.style.color = '#fff';
+    countdownNumEl.style.textShadow = '0 0 30px rgba(120,160,255,0.85)';
+
+    // アニメーション再トリガー
+    countdownNumEl.classList.remove('pulse');
+    void countdownNumEl.offsetWidth; // reflow
+    countdownNumEl.classList.add('pulse');
+
+    // STARTの瞬間は画面全体を軽くフラッシュ
+    if (text === 'START'){
+      document.body.classList.remove('flash');
+      void document.body.offsetWidth;
+      document.body.classList.add('flash');
+    }
+  }
+
+  function startCountdown(){
+    state = 'countdown';
+    countdownSeq = ['READY', '3', '2', '1', 'START'];
+    countdownIndex = 0;
+    countdownTimer = 0;
+    tapHintEl.style.display = 'none';
+    document.querySelector('#overlay .title').style.display = 'none';
+    document.querySelector('#overlay .subtitle').style.display = 'none';
+    countdownNumEl.style.display = 'block';
+    playCountdownStep();
+  }
+
+  function startPlaying(){
+    state = 'playing';
+    overlayEl.classList.add('hidden');
+    squares = [];
+    particles = [];
+    brokenCount = 0;
+    level = 0;
+    spawnTimer = 0;
+    updateCounterDisplay();
+    spawnWave();
+    spawnWave();
+  }
+
+  function triggerGameOver(){
+    state = 'gameover';
+    goScoreText.innerHTML = 'LEVEL ' + level + '／SCORE ' + brokenCount.toLocaleString() +
+      '<br><span class="spawnInfo">(' + currentSpawnInterval() + 'ms)</span>';
+    gameOverEl.classList.remove('hidden');
+  }
+
+  function resetToTitle(){
+    state = 'title';
+    squares = [];
+    particles = [];
+    brokenCount = 0;
+    level = 0;
+    updateCounterDisplay();
+    gameOverEl.classList.add('hidden');
+    overlayEl.classList.remove('hidden');
+    document.querySelector('#overlay .title').style.display = 'block';
+    document.querySelector('#overlay .subtitle').style.display = 'block';
+    tapHintEl.style.display = 'block';
+    countdownNumEl.style.display = 'none';
+  }
+
+  function update(dt){
+    if (state === 'countdown'){
+      countdownTimer += dt;
+      if (countdownTimer >= 1000){
+        countdownTimer -= 1000;
+        countdownIndex += 1;
+        if (countdownIndex >= countdownSeq.length){
+          startPlaying();
+        } else {
+          playCountdownStep();
+        }
+      }
+    }
+
+    // 背景演出: title / countdown / gameover でも正方形は動き続ける
+    spawnTimer += dt;
+    const tappableCount = squares.filter(s => s.tappable).length;
+    if (spawnTimer > currentSpawnInterval() && tappableCount < MAX_SQUARES){
+      spawnTimer = 0;
+      spawnWave();
+    }
+
+    if (state === 'playing' && tappableCount >= OVERFLOW_LIMIT){
+      triggerGameOver();
+    }
+
+    const t = dt / 1000;
+    for (let i = squares.length - 1; i >= 0; i--){
+      const sq = squares[i];
+      sq.x += sq.vx * t;
+      sq.y += sq.vy * t;
+      sq.rot += sq.rotSpeed * t;
+
+      const half = sq.size / 2;
+      if (sq.x - half < 0){ sq.x = half; sq.vx *= -1; }
+      if (sq.x + half > W){ sq.x = W - half; sq.vx *= -1; }
+      if (sq.y - half < 0){ sq.y = half; sq.vy *= -1; }
+      if (sq.y + half > H){ sq.y = H - half; sq.vy *= -1; }
+
+      sq.vx *= 0.999;
+      sq.vy *= 0.999;
+
+      if (!sq.tappable){
+        if (sq.fadeDelay > 0){
+          sq.fadeDelay -= dt;
+        } else {
+          sq.fadeTimer += dt;
+          sq.fadeAlpha = Math.max(0, 1 - sq.fadeTimer / sq.fadeDuration);
+          if (sq.fadeAlpha <= 0){
+            squares.splice(i, 1);
+          }
+        }
+      }
+    }
+
+    for (let i = particles.length - 1; i >= 0; i--){
+      const p = particles[i];
+      p.x += p.vx * t;
+      p.y += p.vy * t;
+      p.vx *= 0.93;
+      p.vy *= 0.93;
+      p.vy += 220 * t;
+      p.rot += p.rotSpeed * t;
+      p.life -= p.decay * t;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  function drawSquare(sq){
+    const pulse = 1 + Math.sin((performance.now()/1000) * 3 + sq.pulsePhase) * 0.03;
+    const half = (sq.size * pulse) / 2;
+    const alpha = sq.fadeAlpha !== undefined ? sq.fadeAlpha : 1;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(sq.x, sq.y);
+    ctx.rotate(sq.rot);
+
+    const hueIndex = sq.hue;
+    const hueA = HUES[hueIndex];
+    const hueB = HUES[(hueIndex + 1) % HUES.length];
+
+    const grad = ctx.createLinearGradient(-half, -half, half, half);
+    grad.addColorStop(0, `hsla(${hueA}, 90%, 55%, 0.95)`);
+    grad.addColorStop(1, `hsla(${hueB}, 90%, 55%, 0.95)`);
+
+    ctx.shadowColor = `hsla(${hueA}, 85%, 45%, 0.5)`;
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = sq.tappable ? 1.5 : 0.6;
+    ctx.strokeRect(-half, -half, half*2, half*2);
+
+    ctx.restore();
+  }
+
+  function drawParticle(p){
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot);
+    ctx.fillStyle = `hsla(${HUES[p.hue]}, 90%, 65%, 1)`;
+    ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+    ctx.restore();
+  }
+
+  function render(){
+    ctx.clearRect(0, 0, W, H);
+    for (const sq of squares) drawSquare(sq);
+    for (const p of particles) drawParticle(p);
+  }
+
+  function loop(ts){
+    if (!lastTime) lastTime = ts;
+    let dt = ts - lastTime;
+    lastTime = ts;
+    if (dt > 60) dt = 60;
+
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // initial squares
+  spawnWave();
+  spawnWave();
+
+  // AudioContextはページ読み込み時点で先に生成しておく(resumeはユーザー操作時に行う)
+  getAudioCtx();
+
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
