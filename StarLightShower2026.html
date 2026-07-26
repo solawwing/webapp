@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Star Light Shower 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink: #060812;
+    --ink-deep: #020306;
+    --paper: #f2ead9;
+    --ember: #ff8a4c;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html, body{
+    width:100%; height:100%;
+    background: var(--ink-deep);
+    overflow:hidden;
+    font-family: "BIZ UDPGothic", "Hiragino Kaku Gothic ProN", sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #sky{
+    position:fixed; inset:0;
+    display:block;
+    touch-action: manipulation;
+  }
+  .veil{
+    position:fixed; inset:0;
+    pointer-events:none;
+    background:
+      radial-gradient(ellipse at 50% 120%, rgba(255,140,80,0.05), transparent 60%),
+      linear-gradient(to top, rgba(0,0,0,0.35), transparent 30%);
+  }
+  #hud{
+    position:fixed;
+    top:0; left:0; right:0;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    padding: max(18px, env(safe-area-inset-top)) 20px 0 10px;
+    pointer-events:none;
+    color: var(--paper);
+    letter-spacing: 0.12em;
+  }
+  #title{
+    font-size: 11px;
+    font-weight: 700;
+    opacity: 0.6;
+    letter-spacing: 0.2em;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    line-height: 1.9;
+  }
+  #hint{
+    position:fixed;
+    left:0; right:0;
+    bottom: max(22px, env(safe-area-inset-bottom));
+    text-align:center;
+    color: var(--paper);
+    opacity: 0.4;
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    pointer-events:none;
+    transition: opacity 1.2s ease;
+  }
+  #hint.fade{ opacity: 0; }
+  #count{
+    font-size: 10px;
+    opacity: 0.55;
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="sky"></canvas>
+<div class="veil"></div>
+
+<div id="hud">
+  <div id="title">Star Light Shower 2026</div>
+  <div id="count">00</div>
+</div>
+<div id="hint">画面をタップして打ち上げる</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const canvas = document.getElementById('sky');
+  const ctx = canvas.getContext('2d');
+  const hint = document.getElementById('hint');
+  const countEl = document.getElementById('count');
+
+  let W, H, DPR;
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W * DPR;
+    canvas.height = H * DPR;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ---- 背景の星(最遠景・固定) ----
+  let stars = [];
+  function seedStars(){
+    const n = Math.round((W * H) / 9000);
+    stars = Array.from({ length: n }, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H * 0.75,
+      r: rand(0.4, 1.3),
+      phase: rand(0, Math.PI * 2),
+      speed: rand(0.008, 0.02),
+    }));
+  }
+  seedStars();
+  window.addEventListener('resize', seedStars);
+
+  // ---- 同系色パレット群 (HSLベースの色相ファミリー) ----
+  // それぞれの花火は一つの色相ファミリーから、少しずつ違う明度・彩度の
+  // 正方形火花を放つ。毎回ランダムに一つのファミリーを選ぶ。
+  const palettes = [
+    { name: 'ember',   hue: [12, 34],  sat: [80, 100], light: [52, 78] },  // 橙〜琥珀
+    { name: 'sakura',  hue: [325, 350],sat: [65, 95],  light: [58, 85] },  // 紅〜桜色
+    { name: 'kingyo',  hue: [190, 215],sat: [70, 95],  light: [50, 80] },  // 藍〜水色
+    { name: 'wakaba',  hue: [95, 130], sat: [45, 80],  light: [45, 75] },  // 若葉〜黄緑
+    { name: 'sumire',  hue: [255, 285],sat: [55, 90],  light: [55, 85] },  // 菫〜藤色
+    { name: 'kin',     hue: [42, 55],  sat: [80, 100], light: [55, 82] },  // 金〜山吹
+  ];
+
+  function rand(a, b){ return a + Math.random() * (b - a); }
+  function pick(arr){ return arr[(Math.random() * arr.length) | 0]; }
+
+  // ---- 形咲き用: 星の輪郭に沿った角度と半径倍率のリストを生成 ----
+  function starShapePoints(n){
+    const pts = [];
+    const spikes = 5;
+    for (let i = 0; i < n; i++){
+      const t = (i / n) * Math.PI * 2;
+      // 星型: 角度に応じて半径を outer/inner で振動させる
+      const k = (Math.cos(spikes * t) * 0.5 + 0.5);
+      const r = 0.45 + k * 0.55;
+      pts.push({ angle: t, r });
+    }
+    return pts;
+  }
+
+  // ---- パーティクル(正方形の火花) ----
+  class Spark {
+    constructor(x, y, angle, speed, hue, sat, light, size, life, depth){
+      this.x = x; this.y = y;
+      this.depth = depth; // 0(遠景)〜1(近景)
+      this.vx = Math.cos(angle) * speed;
+      this.vy = Math.sin(angle) * speed;
+      this.hue = hue; this.sat = sat; this.light = light;
+      this.size = size;
+      this.life = life;
+      this.maxLife = life;
+      this.rot = rand(0, Math.PI * 2);
+      this.vrot = rand(-0.15, 0.15);
+      this.gravity = (0.022 + Math.random() * 0.012) * (0.6 + depth * 0.5);
+      this.drag = 0.982 + Math.random() * 0.010;
+      this.flicker = rand(0, Math.PI * 2);
+      // キラキラ感: 粒子ごとに独立した高速の煌めき周期とランダム位相
+      this.sparklePhase = rand(0, Math.PI * 2);
+      this.sparkleSpeed = rand(2.8, 5.5);
+      this.sparkleThreshold = rand(0.6, 0.78); // この値を超えた瞬間だけ強く輝く(頻度アップ)
+    }
+    update(dt){
+      this.vx *= this.drag;
+      this.vy *= this.drag;
+      this.vy += this.gravity * dt;
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
+      this.rot += this.vrot * dt;
+      this.life -= dt;
+      this.flicker += 0.4 * dt;
+      this.sparklePhase += this.sparkleSpeed * dt;
+      return this.life > 0;
+    }
+    draw(ctx){
+      const t = this.life / this.maxLife; // 1 -> 0
+      const dim = 0.3 + this.depth * 0.7; // 遠いほど霞んで暗い
+      const baseAlpha = Math.max(0, t < 0.15 ? t / 0.15 : 1) * (0.75 + 0.25 * Math.sin(this.flicker)) * dim;
+
+      // 高速な煌めき波形(不規則な瞬きを作るため三角関数を2つ重ねる)
+      const sparkleWave = Math.sin(this.sparklePhase) * 0.5 + Math.sin(this.sparklePhase * 2.7 + 1.3) * 0.5;
+      const isSparkling = sparkleWave > this.sparkleThreshold;
+      const sparkleBoost = isSparkling ? (sparkleWave - this.sparkleThreshold) / (1 - this.sparkleThreshold) : 0;
+
+      const alpha = Math.min(1, baseAlpha + sparkleBoost * 0.9 * dim);
+      const s = this.size * (0.55 + 0.45 * t) * (1 + sparkleBoost * 0.7);
+      const light = this.light + (1 - t) * 14 - (1 - this.depth) * 8 + sparkleBoost * 34; // 煌めく瞬間は白に近づく
+      const sat = this.sat * (1 - sparkleBoost * 0.6); // 白飛びに近づけるため彩度を落とす
+
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(this.rot);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = `hsl(${this.hue}, ${Math.max(sat, 0)}%, ${Math.min(Math.max(light, 15), 96)}%)`;
+      ctx.shadowColor = isSparkling ? `hsl(${this.hue}, 40%, 90%)` : `hsl(${this.hue}, ${this.sat}%, 60%)`;
+      ctx.shadowBlur = s * (2.2 + sparkleBoost * 4.5) * (0.5 + this.depth * 0.7);
+      ctx.fillRect(-s / 2, -s / 2, s, s);
+      ctx.restore();
+    }
+  }
+
+  // ---- 打ち上げ〜開花のシーケンス ----
+  class Rocket {
+    constructor(x, targetY, depth){
+      this.depth = depth; // 0(遠景)〜1(近景)
+      this.x = x;
+      this.y = H + 10;
+      this.targetY = targetY;
+      const speedScale = 0.55 + depth * 0.65;
+      this.vy = -(rand(6.0, 8.0)) * speedScale;
+      this.vx = rand(-0.4, 0.4) * speedScale;
+      this.trail = [];
+      this.dead = false;
+      this.hue = rand(0, 360);
+    }
+    update(dt){
+      this.trail.push({ x: this.x, y: this.y, a: 1 });
+      const maxTrail = 8 + this.depth * 10;
+      if (this.trail.length > maxTrail) this.trail.shift();
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
+      this.vy += 0.035 * dt;
+      if (this.vy >= -1.5 || this.y <= this.targetY) {
+        this.dead = true;
+      }
+    }
+    draw(ctx){
+      const dim = 0.35 + this.depth * 0.65; // 遠いほど暗く霞む
+      const scale = 0.4 + this.depth * 0.8; // 遠いほど小さい
+      for (let i = 0; i < this.trail.length; i++) {
+        const p = this.trail[i];
+        const a = (i / this.trail.length) * 0.6 * dim;
+        ctx.save();
+        ctx.globalAlpha = a;
+        ctx.fillStyle = '#fff6e6';
+        const s = 3.2 * (i / this.trail.length) * scale;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(0.4);
+        ctx.fillRect(-s/2, -s/2, s, s);
+        ctx.restore();
+      }
+      ctx.save();
+      ctx.globalAlpha = 0.95 * dim;
+      ctx.fillStyle = '#fffaf0';
+      ctx.shadowColor = '#ffd9a0';
+      ctx.shadowBlur = 10 * scale;
+      ctx.translate(this.x, this.y);
+      const s2 = 4 * scale;
+      ctx.fillRect(-s2/2, -s2/2, s2, s2);
+      ctx.restore();
+    }
+  }
+
+  let rockets = [];
+  let sparks = [];
+  let flashes = []; // 開花時の中心閃光
+  let launchCount = 0;
+
+  function launch(xRatio, depthOverride){
+    const x = xRatio != null ? xRatio * W : rand(W * 0.1, W * 0.9);
+    // 奥行き: 0(遠景・小さい)〜1(近景・大きい)。遠景ほど高い位置で開花させ、
+    // 画面奥に連なる山並みのような遠近感を出す。
+    const depth = depthOverride != null ? depthOverride : Math.pow(Math.random(), 1.4);
+    const targetY = rand(H * 0.12, H * 0.30) + (1 - depth) * H * 0.06;
+    rockets.push(new Rocket(x, targetY, depth));
+  }
+
+  function bloomNormal(x, y, depth, paletteOverride){
+    const palette = paletteOverride || pick(palettes);
+    // 一発ごとに「基準の飛び散り方」をランダム化 — 菊咲き / 牡丹咲き / 乱れ咲き
+    const style = pick(['chrysanthemum', 'peony', 'willow']);
+
+    // たまに通常の2倍・3倍サイズの大玉を混ぜる(出現率は控えめに)
+    const roll = Math.random();
+    const scale = (roll < 0.08 ? 3 : (roll < 0.24 ? 2 : 1)) * (0.55 + depth * 0.6);
+
+    const count = Math.round((style === 'willow' ? rand(70, 95) : rand(90, 130)) * (0.4 + depth * 0.75) * (1 + (scale - 1) * 0.5));
+    const baseSpeed = (style === 'peony' ? rand(3.1, 4.1) : rand(2.3, 3.1)) * Math.sqrt(Math.max(scale, 0.4)) * (0.6 + depth * 0.5);
+
+    flashes.push({ x, y, life: 14, maxLife: 14, hue: rand(palette.hue[0], palette.hue[1]), scale: scale * (0.5 + depth * 0.6) });
+
+    for (let i = 0; i < count; i++){
+      // 均等な角度をベースに、各火花ごとに少しずつ角度をずらして
+      // 「飛び散る角度が一つ一つ違う」広がりを作る
+      const baseAngle = (i / count) * Math.PI * 2;
+      const angleJitter = rand(-0.22, 0.22); // 各粒子ごとの角度ブレ
+      const angle = baseAngle + angleJitter;
+
+      const speed = baseSpeed * rand(0.72, 1.15);
+      const hue = rand(palette.hue[0], palette.hue[1]);
+      const sat = rand(palette.sat[0], palette.sat[1]);
+      const light = rand(palette.light[0], palette.light[1]);
+      const size = rand(3.4, 6.2) * (1 + (scale - 1) * 0.22) * (0.45 + depth * 0.7);
+      const life = (style === 'willow' ? rand(110, 150) : rand(80, 115)) * (1 + (scale - 1) * 0.18);
+
+      const s = new Spark(x, y, angle, speed, hue, sat, light, size, life, depth);
+      if (style === 'willow') s.gravity *= 1.7; // 柳のように垂れ下がる
+      sparks.push(s);
+    }
+  }
+
+  // ---- 特別演出① 形咲き(ハート/星) ----
+  function bloomShape(x, y, depth){
+    const palette = pick(palettes);
+    const shapeFn = starShapePoints;
+    const count = Math.round(rand(140, 190) * (0.5 + depth * 0.7));
+    const points = shapeFn(count);
+    const baseSpeed = rand(1.6, 2.1) * (0.6 + depth * 0.5);
+
+    flashes.push({ x, y, life: 16, maxLife: 16, hue: rand(palette.hue[0], palette.hue[1]), scale: 1.4 * (0.5 + depth * 0.6) });
+
+    for (const p of points){
+      // 輪郭上の角度をベースに、粒子ごとに少しだけ角度をずらして自然な線に
+      const angle = p.angle + rand(-0.05, 0.05);
+      const speed = baseSpeed * p.r * rand(0.9, 1.05);
+      const hue = rand(palette.hue[0], palette.hue[1]);
+      const sat = rand(palette.sat[0], palette.sat[1]);
+      const light = rand(palette.light[0], palette.light[1]);
+      const size = rand(3.6, 6.0) * (0.45 + depth * 0.7);
+      const life = rand(95, 130);
+      sparks.push(new Spark(x, y, angle, speed, hue, sat, light, size, life, depth));
+    }
+  }
+
+  // ---- 特別演出② 虹色グラデーション(複数系統色を角度に沿って混在) ----
+  function bloomRainbow(x, y, depth){
+    const familyCount = Math.min(palettes.length, 5);
+    const families = [...palettes].sort(() => Math.random() - 0.5).slice(0, familyCount);
+    const style = pick(['chrysanthemum', 'peony']);
+    const count = Math.round(rand(150, 200) * (0.5 + depth * 0.7));
+    const baseSpeed = (style === 'peony' ? rand(3.6, 4.6) : rand(2.9, 3.8)) * (0.6 + depth * 0.5);
+
+    flashes.push({ x, y, life: 16, maxLife: 16, hue: rand(0, 360), scale: 1.6 * (0.5 + depth * 0.6) });
+
+    for (let i = 0; i < count; i++){
+      const baseAngle = (i / count) * Math.PI * 2;
+      const angle = baseAngle + rand(-0.22, 0.22);
+      const speed = baseSpeed * rand(0.72, 1.15);
+
+      // 角度に沿って色相ファミリーを連続的に切り替える(虹のグラデーション)
+      const familyIdx = Math.floor(((baseAngle / (Math.PI * 2)) * families.length)) % families.length;
+      const palette = families[familyIdx];
+      const hue = rand(palette.hue[0], palette.hue[1]);
+      const sat = rand(palette.sat[0], palette.sat[1]);
+      const light = rand(palette.light[0], palette.light[1]);
+      const size = rand(3.6, 6.2) * (0.45 + depth * 0.7);
+      const life = rand(85, 120);
+      sparks.push(new Spark(x, y, angle, speed, hue, sat, light, size, life, depth));
+    }
+  }
+
+  // ---- 特別演出③ 多段階(時間差二重咲き) ----
+  function bloomDouble(x, y, depth){
+    bloomNormal(x, y, depth); // 一段目はいつも通り
+    const delay = rand(400, 600);
+    setTimeout(() => {
+      // 二段目は少し大きめのスケールで同じ場所から
+      const palette = pick(palettes);
+      const style = pick(['chrysanthemum', 'peony']);
+      const count = Math.round(rand(110, 150) * (0.5 + depth * 0.7));
+      const baseSpeed = (style === 'peony' ? rand(4.2, 5.4) : rand(3.2, 4.2)) * (0.6 + depth * 0.5);
+
+      flashes.push({ x, y, life: 14, maxLife: 14, hue: rand(palette.hue[0], palette.hue[1]), scale: 1.8 * (0.5 + depth * 0.6) });
+
+      for (let i = 0; i < count; i++){
+        const baseAngle = (i / count) * Math.PI * 2;
+        const angle = baseAngle + rand(-0.22, 0.22);
+        const speed = baseSpeed * rand(0.72, 1.15);
+        const hue = rand(palette.hue[0], palette.hue[1]);
+        const sat = rand(palette.sat[0], palette.sat[1]);
+        const light = rand(palette.light[0], palette.light[1]);
+        const size = rand(4.2, 7.2) * (0.45 + depth * 0.7);
+        const life = rand(95, 130);
+        sparks.push(new Spark(x, y, angle, speed, hue, sat, light, size, life, depth));
+      }
+    }, delay);
+  }
+
+  // ---- 特別演出④ スターマイン(複数箇所でほぼ同時多発) ----
+  function bloomStarmine(x, y, depth){
+    const kinPalette = palettes.find(p => p.name === 'kin');
+    bloomNormal(x, y, depth, kinPalette); // トリガーとなった1発目
+    const extra = Math.round(rand(40, 70));
+    for (let i = 0; i < extra; i++){
+      const dx = rand(-W * 0.32, W * 0.32);
+      const nx = Math.min(Math.max(x + dx, W * 0.08), W * 0.92);
+      const nDepth = Math.pow(Math.random(), 1.4);
+      setTimeout(() => {
+        const ny = y + rand(-H * 0.05, H * 0.08);
+        bloomNormal(nx, ny, nDepth, kinPalette);
+        launchCount++;
+        countEl.textContent = String(launchCount).padStart(2, '0');
+      }, i * rand(18, 35));
+    }
+  }
+
+  function bloom(x, y, depth){
+    launchCount++;
+    countEl.textContent = String(launchCount).padStart(2, '0');
+
+    // 5回に1度、特別な花火を混ぜる
+    if (launchCount % 5 === 0){
+      pick([bloomShape, bloomRainbow, bloomDouble, bloomStarmine])(x, y, depth);
+      return;
+    }
+    bloomNormal(x, y, depth);
+  }
+
+  // ---- メインループ ----
+  let last = performance.now();
+  function frame(now){
+    const dt = Math.min(2.2, (now - last) / 16.6667);
+    last = now;
+
+    // 夜空をうっすら残像を残しつつ徐々に暗く戻す(トレイル効果)
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';
+    ctx.fillRect(0, 0, W, H);
+
+    // 最遠景の星(微かに瞬く)
+    for (let i = 0; i < stars.length; i++){
+      const st = stars[i];
+      st.phase += st.speed * dt;
+      const tw = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(st.phase));
+      ctx.save();
+      ctx.globalAlpha = tw * 0.5;
+      ctx.fillStyle = '#eef1ff';
+      ctx.fillRect(st.x, st.y, st.r, st.r);
+      ctx.restore();
+    }
+
+    // ロケット(打ち上げ中の火の玉)
+    for (let i = rockets.length - 1; i >= 0; i--){
+      const r = rockets[i];
+      r.update(dt);
+      r.draw(ctx);
+      if (r.dead){
+        bloom(r.x, r.y, r.depth);
+        rockets.splice(i, 1);
+      }
+    }
+
+    // 中心閃光
+    for (let i = flashes.length - 1; i >= 0; i--){
+      const f = flashes[i];
+      f.life -= dt;
+      const t = f.life / f.maxLife;
+      if (t <= 0){ flashes.splice(i, 1); continue; }
+      ctx.save();
+      ctx.globalAlpha = t * 0.8;
+      const flashR = 60 * (f.scale || 1) * (1 - t * 0.3);
+      const grad = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, flashR);
+      grad.addColorStop(0, `hsla(${f.hue}, 90%, 90%, 0.9)`);
+      grad.addColorStop(1, `hsla(${f.hue}, 90%, 70%, 0)`);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, flashR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 火花(正方形)
+    for (let i = sparks.length - 1; i >= 0; i--){
+      const s = sparks[i];
+      const alive = s.update(dt);
+      if (!alive){ sparks.splice(i, 1); continue; }
+      s.draw(ctx);
+    }
+
+    // 上限管理(パフォーマンス保護)
+    if (sparks.length > 9500) sparks.splice(0, sparks.length - 9500);
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---- 入力 ----
+  function handlePointer(clientX){
+    const ratio = clientX / W;
+    launch(ratio, rand(0.75, 1)); // タップは主役として手前に打ち上げる
+    hint.classList.add('fade');
+  }
+  canvas.addEventListener('pointerdown', (e) => {
+    handlePointer(e.clientX);
+  });
+
+  // 起動直後、少し寂しいので最初の一発を自動で
+  setTimeout(() => launch(0.5, rand(0.7, 1)), 700);
+  setTimeout(() => launch(0.3, rand(0.2, 0.5)), 1600);
+
+  // 0.5秒〜3秒のランダムな周期で自動打ち上げし続ける
+  function scheduleAutoLaunch(){
+    const delay = rand(500, 3000);
+    setTimeout(() => {
+      launch();
+      scheduleAutoLaunch();
+    }, delay);
+  }
+  scheduleAutoLaunch();
+
+})();
+</script>
+</body>
+</html>
