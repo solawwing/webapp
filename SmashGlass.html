@@ -600,11 +600,11 @@
     const hueB = HUES[(hueIndex + 1) % HUES.length];
 
     const grad = ctx.createLinearGradient(-half, -half, half, half);
-    grad.addColorStop(0, `hsla(${hueA}, 90%, 55%, 0.95)`);
-    grad.addColorStop(1, `hsla(${hueB}, 90%, 55%, 0.95)`);
+    grad.addColorStop(0, `hsla(${hueA}, 100%, 72%, 1)`);
+    grad.addColorStop(1, `hsla(${hueB}, 100%, 72%, 1)`);
 
-    ctx.shadowColor = `hsla(${hueA}, 85%, 45%, 0.5)`;
-    ctx.shadowBlur = 8;
+    ctx.shadowColor = `hsla(${hueA}, 100%, 65%, 0.75)`;
+    ctx.shadowBlur = 14;
     ctx.strokeStyle = grad;
     ctx.lineWidth = sq.tappable ? 1.5 : 0.6;
     ctx.strokeRect(-half, -half, half*2, half*2);
