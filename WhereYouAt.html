@@ -546,13 +546,30 @@
 
   const tickerTrack = document.getElementById('tickerTrack');
 
+  let lastTickerKey = null; // 直近表示した駅の並び順(名前ベース)を記録し、変化がなければアニメーションを再スタートさせない
+
   function updateTicker(nearby){
     if(!nearby || nearby.length === 0){
+      lastTickerKey = null;
       tickerTrack.innerHTML = '<span class="tickerEmpty">周辺2km以内に駅が見つかりません</span>';
       tickerTrack.style.animation = 'none';
       return;
     }
     const top3 = nearby.slice().sort((a,b)=> a.dist - b.dist).slice(0, 3);
+    const key = top3.map(s => s.name).join('|');
+
+    if(key === lastTickerKey){
+      // 駅の並び順に変化なし: アニメーションを止めずに距離・徒歩分の数字だけ更新する
+      const distEls = tickerTrack.querySelectorAll('.tDist');
+      const total = top3.length;
+      distEls.forEach((el, i)=>{
+        const s = top3[i % total];
+        const walkMin = Math.round(s.dist / 80);
+        el.innerHTML = `${Math.round(s.dist)}<span class="tUnit">m(徒歩</span>${walkMin}<span class="tUnit">分)</span>`;
+      });
+      return;
+    }
+    lastTickerKey = key;
 
     const circledNumbers = ['①', '②', '③'];
     const itemsHtml = top3.map((s, idx)=>{
