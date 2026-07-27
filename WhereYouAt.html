@@ -123,8 +123,8 @@
   .pulse-ring{
     position:absolute;
     top:50%; left:50%;
-    width:18px; height:18px;
-    margin-top:-9px; margin-left:-9px;
+    width:54px; height:54px;
+    margin-top:-27px; margin-left:-27px;
     border-radius:50%;
     background: currentColor;
     box-sizing:border-box;
@@ -358,11 +358,11 @@
     return L.divIcon({
       className: '',
       html: `
-        <div style="position:relative; width:60px; height:60px; display:flex; align-items:center; justify-content:center;">
+        <div style="position:relative; width:160px; height:160px; display:flex; align-items:center; justify-content:center;">
           <div class="pulse-ring" style="color:${color};"></div>
         </div>`,
-      iconSize: [60,60],
-      iconAnchor: [30,30]
+      iconSize: [160,160],
+      iconAnchor: [80,80]
     });
   }
 
