@@ -193,6 +193,65 @@
     return { x, y, scale };
   }
 
+  // ---- 道路脇にたまに現れる、とんがったワイヤーフレームの木 ----
+  const treeList = [];
+  let treeGenZ = 0;
+  function ensureTrees(maxZ){
+    while(treeGenZ < maxZ){
+      const i = treeList.length + Math.floor(treeGenZ) + 1;
+      const gap = 45 + hash(i * 3.7 + 21) * 95; // 候補地点の間隔（世界単位）
+      treeGenZ += gap;
+      const spawn = hash(i * 5.3 + 37) < 0.38;   // 38%の確率でのみ出現＝「たまに」
+      if(spawn){
+        const side = hash(i * 2.9 + 41) < 0.5 ? -1 : 1;
+        const extra = 2.5 + hash(i * 4.1 + 53) * 4.5;   // 道端からの追加オフセット
+        const height = 3.2 + hash(i * 6.5 + 61) * 3.2;  // 木の高さ（世界単位）
+        const baseHalf = 0.8 + hash(i * 7.3 + 67) * 0.7; // 底辺の半幅（とんがった二等辺三角形）
+        treeList.push({ z: treeGenZ, side, extra, height, baseHalf });
+      }
+    }
+    // 通り過ぎた古い木を間引く（軽量化）
+    while(treeList.length > 400 && treeList[0].z < treeGenZ - drawDist - 200){
+      treeList.shift();
+    }
+  }
+  function drawTrees(scrollZ, camX, camY, horizonY){
+    ensureTrees(scrollZ + drawDist + 20);
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.shadowColor = '#c98cff';
+    for(const t of treeList){
+      const z = t.z - scrollZ;
+      if(z < 0 || z > drawDist) continue;
+      const widthMul = widthMulNear + (widthMulFar - widthMulNear) * (z / drawDist);
+      const roadCenter = lateralAt(t.z) - camX;
+      const edgeOffset = roadHalfWidth * widthMul;
+      const xCenter = roadCenter + t.side * (edgeOffset + t.extra);
+      const relHeightGround = hillAt(t.z) - camY;
+
+      const pBaseL = project(z, xCenter - t.baseHalf, relHeightGround, horizonY);
+      const pBaseR = project(z, xCenter + t.baseHalf, relHeightGround, horizonY);
+      const pApex  = project(z, xCenter, relHeightGround + t.height, horizonY);
+      if(pApex.y < horizonY - 0.5) continue;
+
+      const nearness = 1 - z / drawDist; // 0(遠い)〜1(近い)
+      const alpha = Math.max(0, Math.min(1, nearness * 1.3));
+      if(alpha <= 0.02) continue;
+
+      ctx.beginPath();
+      ctx.moveTo(pApex.x, pApex.y);
+      ctx.lineTo(pBaseR.x, pBaseR.y);
+      ctx.lineTo(pBaseL.x, pBaseL.y);
+      ctx.closePath();
+      ctx.strokeStyle = 'rgba(190,140,255,' + (0.15 + 0.75 * alpha) + ')';
+      ctx.shadowBlur = 10 + 10 * alpha;
+      ctx.lineWidth = 1 + 1.2 * alpha;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   function draw(now){
     const dt = Math.min((now - last) / 1000, 0.05);
     last = now;
@@ -245,7 +304,12 @@
     ctx.save();
     ctx.shadowColor = '#00e5ff';
     ctx.shadowBlur = 18;
-    ctx.strokeStyle = 'rgba(140,235,255,0.95)';
+    const horizonGrad = ctx.createLinearGradient(0, 0, W, 0);
+    horizonGrad.addColorStop(0,    'rgba(140,235,255,0)');
+    horizonGrad.addColorStop(0.18, 'rgba(140,235,255,0.95)');
+    horizonGrad.addColorStop(0.82, 'rgba(140,235,255,0.95)');
+    horizonGrad.addColorStop(1,    'rgba(140,235,255,0)');
+    ctx.strokeStyle = horizonGrad;
     ctx.lineWidth = 1.4;
     ctx.beginPath();
     ctx.moveTo(0, horizonY);
@@ -256,6 +320,8 @@
     ctx.save();
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
+
+    drawTrees(scrollZ, camX, camY, horizonY);
 
     for(const side of [-1, 1]){
       ctx.beginPath();
@@ -274,18 +340,20 @@
       }
 
       const grad = ctx.createLinearGradient(0, horizonY, 0, H);
-      grad.addColorStop(0,    'rgba(30,255,110,0.12)');
-      grad.addColorStop(0.22, 'rgba(30,255,110,0.65)');
-      grad.addColorStop(1,    'rgba(140,255,170,1)');
+      grad.addColorStop(0,    'rgba(20,180,90,0.10)');
+      grad.addColorStop(0.22, 'rgba(25,255,110,0.55)');
+      grad.addColorStop(0.6,  'rgba(70,255,140,0.85)');
+      grad.addColorStop(1,    'rgba(210,255,225,1)');
 
       const coreGrad = ctx.createLinearGradient(0, horizonY, 0, H);
-      coreGrad.addColorStop(0,   'rgba(225,255,235,0.1)');
-      coreGrad.addColorStop(0.22,'rgba(225,255,235,0.6)');
-      coreGrad.addColorStop(1,   'rgba(225,255,235,0.9)');
+      coreGrad.addColorStop(0,   'rgba(225,255,235,0.08)');
+      coreGrad.addColorStop(0.22,'rgba(225,255,235,0.45)');
+      coreGrad.addColorStop(0.6, 'rgba(230,255,240,0.75)');
+      coreGrad.addColorStop(1,   'rgba(255,255,255,1)');
 
       ctx.strokeStyle = grad;
       ctx.shadowColor = '#25ff7a';
-      ctx.shadowBlur = 22;
+      ctx.shadowBlur = 26;
       ctx.lineWidth = 3;
       ctx.stroke();
 
