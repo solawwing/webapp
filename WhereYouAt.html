@@ -333,6 +333,8 @@
 
   let marker = null;
   let accCircle = null;
+  let radiusCircleNear = null; // 半径1km
+  let radiusCircleFar = null;  // 半径2km
 
   function updateMap(lat, lng, accuracy, altitude){
     const latlng = [lat, lng];
@@ -344,6 +346,18 @@
         color: color, weight:1, opacity:.4,
         fillColor: color, fillOpacity:.08
       }).addTo(map);
+
+      radiusCircleNear = L.circle(latlng, {
+        radius: STATION_RADIUS_NEAR,
+        color: COLOR_NEAR, weight:2, opacity:.8,
+        fill:false, dashArray:'6,6'
+      }).addTo(map);
+      radiusCircleFar = L.circle(latlng, {
+        radius: STATION_RADIUS_FAR,
+        color: COLOR_FAR, weight:2, opacity:.8,
+        fill:false, dashArray:'6,6'
+      }).addTo(map);
+
       // 初期表示: 半径3km(直径6km)が画面に収まるように表示
       const bounds = L.latLng(latlng).toBounds(6000); // 一辺6kmの正方形
       map.fitBounds(bounds);
@@ -353,6 +367,8 @@
       accCircle.setLatLng(latlng);
       accCircle.setRadius(accuracy || 0);
       accCircle.setStyle({ color: color, fillColor: color });
+      radiusCircleNear.setLatLng(latlng);
+      radiusCircleFar.setLatLng(latlng);
       if(followMe) map.panTo(latlng, { animate:true });
     }
   }
