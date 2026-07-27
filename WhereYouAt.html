@@ -344,7 +344,9 @@
         color: color, weight:1, opacity:.4,
         fillColor: color, fillOpacity:.08
       }).addTo(map);
-      map.setView(latlng, 17);
+      // 初期表示: 半径5km(直径10km)が画面に収まるように表示
+      const bounds = L.latLng(latlng).toBounds(10000); // 一辺10kmの正方形
+      map.fitBounds(bounds);
     } else {
       marker.setLatLng(latlng);
       marker.setIcon(makePosIcon(color));
