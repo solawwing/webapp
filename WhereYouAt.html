@@ -58,10 +58,10 @@
     align-items:center;
     white-space:nowrap;
     will-change: transform;
-    animation: ticker-scroll 16s linear infinite;
+    animation: none;
   }
   .tickerTrack .tickerEmpty{
-    color:var(--ink-dim);
+    color:#ff2df2;
     font-size:11px;
     letter-spacing:.1em;
     padding-left:18px;
@@ -77,8 +77,8 @@
     color:#ff9d1f;
     text-shadow:0 0 4px currentColor;
   }
-  .tickerItem .tName{ font-weight:700; }
-  .tickerItem .tDist{ color:var(--ink-dim); font-size:10px; }
+  .tickerItem .tName{ font-weight:700; font-size:14px; }
+  .tickerItem .tDist{ color:#22e5e5; font-size:10px; }
   .tickerItem .tSep{ color:var(--line); padding:0 10px; }
   @keyframes ticker-scroll{
     0%   { transform: translateX(0); }
