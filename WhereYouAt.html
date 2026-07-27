@@ -122,11 +122,14 @@
   }
   .pulse-ring{
     position:absolute;
+    top:50%; left:50%;
     width:56px; height:56px;
+    margin-top:-28px; margin-left:-28px;
     border-radius:50%;
     border:2px solid;
     box-sizing:border-box;
     animation: ripple 2.2s ease-out infinite;
+    transform-origin: center center;
   }
   .pulse-ring-delay{
     animation-delay: 1.1s;
@@ -355,11 +358,13 @@
   let accCircle = null;
   let radiusCircleNear = null; // 半径1km
   let radiusCircleFar = null;  // 半径2km
+  let currentMarkerColor = null;
 
   function updateMap(lat, lng, accuracy, altitude){
     const latlng = [lat, lng];
     const color = colorForAltitude(altitude);
     if(!marker){
+      currentMarkerColor = color;
       marker = L.marker(latlng, { icon: makePosIcon(color), interactive:false }).addTo(map);
       accCircle = L.circle(latlng, {
         radius: accuracy || 0,
@@ -383,7 +388,11 @@
       map.fitBounds(bounds);
     } else {
       marker.setLatLng(latlng);
-      marker.setIcon(makePosIcon(color));
+      // 色が変わった時だけアイコンを再生成する(毎回作り直すとCSSアニメーションがリセットされ続けてしまうため)
+      if(color !== currentMarkerColor){
+        marker.setIcon(makePosIcon(color));
+        currentMarkerColor = color;
+      }
       accCircle.setLatLng(latlng);
       accCircle.setRadius(accuracy || 0);
       accCircle.setStyle({ color: color, fillColor: color });
