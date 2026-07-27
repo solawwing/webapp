@@ -80,8 +80,7 @@
   .tickerItem .tName{ font-weight:400; font-size:14px; color:#FF0000; margin-right:6px; }
   .tickerItem .tDist{ color:#22e5e5; font-size:14px; margin-left:6px; }
   .tickerItem .tDist .tUnit{ font-size:9px; }
-  .tickerItem .tDist.near-blink,
-  .tickerItem .tDist.near-blink .tUnit{
+  .tickerItem.near-blink{
     animation: dist-blink 0.8s step-start infinite;
   }
   @keyframes dist-blink{
@@ -604,12 +603,16 @@
 
     if(key === lastTickerKey){
       // 駅の並び順に変化なし: アニメーションを止めずに距離・徒歩分の数字だけ更新する
+      const itemEls = tickerTrack.querySelectorAll('.tickerItem');
       const distEls = tickerTrack.querySelectorAll('.tDist');
       const total = top3.length;
       distEls.forEach((el, i)=>{
         const s = top3[i % total];
         const walkMin = Math.round(s.dist / 80);
         el.innerHTML = `${Math.round(s.dist)}<span class="tUnit">m(徒歩</span>${walkMin}<span class="tUnit">分)</span>`;
+      });
+      itemEls.forEach((el, i)=>{
+        const s = top3[i % total];
         el.classList.toggle('near-blink', s.dist <= 50);
       });
       return;
@@ -626,7 +629,7 @@
       const blinkClass = s.dist <= 50 ? ' near-blink' : '';
       const distText = `${Math.round(s.dist)}<span class="tUnit">m(徒歩</span>${walkMin}<span class="tUnit">分)</span>`;
       const num = '<span class="tSep">' + circledNumbers[idx % circledNumbers.length] + '</span>';
-      return `<span class="tickerItem">${num}${nearestTag}<span class="tName">${s.name}駅</span>${lineText}<span class="tDist${blinkClass}">${distText}</span></span>`;
+      return `<span class="tickerItem${blinkClass}">${num}${nearestTag}<span class="tName">${s.name}駅</span>${lineText}<span class="tDist">${distText}</span></span>`;
     }).join('');
 
     // シームレスループのため2回連結
