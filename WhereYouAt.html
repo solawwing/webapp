@@ -591,7 +591,7 @@
 
     if(!nearestArrowLine){
       nearestArrowLine = L.polyline([originLatLng, midPoint], {
-        color: '#39FF14', weight: 2, opacity: 0.85
+        color: '#00FFFF', weight: 2, opacity: 0.85
       }).addTo(map);
     } else {
       nearestArrowLine.setLatLngs([originLatLng, midPoint]);
@@ -606,7 +606,7 @@
 
     const arrowIcon = L.divIcon({
       className: '',
-      html: `<div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:12px solid #39FF14;transform:rotate(${angleDeg}deg);transform-origin:center center;"></div>`,
+      html: `<div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:12px solid #00FFFF;transform:rotate(${angleDeg}deg);transform-origin:center center;"></div>`,
       iconSize: [12, 12],
       iconAnchor: [6, 6]
     });
