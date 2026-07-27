@@ -364,11 +364,22 @@
   let followMe = true;
 
   // --- 精度フィルタ & 移動平均 ---
-  const MAX_ACCEPT_ACCURACY = 50; // これより精度(誤差半径)が悪い測位は棄却 [m]
+  const MAX_ACCEPT_ACCURACY = 100; // これより精度(誤差半径)が悪い測位は棄却 [m]
+  const FORCE_ACCEPT_AFTER = 5;    // 悪い精度でも連続でこの回数棄却したら強制採用
   const SMOOTH_WINDOW = 5;        // 移動平均に使う直近サンプル数
   let recentFixes = [];           // { lat, lng, accuracy } の履歴
+  let rejectStreak = 0;           // 精度不足で連続棄却した回数
 
   function smoothedPosition(lat, lng, accuracy){
+    // 直近の平均から大きく離れた場合は「移動した」とみなし履歴をリセット(古い位置に引きずられて動きが鈍く見える問題の対策)
+    if(recentFixes.length > 0){
+      const last = recentFixes[recentFixes.length - 1];
+      const jump = L.latLng(lat, lng).distanceTo([last.lat, last.lng]);
+      if(jump > 100){
+        recentFixes = [];
+      }
+    }
+
     recentFixes.push({ lat, lng, accuracy });
     if(recentFixes.length > SMOOTH_WINDOW) recentFixes.shift();
 
@@ -603,13 +614,15 @@
   function onPosition(pos){
     const c = pos.coords;
 
-    // 精度の悪い測位は棄却(表示は更新するが座標には使わない)
-    if(c.accuracy != null && c.accuracy > MAX_ACCEPT_ACCURACY){
+    // 精度の悪い測位は原則棄却するが、一定回数連続したら強制的に採用する(GPSが止まって見える問題の対策)
+    if(c.accuracy != null && c.accuracy > MAX_ACCEPT_ACCURACY && rejectStreak < FORCE_ACCEPT_AFTER){
+      rejectStreak++;
       dot.className = 'dot low';
       statusText.textContent = '精度低(除外 ' + Math.round(c.accuracy) + 'm)';
       accVal.innerHTML = Math.round(c.accuracy) + '<span class="unit">m</span>';
       return;
     }
+    rejectStreak = 0;
 
     dot.className = 'dot live';
     statusText.textContent = '受信中';
@@ -654,6 +667,7 @@
       return;
     }
     recentFixes = [];
+    rejectStreak = 0;
     dot.className = 'dot';
     statusText.textContent = '取得中…';
     watchId = navigator.geolocation.watchPosition(onPosition, onError, {
