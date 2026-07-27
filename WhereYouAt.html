@@ -601,8 +601,15 @@
     const top3 = nearby.slice().sort((a,b)=> a.dist - b.dist).slice(0, 3);
     const key = top3.map(s => s.name).join('|');
 
+    function formatLineName(lines){
+      if(!lines || lines.length === 0) return '';
+      let joined = lines.slice(0,2).join('/') + (lines.length > 2 ? '他' : '');
+      if(joined.length > 10) joined = joined.slice(0, 9) + '‥';
+      return joined;
+    }
+
     if(key === lastTickerKey){
-      // 駅の並び順に変化なし: アニメーションを止めずに距離・徒歩分の数字だけ更新する
+      // 駅の並び順に変化なし: アニメーションを止めずに距離・徒歩分の数字、路線名だけを更新する
       const itemEls = tickerTrack.querySelectorAll('.tickerItem');
       const distEls = tickerTrack.querySelectorAll('.tDist');
       const total = top3.length;
@@ -614,6 +621,21 @@
       itemEls.forEach((el, i)=>{
         const s = top3[i % total];
         el.classList.toggle('near-blink', s.dist <= 50);
+
+        // 路線名は後から非同期で届くことがあるため、既存要素の有無に関わらず反映する
+        const lineNameJoined = formatLineName(s.lines);
+        let lineEl = el.querySelector('.tLine');
+        if(lineNameJoined){
+          if(!lineEl){
+            lineEl = document.createElement('span');
+            lineEl.className = 'tLine';
+            const nameEl = el.querySelector('.tName');
+            if(nameEl) nameEl.insertAdjacentElement('afterend', lineEl);
+          }
+          lineEl.textContent = lineNameJoined;
+        } else if(lineEl){
+          lineEl.remove();
+        }
       });
       return;
     }
@@ -621,14 +643,8 @@
 
     const circledNumbers = ['①', '②', '③'];
     const itemsHtml = top3.map((s, idx)=>{
-      let lineText = '';
-      if(s.lines && s.lines.length > 0){
-        let lineNameJoined = s.lines.slice(0,2).join('/') + (s.lines.length > 2 ? '他' : '');
-        if(lineNameJoined.length > 10){
-          lineNameJoined = lineNameJoined.slice(0, 9) + '‥';
-        }
-        lineText = '<span class="tLine">' + lineNameJoined + '</span>';
-      }
+      const lineNameJoined = formatLineName(s.lines);
+      const lineText = lineNameJoined ? '<span class="tLine">' + lineNameJoined + '</span>' : '';
       const walkMin = Math.round(s.dist / 80); // 徒歩1分=80mとして換算(整数)
       const nearestTag = idx === 0 ? '<span class="tNearest">(最寄り駅)</span>' : '';
       const blinkClass = s.dist <= 50 ? ' near-blink' : '';
