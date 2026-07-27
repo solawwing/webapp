@@ -151,7 +151,8 @@
   }
   .statusFoot{
     flex:0 0 auto;
-    padding:8px 18px max(8px, env(safe-area-inset-bottom));
+    padding:8px 18px;
+    padding-bottom:calc(8px + env(safe-area-inset-bottom));
     border-top:1px solid var(--line);
     background:var(--panel);
   }
@@ -271,13 +272,18 @@
     background:rgba(14,18,16,.85) !important;
     color:var(--brass) !important;
     border-color:var(--line) !important;
+    font-family: var(--mono) !important;
   }
   .leaflet-control-attribution{
     background:rgba(14,18,16,.7) !important;
     color:var(--ink-dim) !important;
     font-size:9px !important;
+    font-family: var(--mono) !important;
   }
   .leaflet-control-attribution a{ color:var(--brass-dim) !important; }
+  .leaflet-container{
+    font-family: var(--mono) !important;
+  }
 
   /* crosshair decoration */
   .mark{
