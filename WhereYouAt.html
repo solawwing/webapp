@@ -77,11 +77,12 @@
     color:#ff9d1f;
     text-shadow:0 0 4px currentColor;
   }
-  .tickerItem .tName{ font-weight:400; font-size:14px; color:#FF0000; }
+  .tickerItem .tName{ font-weight:400; font-size:14px; color:#FFFFFF; }
   .tickerItem .tDist{ color:#22e5e5; font-size:10px; }
+  .tickerItem .tDist .tNum{ font-size:12px; }
   .tickerItem .tLine{ color:#FF9D1F; font-size:9px; }
   .tickerItem .tSep{ color:var(--line); padding:0 10px; }
-  .tickerItem .tNearest{ color:#FFFFFF; font-size:9px; }
+  .tickerItem .tNearest{ color:#39FF14; font-size:14px; }
   @keyframes ticker-scroll{
     0%   { transform: translateX(0); }
     100% { transform: translateX(-50%); }
@@ -208,15 +209,14 @@
     flex-direction:column;
     gap:4px;
   }
-  .row{
-    position:relative;
-  }
-  .coordLine{
-    display:flex;
-    gap:16px;
+  .coordGrid{
+    display:grid;
+    grid-template-columns: auto 1fr;
+    align-items:center;
+    row-gap:6px;
+    column-gap:16px;
   }
   .coordItem{
-    flex:1;
     display:flex;
     align-items:center;
     gap:8px;
@@ -303,32 +303,30 @@
     </div>
 
     <div class="coords">
-      <div class="row">
-        <div class="coordLine">
-          <div class="coordItem">
-            <span class="clabel">LAT <span class="hemi" id="latHemi">—</span><br><span class="hemiJa" id="latHemiJa">—</span></span>
-            <span class="value" id="latVal">--.------°</span>
+      <div class="coordGrid">
+        <div class="coordItem">
+          <span class="clabel">LAT <span class="hemi" id="latHemi">—</span><br><span class="hemiJa" id="latHemiJa">—</span></span>
+          <span class="value" id="latVal">--.------°</span>
+        </div>
+        <div class="grid">
+          <div class="cell">
+            <div class="clabel">精度</div>
+            <div class="cval" id="accVal">--<span class="unit">m</span></div>
           </div>
-          <div class="coordItem">
-            <span class="clabel">LNG <span class="hemi" id="lngHemi">—</span><br><span class="hemiJa" id="lngHemiJa">—</span></span>
-            <span class="value" id="lngVal">--.------°</span>
+          <div class="cell">
+            <div class="clabel">高度</div>
+            <div class="cval" id="altVal">--<span class="unit">m</span></div>
+          </div>
+          <div class="cell">
+            <div class="clabel">速度</div>
+            <div class="cval" id="spdVal">--<span class="unit">km/h</span></div>
           </div>
         </div>
-      </div>
-
-      <div class="grid">
-        <div class="cell">
-          <div class="clabel">精度</div>
-          <div class="cval" id="accVal">--<span class="unit">m</span></div>
+        <div class="coordItem">
+          <span class="clabel">LNG <span class="hemi" id="lngHemi">—</span><br><span class="hemiJa" id="lngHemiJa">—</span></span>
+          <span class="value" id="lngVal">--.------°</span>
         </div>
-        <div class="cell">
-          <div class="clabel">高度</div>
-          <div class="cval" id="altVal">--<span class="unit">m</span></div>
-        </div>
-        <div class="cell">
-          <div class="clabel">速度</div>
-          <div class="cval" id="spdVal">--<span class="unit">km/h</span></div>
-        </div>
+        <div></div>
       </div>
 
       <div class="msg" id="msg"></div>
@@ -555,7 +553,8 @@
         : '';
       const walkMin = Math.round(s.dist / 80); // 徒歩1分=80mとして換算(整数)
       const nearestTag = idx === 0 ? '<span class="tNearest">(最寄り駅)</span>' : '';
-      return `<span class="tickerItem">${nearestTag}<span class="tName">${s.name}駅</span>${lineText}<span class="tDist">${Math.round(s.dist)}m(徒歩${walkMin}分)</span></span><span class="tSep">・</span>`;
+      const distText = `<span class="tNum">${Math.round(s.dist)}</span>m(徒歩<span class="tNum">${walkMin}</span>分)`;
+      return `<span class="tickerItem">${nearestTag}<span class="tName">${s.name}駅</span>${lineText}<span class="tDist">${distText}</span></span><span class="tSep">・</span>`;
     }).join('');
 
     // シームレスループのため2回連結
