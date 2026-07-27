@@ -77,9 +77,9 @@
     color:#ff9d1f;
     text-shadow:0 0 4px currentColor;
   }
-  .tickerItem .tName{ font-weight:700; font-size:14px; }
+  .tickerItem .tName{ font-weight:400; font-size:14px; color:#FF5F1F; }
   .tickerItem .tDist{ color:#22e5e5; font-size:10px; }
-  .tickerItem .tLine{ color:var(--ink-dim); font-size:9px; }
+  .tickerItem .tLine{ color:#39FF14; font-size:9px; }
   .tickerItem .tSep{ color:var(--line); padding:0 10px; }
   @keyframes ticker-scroll{
     0%   { transform: translateX(0); }
@@ -151,7 +151,7 @@
   .mapOverlay{
     position:absolute; top:10px; left:10px; z-index:500;
     font-size:9px; letter-spacing:.15em; text-transform:uppercase;
-    color:var(--ink-dim); background:rgba(14,18,16,.75);
+    color:#FFFFFF; background:rgba(14,18,16,.75);
     padding:5px 9px; border:1px solid var(--line); pointer-events:none;
   }
   .recenterBtn{
@@ -222,9 +222,9 @@
     line-height:1.4;
     text-align:left;
   }
-  .coordItem .hemi{ color:var(--brass-dim); }
+  .coordItem .hemi{ color:#39FF14; }
   .coordItem .hemiJa{
-    color:var(--brass-dim);
+    color:#39FF14;
     font-size:9px;
     letter-spacing:.08em;
   }
@@ -568,7 +568,8 @@
       const lineText = (s.lines && s.lines.length > 0)
         ? '<span class="tLine">' + (s.lines.slice(0,2).join('/') + (s.lines.length > 2 ? '他' : '')) + '</span>'
         : '';
-      return `<span class="tickerItem"><span class="tName">${s.name}駅</span>${lineText}<span class="tDist">${Math.round(s.dist)}m</span></span><span class="tSep">//</span>`;
+      const walkMin = Math.round(s.dist / 80); // 徒歩1分=80mとして換算(整数)
+      return `<span class="tickerItem"><span class="tName">${s.name}駅</span>${lineText}<span class="tDist">${Math.round(s.dist)}m(徒歩約${walkMin}分)</span></span><span class="tSep">//</span>`;
     }).join('');
 
     // シームレスループのため2回連結
