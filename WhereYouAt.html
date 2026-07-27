@@ -651,7 +651,7 @@
   async function fetchStationLines(origin, stationNodes, preferredEndpoint){
     try{
       const lineQuery = `[out:json][timeout:12];rel["type"="route"]["route"~"^(train|subway|light_rail)$"](around:${STATION_RADIUS_FAR},${origin.lat},${origin.lng});out body;`;
-      const res = await fetchWithTimeout(preferredEndpoint + '?data=' + encodeURIComponent(lineQuery), 8000);
+      const res = await fetchWithTimeout(preferredEndpoint + '?data=' + encodeURIComponent(lineQuery), 16000);
       if(!res.ok) return;
       const data = await res.json();
       const routeRelations = (data.elements || []).filter(el => el.type === 'relation');
@@ -724,7 +724,8 @@
       for(let i = 0; i < endpoints.length; i++){
         const endpoint = endpoints[i];
         try{
-          const res = await fetchWithTimeout(endpoint + '?data=' + encodeURIComponent(stationQuery), 7000);
+          // クライアント側の待機時間は、クエリ内のサーバー側timeout(10秒)より必ず長くする
+          const res = await fetchWithTimeout(endpoint + '?data=' + encodeURIComponent(stationQuery), 14000);
           if(!res.ok) throw new Error('HTTP ' + res.status);
           const data = await res.json();
           clearStations();
