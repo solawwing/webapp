@@ -38,6 +38,49 @@
     flex:0 0 auto;
     padding: max(10px, env(safe-area-inset-top)) 18px 0;
   }
+  .ticker{
+    flex:0 0 auto;
+    height:26px;
+    background:#000;
+    border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    overflow:hidden;
+    position:relative;
+  }
+  .tickerTrack{
+    position:absolute;
+    top:0; left:0;
+    height:100%;
+    display:flex;
+    align-items:center;
+    white-space:nowrap;
+    will-change: transform;
+    animation: ticker-scroll 16s linear infinite;
+  }
+  .tickerTrack .tickerEmpty{
+    color:var(--ink-dim);
+    font-size:11px;
+    letter-spacing:.1em;
+    padding-left:18px;
+  }
+  .tickerItem{
+    display:inline-flex;
+    align-items:baseline;
+    gap:6px;
+    padding:0 28px 0 0;
+    font-family:var(--mono);
+    font-size:12px;
+    letter-spacing:.04em;
+    color:#ff9d1f;
+    text-shadow:0 0 4px currentColor;
+  }
+  .tickerItem .tName{ font-weight:700; }
+  .tickerItem .tDist{ color:var(--ink-dim); font-size:10px; }
+  .tickerItem .tSep{ color:var(--line); padding:0 10px; }
+  @keyframes ticker-scroll{
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
   .mapPane{
     flex:1 1 50%;
     min-height:0;
@@ -279,6 +322,12 @@
     </div>
   </div>
 
+  <div class="ticker">
+    <div class="tickerTrack" id="tickerTrack">
+      <span class="tickerEmpty">駅情報を取得中…</span>
+    </div>
+  </div>
+
   <div class="mapPane">
     <div id="map"></div>
     <div class="mapOverlay">Map View</div>
@@ -460,6 +509,29 @@
   const COLOR_NEAR = '#ff3b3b'; // 蛍光赤
   const COLOR_FAR  = '#ff9d1f'; // 蛍光オレンジ
 
+  const tickerTrack = document.getElementById('tickerTrack');
+
+  function updateTicker(nearby){
+    if(!nearby || nearby.length === 0){
+      tickerTrack.innerHTML = '<span class="tickerEmpty">周辺2km以内に駅が見つかりません</span>';
+      tickerTrack.style.animation = 'none';
+      return;
+    }
+    const top3 = nearby.slice().sort((a,b)=> a.dist - b.dist).slice(0, 3);
+
+    const itemsHtml = top3.map(s=>{
+      return `<span class="tickerItem"><span class="tName">${s.name}駅</span><span class="tDist">${Math.round(s.dist)}m</span></span><span class="tSep">//</span>`;
+    }).join('');
+
+    // シームレスループのため2回連結
+    tickerTrack.innerHTML = itemsHtml + itemsHtml;
+
+    // コンテンツ量に応じて速度を調整(短すぎず長すぎない一定速度になるよう)
+    const approxWidth = top3.reduce((sum, s)=> sum + s.name.length * 14 + 90, 0);
+    const duration = Math.max(10, (approxWidth * 2) / 60); // おおよそ60px/秒
+    tickerTrack.style.animation = `ticker-scroll ${duration}s linear infinite`;
+  }
+
   async function fetchStations(){
     try{
       if(!marker){ return; } // 現在地が未取得ならまだ実行しない
@@ -484,6 +556,7 @@
           const data = await res.json();
           clearStations();
           let count = 0;
+          const nearby = []; // { name, dist }
           (data.elements || []).forEach(el=>{
             const name = (el.tags && (el.tags['name:ja'] || el.tags.name)) || null;
             if(!name) return;
@@ -492,9 +565,11 @@
             const color = dist <= STATION_RADIUS_NEAR ? COLOR_NEAR : COLOR_FAR;
             const m = L.marker([el.lat, el.lon], { icon: stationIcon(name, color), interactive:false }).addTo(map);
             stationMarkers.push(m);
+            nearby.push({ name, dist });
             count++;
           });
           mapOverlay.textContent = count > 0 ? ('駅 ' + count + '件') : 'MAP VIEW';
+          updateTicker(nearby);
           succeeded = true;
           break;
         }catch(e){
