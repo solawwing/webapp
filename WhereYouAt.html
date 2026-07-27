@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>座標計測</title>
+<style>
+  :root{
+    --paper:#0e1210;
+    --panel:#141915;
+    --line:#2a332c;
+    --ink:#e8ecdf;
+    --ink-dim:#7c8a76;
+    --brass:#c8a24a;
+    --brass-dim:#8a7038;
+    --ok:#5fae6e;
+    --warn:#c96a4a;
+    --mono: "SF Mono","Consolas","Menlo",monospace;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{
+    height:100%; margin:0;
+    background:
+      radial-gradient(ellipse at 50% -10%, #1a2118 0%, transparent 60%),
+      var(--paper);
+    color:var(--ink);
+    font-family: var(--mono);
+    overflow:hidden;
+    overscroll-behavior:none;
+  }
+  .wrap{
+    height:100dvh;
+    display:flex;
+    flex-direction:column;
+    padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+  }
+
+  /* header */
+  .head{
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding-bottom:14px; margin-bottom:18px;
+    border-bottom:1px solid var(--line);
+    letter-spacing:.12em;
+  }
+  .head .title{ font-size:11px; color:var(--brass); text-transform:uppercase; }
+  .head .status{ font-size:10px; color:var(--ink-dim); display:flex; align-items:center; gap:6px; }
+  .dot{ width:6px; height:6px; border-radius:50%; background:var(--ink-dim); flex:none; }
+  .dot.live{ background:var(--ok); box-shadow:0 0 6px var(--ok); animation:pulse 2s infinite; }
+  .dot.err{ background:var(--warn); box-shadow:0 0 6px var(--warn); }
+  @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.35} }
+
+  /* main coordinate display */
+  .coords{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    gap:28px;
+  }
+  .row{
+    position:relative;
+  }
+  .label{
+    font-size:10px; letter-spacing:.2em; color:var(--ink-dim);
+    text-transform:uppercase; margin-bottom:6px;
+    display:flex; justify-content:space-between;
+  }
+  .label .hemi{ color:var(--brass-dim); }
+  .value{
+    font-size:clamp(34px, 11vw, 54px);
+    font-weight:600;
+    letter-spacing:.01em;
+    line-height:1.05;
+    font-variant-numeric: tabular-nums;
+    color:var(--ink);
+    word-break:break-all;
+  }
+  .value .deg{ color:var(--brass); }
+  .value .sub{ font-size:.42em; color:var(--ink-dim); margin-left:6px; letter-spacing:.05em; }
+
+  /* secondary grid */
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    margin-top:6px;
+  }
+  .cell{
+    background:var(--panel);
+    padding:12px 10px;
+  }
+  .cell .clabel{ font-size:9px; letter-spacing:.15em; color:var(--ink-dim); text-transform:uppercase; margin-bottom:4px; }
+  .cell .cval{ font-size:16px; color:var(--ink); font-variant-numeric: tabular-nums; }
+  .cell .cval .unit{ font-size:11px; color:var(--ink-dim); margin-left:2px; }
+
+  /* footer */
+  .foot{
+    margin-top:18px;
+    padding-top:14px;
+    border-top:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:10px; color:var(--ink-dim); letter-spacing:.08em;
+  }
+  .btn{
+    font-family:var(--mono);
+    background:transparent;
+    border:1px solid var(--brass-dim);
+    color:var(--brass);
+    padding:9px 16px;
+    font-size:11px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    border-radius:2px;
+    -webkit-appearance:none;
+  }
+  .btn:active{ background:rgba(200,162,74,.12); }
+
+  .msg{
+    text-align:center; color:var(--warn); font-size:12px;
+    padding:10px 0 0; letter-spacing:.05em; line-height:1.6;
+  }
+
+  /* crosshair decoration */
+  .mark{
+    position:fixed; pointer-events:none; opacity:.5;
+    color:var(--line);
+    font-size:10px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <div class="title">Coordinate Reader</div>
+    <div class="status"><span class="dot" id="dot"></span><span id="statusText">待機中</span></div>
+  </div>
+
+  <div class="coords">
+    <div class="row">
+      <div class="label"><span>緯度 / Latitude</span><span class="hemi" id="latHemi">—</span></div>
+      <div class="value" id="latVal">--.------°</div>
+    </div>
+    <div class="row">
+      <div class="label"><span>経度 / Longitude</span><span class="hemi" id="lngHemi">—</span></div>
+      <div class="value" id="lngVal">--.------°</div>
+    </div>
+
+    <div class="grid">
+      <div class="cell">
+        <div class="clabel">精度</div>
+        <div class="cval" id="accVal">--<span class="unit">m</span></div>
+      </div>
+      <div class="cell">
+        <div class="clabel">高度</div>
+        <div class="cval" id="altVal">--<span class="unit">m</span></div>
+      </div>
+      <div class="cell">
+        <div class="clabel">速度</div>
+        <div class="cval" id="spdVal">--<span class="unit">km/h</span></div>
+      </div>
+    </div>
+
+    <div class="msg" id="msg"></div>
+  </div>
+
+  <div class="foot">
+    <span id="tsVal">--:--:--</span>
+    <button class="btn" id="toggleBtn">開始</button>
+  </div>
+
+</div>
+
+<script>
+  const dot = document.getElementById('dot');
+  const statusText = document.getElementById('statusText');
+  const latVal = document.getElementById('latVal');
+  const lngVal = document.getElementById('lngVal');
+  const latHemi = document.getElementById('latHemi');
+  const lngHemi = document.getElementById('lngHemi');
+  const accVal = document.getElementById('accVal');
+  const altVal = document.getElementById('altVal');
+  const spdVal = document.getElementById('spdVal');
+  const tsVal = document.getElementById('tsVal');
+  const msg = document.getElementById('msg');
+  const toggleBtn = document.getElementById('toggleBtn');
+
+  let watchId = null;
+
+  function fmtCoord(v){
+    const abs = Math.abs(v);
+    return abs.toFixed(6) + '°';
+  }
+
+  function pad(n){ return n.toString().padStart(2,'0'); }
+
+  function onPosition(pos){
+    const c = pos.coords;
+    dot.className = 'dot live';
+    statusText.textContent = '受信中';
+    msg.textContent = '';
+
+    latVal.textContent = fmtCoord(c.latitude);
+    lngVal.textContent = fmtCoord(c.longitude);
+    latHemi.textContent = c.latitude >= 0 ? 'N 北緯' : 'S 南緯';
+    lngHemi.textContent = c.longitude >= 0 ? 'E 東経' : 'W 西経';
+
+    accVal.innerHTML = (c.accuracy != null ? Math.round(c.accuracy) : '--') + '<span class="unit">m</span>';
+    altVal.innerHTML = (c.altitude != null ? Math.round(c.altitude) : '--') + '<span class="unit">m</span>';
+    const kmh = c.speed != null ? (c.speed * 3.6).toFixed(1) : '--';
+    spdVal.innerHTML = kmh + '<span class="unit">km/h</span>';
+
+    const d = new Date(pos.timestamp);
+    tsVal.textContent = pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+  }
+
+  function onError(err){
+    dot.className = 'dot err';
+    statusText.textContent = 'エラー';
+    const messages = {
+      1: '位置情報の利用が許可されていません。設定から許可してください。',
+      2: '位置情報を取得できませんでした。電波状況を確認してください。',
+      3: 'タイムアウトしました。再試行してください。'
+    };
+    msg.textContent = messages[err.code] || '不明なエラーが発生しました。';
+    stop();
+  }
+
+  function start(){
+    if(!('geolocation' in navigator)){
+      msg.textContent = 'このブラウザは位置情報に対応していません。';
+      return;
+    }
+    dot.className = 'dot';
+    statusText.textContent = '取得中…';
+    watchId = navigator.geolocation.watchPosition(onPosition, onError, {
+      enableHighAccuracy: true,
+      maximumAge: 500,
+      timeout: 15000
+    });
+    toggleBtn.textContent = '停止';
+  }
+
+  function stop(){
+    if(watchId !== null){
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+    }
+    toggleBtn.textContent = '開始';
+    if(dot.className !== 'dot err'){
+      dot.className = 'dot';
+      statusText.textContent = '停止中';
+    }
+  }
+
+  toggleBtn.addEventListener('click', ()=>{
+    if(watchId === null) start();
+    else stop();
+  });
+
+  // auto start on load
+  start();
+</script>
+</body>
+</html>
