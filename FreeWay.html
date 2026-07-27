@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>FREE WAY</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #05030a;
+    overflow: hidden;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  .title {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    white-space: nowrap;
+    pointer-events: none;
+    font-family: 'BIZ UDPGothic', sans-serif;
+    font-weight: 700;
+    font-size: 9pt;
+    letter-spacing: 0.1em;
+    color: #eafcff;
+    text-shadow:
+      0 0 6px rgba(255,255,255,0.9),
+      0 0 16px rgba(0,255,242,0.9),
+      0 0 34px rgba(0,255,242,0.6),
+      0 0 60px rgba(255,80,190,0.45);
+    user-select: none;
+    -webkit-user-select: none;
+    opacity: 1;
+    transition: opacity 1.6s ease, letter-spacing 1.6s ease;
+  }
+  .title.title-exit {
+    opacity: 0;
+    letter-spacing: 1.6em;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="title" id="title">FREE WAY</div>
+<script>
+  setTimeout(function(){
+    document.getElementById('title').classList.add('title-exit');
+  }, 5000);
+</script>
+<script>
+(function(){
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+
+  let W, H, DPR;
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W * DPR;
+    canvas.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', resize);
+  resize();
+
+  const roadHalfWidth = 8;
+  const roadScreenFrac = 1.0; // 基準：z=0で画面幅と同じになる基準値（この上に手前2倍・最遠1.5倍のテーパーをかける）
+  const widthMulNear = 2.0;   // 画面最下部（z=0）の道幅倍率
+  const widthMulFar = 1.5;    // 描画最遠端（z=drawDist）の道幅倍率
+  const camHeight = 0.75;
+  const camDepth = 2.6;
+  const horizonBaseFrac = 0.44; // 画面中央よりわずかに上を基準にし、少し見下ろす視点にする
+  const segLen = 0.6;
+  const drawDist = 220;
+  const speed = 34;
+
+  let scrollZ = 0;
+  let last = performance.now();
+  let horizonShift = 0;
+  let prevCamX = 0;
+  let starDriftX = 0;
+
+  // ---- 星（3階層：遠い星はゆっくり、近い星は速く流れる。道の動きに同期） ----
+  const starLayers = [
+    { count: 22, speed: 0.0016, size: 1.1, alphaBase: 0.18, alphaTw: 0.22, twinkle: true,  parallax: 0.4  }, // 遠い星
+    { count: 14, speed: 0.0040, size: 1.7, alphaBase: 0.30, alphaTw: 0.25, twinkle: true,  parallax: 0.9  }, // 中間の星
+    { count: 8,  speed: 0.0090, size: 2.4, alphaBase: 0.55, alphaTw: 0.20, twinkle: false, parallax: 1.6  }  // 近い星
+  ];
+  const starField = starLayers.map((layer, li) => {
+    const arr = [];
+    for(let i = 0; i < layer.count; i++){
+      arr.push({
+        x: hash(li * 1000 + i * 7.3 + 1.7),
+        y0: hash(li * 1000 + i * 13.1 + 2.9),
+        tw: hash(li * 1000 + i * 17.5 + 3.3) * Math.PI * 2
+      });
+    }
+    return arr;
+  });
+
+  function hash(i){
+    const s = Math.sin(i * 12.9898 + 78.233) * 43758.5453;
+    return s - Math.floor(s);
+  }
+  function smoothstep(t){
+    t = Math.max(0, Math.min(1, t));
+    return t * t * (3 - 2 * t);
+  }
+
+  const curveWP = [{ z: 0, val: 0 }];
+  function ensureCurveWP(maxZ){
+    while(curveWP[curveWP.length - 1].z < maxZ){
+      const i = curveWP.length;
+      const prev = curveWP[curveWP.length - 1];
+      const isCurve = (i % 2 === 1);
+      let val = prev.val;
+      let len;
+      if(isCurve){
+        const dir = hash(i * 3.1 + 11) < 0.5 ? -1 : 1;
+        const seconds = 3.5 + hash(i * 2.3 + 9) * 1.5;   // カーブ:3.5〜5秒
+        len = seconds * speed;
+        const mag = len * 1.55;                          // 区間長に対し約60度分の急さ
+        val = prev.val + dir * mag;
+      } else {
+        const seconds = 3 + hash(i * 4.1 + 5) * 2;      // 直線:3〜5秒
+        len = seconds * speed;
+      }
+      curveWP.push({ z: prev.z + len, val });
+    }
+  }
+  function lateralAt(z){
+    ensureCurveWP(z + 10);
+    let k = 0;
+    while(curveWP[k + 1] && curveWP[k + 1].z < z) k++;
+    const a = curveWP[k], b = curveWP[k + 1] || a;
+    if(b.z === a.z) return a.val;
+    const t = smoothstep((z - a.z) / (b.z - a.z));
+    return a.val + (b.val - a.val) * t;
+  }
+
+  const hillWP = [{ z: 0, val: 0 }];
+  function ensureHillWP(maxZ){
+    while(hillWP[hillWP.length - 1].z < maxZ){
+      const i = hillWP.length;
+      const prev = hillWP[hillWP.length - 1];
+      const isHill = (i % 3 === 2);
+      let val = prev.val;
+      let len;
+      if(isHill){
+        const dir = hash(i * 7.7 + 3) < 0.5 ? -1 : 1;
+        const mag = 3.2 + hash(i * 9.3 + 4) * 2.6;         // 急なアップダウン
+        val = prev.val + dir * mag;
+        const seconds = 4.5 + hash(i * 6.1 + 8) * 2.5;      // 坂の持続時間:4.5〜7秒
+        len = seconds * speed;
+      } else {
+        len = 80 + hash(i * 8.9 + 1) * 90;
+        val = prev.val;
+      }
+      hillWP.push({ z: prev.z + len, val });
+    }
+  }
+  function hillAt(z){
+    ensureHillWP(z + 10);
+    let k = 0;
+    while(hillWP[k + 1] && hillWP[k + 1].z < z) k++;
+    const a = hillWP[k], b = hillWP[k + 1] || a;
+    if(b.z === a.z) return a.val;
+    const t = smoothstep((z - a.z) / (b.z - a.z));
+    return a.val + (b.val - a.val) * t;
+  }
+
+  function project(z, xWorld, relHeight, horizonY){
+    const scale = camDepth / (z + camDepth);
+    const vScale = H - horizonY; // 地平線から画面下端までの高さ（z=0が必ずここに一致する）
+    const y = horizonY + scale * vScale - scale * relHeight * (vScale / camHeight);
+    const xScale = (W * roadScreenFrac / 2) / roadHalfWidth;
+    const x = W / 2 + xWorld * scale * xScale;
+    return { x, y, scale };
+  }
+
+  function draw(now){
+    const dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+    scrollZ += speed * dt;
+
+    const camX = lateralAt(scrollZ);
+    const camY = hillAt(scrollZ);
+    const camXDelta = camX - prevCamX;
+    prevCamX = camX;
+    starDriftX += camXDelta * 5.5;
+    starDriftX *= Math.max(0, 1 - dt * 1.1);
+
+    // 坂の傾斜（上り/下り）に応じて地平線を上下させ、臨場感を出す
+    const slopeEps = 3;
+    const slope = (hillAt(scrollZ + slopeEps) - hillAt(scrollZ - slopeEps)) / (2 * slopeEps);
+    const targetHorizonShift = Math.max(-1, Math.min(1, slope * 6.5)) * (H * 0.4);
+    horizonShift += (targetHorizonShift - horizonShift) * Math.min(1, dt * 2.6);
+    const horizonY = H * horizonBaseFrac + horizonShift;
+
+    const hFrac = Math.max(0.06, Math.min(0.94, horizonY / H));
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#000000');
+    bg.addColorStop(Math.max(0.001, hFrac - 0.02), '#000000');
+    bg.addColorStop(hFrac, '#020202');
+    bg.addColorStop(Math.min(0.999, hFrac + 0.02), '#000000');
+    bg.addColorStop(1, '#000000');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.save();
+    const skyH = Math.max(0, horizonY - 4);
+    for(let li = 0; li < starLayers.length; li++){
+      const layer = starLayers[li];
+      for(const s of starField[li]){
+        // scrollZ（道が実際に進んだ距離）に同期して星を流す
+        const yFrac = (s.y0 + scrollZ * layer.speed) % 1;
+        const sy = yFrac * skyH;
+        let sx = s.x * W - starDriftX * layer.parallax;
+        sx = ((sx % W) + W) % W;
+        let alpha = layer.alphaBase;
+        if(layer.twinkle){
+          alpha += layer.alphaTw * (0.5 + 0.5 * Math.sin(now / 500 + s.tw));
+        }
+        ctx.fillStyle = 'rgba(210,225,255,' + alpha + ')';
+        ctx.fillRect(sx, sy, layer.size, layer.size);
+      }
+    }
+    ctx.restore();
+
+    ctx.save();
+    ctx.shadowColor = '#00e5ff';
+    ctx.shadowBlur = 18;
+    ctx.strokeStyle = 'rgba(140,235,255,0.95)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(0, horizonY);
+    ctx.lineTo(W, horizonY);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    for(const side of [-1, 1]){
+      ctx.beginPath();
+      let started = false;
+
+      for(let z = 0; z <= drawDist; z += segLen){
+        const worldZ = scrollZ + z;
+        const cx = lateralAt(worldZ) - camX;
+        const relHeight = hillAt(worldZ) - camY;
+        const widthMul = widthMulNear + (widthMulFar - widthMulNear) * (z / drawDist);
+        const xWorld = cx + side * roadHalfWidth * widthMul;
+        const p = project(z, xWorld, relHeight, horizonY);
+        if(p.y < horizonY - 0.5) break;
+        if(!started){ ctx.moveTo(p.x, p.y); started = true; }
+        else ctx.lineTo(p.x, p.y);
+      }
+
+      const grad = ctx.createLinearGradient(0, horizonY, 0, H);
+      grad.addColorStop(0,    'rgba(30,255,110,0.12)');
+      grad.addColorStop(0.22, 'rgba(30,255,110,0.65)');
+      grad.addColorStop(1,    'rgba(140,255,170,1)');
+
+      const coreGrad = ctx.createLinearGradient(0, horizonY, 0, H);
+      coreGrad.addColorStop(0,   'rgba(225,255,235,0.1)');
+      coreGrad.addColorStop(0.22,'rgba(225,255,235,0.6)');
+      coreGrad.addColorStop(1,   'rgba(225,255,235,0.9)');
+
+      ctx.strokeStyle = grad;
+      ctx.shadowColor = '#25ff7a';
+      ctx.shadowBlur = 22;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.shadowBlur = 8;
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = coreGrad;
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    requestAnimationFrame(draw);
+  }
+
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
