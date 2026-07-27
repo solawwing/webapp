@@ -288,7 +288,7 @@
     const scale = (roll < 0.08 ? 3 : (roll < 0.24 ? 2 : 1)) * (0.55 + depth * 0.6);
 
     const count = Math.round((style === 'willow' ? rand(70, 95) : rand(90, 130)) * (0.4 + depth * 0.75) * (1 + (scale - 1) * 0.5));
-    const baseSpeed = (style === 'peony' ? rand(3.1, 4.1) : rand(2.3, 3.1)) * Math.sqrt(Math.max(scale, 0.4)) * (0.6 + depth * 0.5);
+    const baseSpeed = (style === 'peony' ? rand(4.4, 5.8) : rand(3.3, 4.4)) * Math.sqrt(Math.max(scale, 0.4)) * (0.6 + depth * 0.5);
 
     flashes.push({ x, y, life: 14, maxLife: 14, hue: rand(palette.hue[0], palette.hue[1]), scale: scale * (0.5 + depth * 0.6) });
 
@@ -303,7 +303,7 @@
       const hue = rand(palette.hue[0], palette.hue[1]);
       const sat = rand(palette.sat[0], palette.sat[1]);
       const light = rand(palette.light[0], palette.light[1]);
-      const size = rand(3.4, 6.2) * (1 + (scale - 1) * 0.22) * (0.45 + depth * 0.7);
+      const size = rand(2.2, 4.0) * (1 + (scale - 1) * 0.22) * (0.45 + depth * 0.7);
       const life = (style === 'willow' ? rand(110, 150) : rand(80, 115)) * (1 + (scale - 1) * 0.18);
 
       const s = new Spark(x, y, angle, speed, hue, sat, light, size, life, depth);
@@ -341,7 +341,7 @@
     const families = [...palettes].sort(() => Math.random() - 0.5).slice(0, familyCount);
     const style = pick(['chrysanthemum', 'peony']);
     const count = Math.round(rand(150, 200) * (0.5 + depth * 0.7));
-    const baseSpeed = (style === 'peony' ? rand(3.6, 4.6) : rand(2.9, 3.8)) * (0.6 + depth * 0.5);
+    const baseSpeed = (style === 'peony' ? rand(4.9, 6.3) : rand(4.0, 5.2)) * (0.6 + depth * 0.5);
 
     flashes.push({ x, y, life: 16, maxLife: 16, hue: rand(0, 360), scale: 1.6 * (0.5 + depth * 0.6) });
 
@@ -356,7 +356,7 @@
       const hue = rand(palette.hue[0], palette.hue[1]);
       const sat = rand(palette.sat[0], palette.sat[1]);
       const light = rand(palette.light[0], palette.light[1]);
-      const size = rand(3.6, 6.2) * (0.45 + depth * 0.7);
+      const size = rand(2.4, 4.1) * (0.45 + depth * 0.7);
       const life = rand(85, 120);
       sparks.push(new Spark(x, y, angle, speed, hue, sat, light, size, life, depth));
     }
@@ -371,7 +371,7 @@
       const palette = pick(palettes);
       const style = pick(['chrysanthemum', 'peony']);
       const count = Math.round(rand(110, 150) * (0.5 + depth * 0.7));
-      const baseSpeed = (style === 'peony' ? rand(4.2, 5.4) : rand(3.2, 4.2)) * (0.6 + depth * 0.5);
+      const baseSpeed = (style === 'peony' ? rand(5.6, 7.2) : rand(4.5, 5.8)) * (0.6 + depth * 0.5);
 
       flashes.push({ x, y, life: 14, maxLife: 14, hue: rand(palette.hue[0], palette.hue[1]), scale: 1.8 * (0.5 + depth * 0.6) });
 
@@ -382,7 +382,7 @@
         const hue = rand(palette.hue[0], palette.hue[1]);
         const sat = rand(palette.sat[0], palette.sat[1]);
         const light = rand(palette.light[0], palette.light[1]);
-        const size = rand(4.2, 7.2) * (0.45 + depth * 0.7);
+        const size = rand(2.8, 4.8) * (0.45 + depth * 0.7);
         const life = rand(95, 130);
         sparks.push(new Spark(x, y, angle, speed, hue, sat, light, size, life, depth));
       }
