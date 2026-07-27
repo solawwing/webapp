@@ -305,30 +305,48 @@
     attribution: '&copy; OpenStreetMap'
   }).addTo(map);
 
-  const posIcon = L.divIcon({
-    className: '',
-    html: '<div style="width:16px;height:16px;border-radius:50%;background:#39ff8f;border:2px solid #0e1210;box-shadow:0 0 8px 2px #39ff8f, 0 0 16px 6px rgba(57,255,143,.5);"></div>',
-    iconSize: [16,16],
-    iconAnchor: [8,8]
-  });
+  // 高度に応じたマーカー色(緑→蛍光青)
+  const ALT_MIN = 0;    // 緑 #39ff8f
+  const ALT_MAX = 300;  // 蛍光青 #39caff
+  function colorForAltitude(alt){
+    if(alt == null) return '#39ff8f';
+    const t = Math.max(0, Math.min(1, (alt - ALT_MIN) / (ALT_MAX - ALT_MIN)));
+    // #39ff8f (57,255,143) → #39caff (57,202,255)
+    const r = Math.round(57 + (57 - 57) * t);
+    const g = Math.round(255 + (202 - 255) * t);
+    const b = Math.round(143 + (255 - 143) * t);
+    return `rgb(${r},${g},${b})`;
+  }
+
+  function makePosIcon(color){
+    return L.divIcon({
+      className: '',
+      html: `<div style="width:16px;height:16px;border-radius:50%;background:${color};border:2px solid #0e1210;box-shadow:0 0 8px 2px ${color}, 0 0 16px 6px ${color};"></div>`,
+      iconSize: [16,16],
+      iconAnchor: [8,8]
+    });
+  }
 
   let marker = null;
   let accCircle = null;
 
-  function updateMap(lat, lng, accuracy){
+  function updateMap(lat, lng, accuracy, altitude){
     const latlng = [lat, lng];
+    const color = colorForAltitude(altitude);
     if(!marker){
-      marker = L.marker(latlng, { icon: posIcon }).addTo(map);
+      marker = L.marker(latlng, { icon: makePosIcon(color) }).addTo(map);
       accCircle = L.circle(latlng, {
         radius: accuracy || 0,
-        color:'#39ff8f', weight:1, opacity:.4,
-        fillColor:'#39ff8f', fillOpacity:.08
+        color: color, weight:1, opacity:.4,
+        fillColor: color, fillOpacity:.08
       }).addTo(map);
       map.setView(latlng, 17);
     } else {
       marker.setLatLng(latlng);
+      marker.setIcon(makePosIcon(color));
       accCircle.setLatLng(latlng);
       accCircle.setRadius(accuracy || 0);
+      accCircle.setStyle({ color: color, fillColor: color });
       if(followMe) map.panTo(latlng, { animate:true });
     }
   }
@@ -460,7 +478,7 @@
     const d = new Date(pos.timestamp);
     tsVal.textContent = pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
 
-    updateMap(smoothed.lat, smoothed.lng, c.accuracy);
+    updateMap(smoothed.lat, smoothed.lng, c.accuracy, c.altitude);
   }
 
   function onError(err){
