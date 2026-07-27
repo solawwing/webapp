@@ -77,10 +77,11 @@
     color:#ff9d1f;
     text-shadow:0 0 4px currentColor;
   }
-  .tickerItem .tName{ font-weight:400; font-size:14px; color:#FF5F1F; }
+  .tickerItem .tName{ font-weight:400; font-size:14px; color:#FF0000; }
   .tickerItem .tDist{ color:#22e5e5; font-size:10px; }
-  .tickerItem .tLine{ color:#39FF14; font-size:9px; }
+  .tickerItem .tLine{ color:#FF9D1F; font-size:9px; }
   .tickerItem .tSep{ color:var(--line); padding:0 10px; }
+  .tickerItem .tNearest{ color:#FFFFFF; font-size:9px; }
   @keyframes ticker-scroll{
     0%   { transform: translateX(0); }
     100% { transform: translateX(-50%); }
@@ -155,7 +156,7 @@
     padding:5px 9px; border:1px solid var(--line); pointer-events:none;
   }
   .recenterBtn{
-    position:absolute; bottom:14px; right:14px; z-index:500;
+    position:absolute; bottom:max(14px, env(safe-area-inset-bottom)); right:14px; z-index:500;
     width:38px; height:38px; border-radius:2px;
     background:rgba(14,18,16,.85); border:1px solid var(--brass-dim);
     color:var(--brass); display:flex; align-items:center; justify-content:center;
@@ -200,7 +201,7 @@
   .coords{
     display:flex;
     flex-direction:column;
-    gap:8px;
+    gap:4px;
   }
   .row{
     position:relative;
@@ -244,41 +245,15 @@
   .grid{
     display:grid;
     grid-template-columns: repeat(3, 1fr);
-    gap:1px;
-    background:var(--line);
-    border:1px solid var(--line);
-    margin-top:2px;
+    gap:12px;
+    margin-top:-2px;
   }
   .cell{
-    background:var(--panel);
-    padding:8px 10px;
+    padding:0;
   }
   .cell .clabel{ font-size:8px; letter-spacing:.15em; color:var(--ink-dim); text-transform:uppercase; margin-bottom:3px; }
   .cell .cval{ font-size:14px; color:var(--ink); font-variant-numeric: tabular-nums; }
   .cell .cval .unit{ font-size:10px; color:var(--ink-dim); margin-left:2px; }
-
-  /* footer */
-  .foot{
-    flex:0 0 auto;
-    margin-top:10px;
-    padding:10px 18px max(10px, env(safe-area-inset-bottom));
-    border-top:1px solid var(--line);
-    display:flex; justify-content:space-between; align-items:center;
-    font-size:10px; color:var(--ink-dim); letter-spacing:.08em;
-  }
-  .btn{
-    font-family:var(--mono);
-    background:transparent;
-    border:1px solid var(--brass-dim);
-    color:var(--brass);
-    padding:9px 16px;
-    font-size:11px;
-    letter-spacing:.12em;
-    text-transform:uppercase;
-    border-radius:2px;
-    -webkit-appearance:none;
-  }
-  .btn:active{ background:rgba(200,162,74,.12); }
 
   .msg{
     text-align:center; color:var(--warn); font-size:12px;
@@ -360,11 +335,6 @@
     <button class="recenterBtn" id="recenterBtn" aria-label="現在地に戻る">◎</button>
   </div>
 
-  <div class="foot">
-    <span id="tsVal">--:--:--</span>
-    <button class="btn" id="toggleBtn">開始</button>
-  </div>
-
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -380,9 +350,7 @@
   const accVal = document.getElementById('accVal');
   const altVal = document.getElementById('altVal');
   const spdVal = document.getElementById('spdVal');
-  const tsVal = document.getElementById('tsVal');
   const msg = document.getElementById('msg');
-  const toggleBtn = document.getElementById('toggleBtn');
   const mapOverlay = document.querySelector('.mapOverlay');
 
   let watchId = null;
@@ -565,12 +533,13 @@
     }
     const top3 = nearby.slice().sort((a,b)=> a.dist - b.dist).slice(0, 3);
 
-    const itemsHtml = top3.map(s=>{
+    const itemsHtml = top3.map((s, idx)=>{
       const lineText = (s.lines && s.lines.length > 0)
         ? '<span class="tLine">' + (s.lines.slice(0,2).join('/') + (s.lines.length > 2 ? '他' : '')) + '</span>'
         : '';
       const walkMin = Math.round(s.dist / 80); // 徒歩1分=80mとして換算(整数)
-      return `<span class="tickerItem"><span class="tName">${s.name}駅</span>${lineText}<span class="tDist">${Math.round(s.dist)}m(徒歩約${walkMin}分)</span></span><span class="tSep">//</span>`;
+      const nearestTag = idx === 0 ? '<span class="tNearest">(最寄り駅)</span>' : '';
+      return `<span class="tickerItem">${nearestTag}<span class="tName">${s.name}駅</span>${lineText}<span class="tDist">${Math.round(s.dist)}m(徒歩${walkMin}分)</span></span><span class="tSep">・</span>`;
     }).join('');
 
     // シームレスループのため2回連結
@@ -703,7 +672,6 @@
     return abs.toFixed(6) + '°';
   }
 
-  function pad(n){ return n.toString().padStart(2,'0'); }
 
   function onPosition(pos){
     const c = pos.coords;
@@ -736,9 +704,6 @@
     const kmh = c.speed != null ? (c.speed * 3.6).toFixed(1) : '--';
     spdVal.innerHTML = kmh + '<span class="unit">km/h</span>';
 
-    const d = new Date(pos.timestamp);
-    tsVal.textContent = pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
-
     updateMap(smoothed.lat, smoothed.lng, c.accuracy, c.altitude);
     refreshTickerDistances(); // 通信を伴わない軽量処理: GPS移動のたびに距離表示だけ更新
   }
@@ -769,7 +734,6 @@
       maximumAge: 500,
       timeout: 15000
     });
-    toggleBtn.textContent = '停止';
   }
 
   function stop(){
@@ -777,17 +741,11 @@
       navigator.geolocation.clearWatch(watchId);
       watchId = null;
     }
-    toggleBtn.textContent = '開始';
     if(dot.className !== 'dot err'){
       dot.className = 'dot';
       statusText.textContent = '停止中';
     }
   }
-
-  toggleBtn.addEventListener('click', ()=>{
-    if(watchId === null) start();
-    else stop();
-  });
 
   // auto start on load
   start();
