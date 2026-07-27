@@ -61,14 +61,14 @@
     background:transparent; border:none;
   }
   .station-label .pin{
-    width:9px; height:9px; border-radius:50%;
+    width:8px; height:8px; border-radius:50%;
     background:#ff2d95;
     margin:0 auto 3px;
   }
   .station-label .name{
     color:#ff2d95;
     font-family: var(--mono);
-    font-size:12px;
+    font-size:14px;
     font-weight:700;
     letter-spacing:.03em;
     white-space:nowrap;
@@ -313,17 +313,13 @@
     attribution: '&copy; OpenStreetMap'
   }).addTo(map);
 
-  // 高度に応じたマーカー色(緑→蛍光青)
-  const ALT_MIN = 0;    // 緑 #39ff8f
-  const ALT_MAX = 300;  // 蛍光青 #39caff
+  // 高度に応じたマーカー色: 50m以下は緑、超えると蛍光ブルー
+  const ALT_THRESHOLD = 50;
+  const COLOR_LOW = '#39ff8f';   // 緑
+  const COLOR_HIGH = '#39caff';  // 蛍光ブルー
   function colorForAltitude(alt){
-    if(alt == null) return '#39ff8f';
-    const t = Math.max(0, Math.min(1, (alt - ALT_MIN) / (ALT_MAX - ALT_MIN)));
-    // #39ff8f (57,255,143) → #39caff (57,202,255)
-    const r = Math.round(57 + (57 - 57) * t);
-    const g = Math.round(255 + (202 - 255) * t);
-    const b = Math.round(143 + (255 - 143) * t);
-    return `rgb(${r},${g},${b})`;
+    if(alt == null) return COLOR_LOW;
+    return alt > ALT_THRESHOLD ? COLOR_HIGH : COLOR_LOW;
   }
 
   function makePosIcon(color){
