@@ -499,6 +499,7 @@
   let stationMarkers = [];
   let stationFetchTimer = null;
   let stationRetryTimer = null;
+  let stationFailCount = 0; // 連続失敗回数(バックオフ間隔の計算に使用)
   let lastStationCenter = null;
 
   function clearStations(){
@@ -657,6 +658,7 @@
       mapOverlay.textContent = '駅情報取得中…';
 
       let succeeded = false;
+      let lastError = null;
       const endpoints = orderedEndpoints();
       for(let i = 0; i < endpoints.length; i++){
         const endpoint = endpoints[i];
@@ -688,6 +690,7 @@
           updateTicker(nearby);
           lastStationCenter = origin; // 成功時のみ記録(失敗時は次回も必ず再試行させる)
           clearTimeout(stationRetryTimer);
+          stationFailCount = 0;
           succeeded = true;
 
           // 使えたエンドポイントを次回優先にする
@@ -698,19 +701,26 @@
           fetchStationLines(origin, stationNodes, endpoint);
           break;
         }catch(e){
+          lastError = e;
           console.warn('overpass endpoint failed:', endpoint, e);
         }
       }
       if(!succeeded){
-        mapOverlay.textContent = '駅情報取得失敗(再試行中)';
+        stationFailCount++;
+        const reason = lastError ? (lastError.name === 'AbortError' ? 'タイムアウト' : lastError.message) : '不明';
+        mapOverlay.textContent = `駅情報取得失敗(${reason}) 再試行中…`;
         clearTimeout(stationRetryTimer);
-        stationRetryTimer = setTimeout(fetchStations, 3000); // 全エンドポイント失敗時は短い間隔で自動リトライ
+        // 連続失敗するほど間隔を伸ばす(3秒→6秒→12秒...最大30秒): 過度な連打によるレート制限を避ける
+        const backoff = Math.min(30000, 3000 * Math.pow(2, stationFailCount - 1));
+        stationRetryTimer = setTimeout(fetchStations, backoff);
       }
     }catch(e){
       console.error('fetchStations error:', e);
+      stationFailCount++;
       mapOverlay.textContent = '駅情報取得失敗(再試行中)';
       clearTimeout(stationRetryTimer);
-      stationRetryTimer = setTimeout(fetchStations, 3000);
+      const backoff = Math.min(30000, 3000 * Math.pow(2, stationFailCount - 1));
+      stationRetryTimer = setTimeout(fetchStations, backoff);
     }
   }
 
