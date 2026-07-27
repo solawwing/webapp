@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>座標計測</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <style>
   :root{
     --paper:#0e1210;
@@ -32,13 +33,63 @@
     height:100dvh;
     display:flex;
     flex-direction:column;
-    padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
   }
+  .top{
+    flex:0 0 auto;
+    padding: max(14px, env(safe-area-inset-top)) 18px 0;
+  }
+  .mapPane{
+    flex:1 1 50%;
+    min-height:0;
+    position:relative;
+    border-top:1px solid var(--line);
+  }
+  #map{
+    position:absolute; inset:0;
+    background:var(--panel);
+    filter: grayscale(1) brightness(.8) contrast(1.15);
+  }
+  .station-label{
+    background:transparent; border:none;
+  }
+  .station-label .pin{
+    width:9px; height:9px; border-radius:50%;
+    background:#39ff8f;
+    box-shadow:0 0 6px 2px #39ff8f, 0 0 14px 4px rgba(57,255,143,.5);
+    margin:0 auto 3px;
+  }
+  .station-label .name{
+    color:#39ff8f;
+    font-family: var(--mono);
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:.03em;
+    text-shadow:
+      0 0 4px rgba(57,255,143,.9),
+      0 0 8px rgba(57,255,143,.6),
+      0 1px 2px rgba(0,0,0,.9);
+    white-space:nowrap;
+    text-align:center;
+  }
+  .mapOverlay{
+    position:absolute; top:10px; left:10px; z-index:500;
+    font-size:9px; letter-spacing:.15em; text-transform:uppercase;
+    color:var(--ink-dim); background:rgba(14,18,16,.75);
+    padding:5px 9px; border:1px solid var(--line); pointer-events:none;
+  }
+  .recenterBtn{
+    position:absolute; bottom:14px; right:14px; z-index:500;
+    width:38px; height:38px; border-radius:2px;
+    background:rgba(14,18,16,.85); border:1px solid var(--brass-dim);
+    color:var(--brass); display:flex; align-items:center; justify-content:center;
+    font-size:16px; -webkit-appearance:none;
+  }
+  .recenterBtn:active{ background:rgba(200,162,74,.15); }
 
   /* header */
   .head{
     display:flex; justify-content:space-between; align-items:baseline;
-    padding-bottom:14px; margin-bottom:18px;
+    padding-bottom:14px; margin-bottom:14px;
     border-bottom:1px solid var(--line);
     letter-spacing:.12em;
   }
@@ -51,23 +102,21 @@
 
   /* main coordinate display */
   .coords{
-    flex:1;
     display:flex;
     flex-direction:column;
-    justify-content:center;
-    gap:28px;
+    gap:14px;
   }
   .row{
     position:relative;
   }
   .label{
-    font-size:10px; letter-spacing:.2em; color:var(--ink-dim);
-    text-transform:uppercase; margin-bottom:6px;
+    font-size:9px; letter-spacing:.18em; color:var(--ink-dim);
+    text-transform:uppercase; margin-bottom:4px;
     display:flex; justify-content:space-between;
   }
   .label .hemi{ color:var(--brass-dim); }
   .value{
-    font-size:clamp(34px, 11vw, 54px);
+    font-size:clamp(24px, 8vw, 36px);
     font-weight:600;
     letter-spacing:.01em;
     line-height:1.05;
@@ -85,20 +134,20 @@
     gap:1px;
     background:var(--line);
     border:1px solid var(--line);
-    margin-top:6px;
+    margin-top:2px;
   }
   .cell{
     background:var(--panel);
-    padding:12px 10px;
+    padding:8px 10px;
   }
-  .cell .clabel{ font-size:9px; letter-spacing:.15em; color:var(--ink-dim); text-transform:uppercase; margin-bottom:4px; }
-  .cell .cval{ font-size:16px; color:var(--ink); font-variant-numeric: tabular-nums; }
-  .cell .cval .unit{ font-size:11px; color:var(--ink-dim); margin-left:2px; }
+  .cell .clabel{ font-size:8px; letter-spacing:.15em; color:var(--ink-dim); text-transform:uppercase; margin-bottom:3px; }
+  .cell .cval{ font-size:14px; color:var(--ink); font-variant-numeric: tabular-nums; }
+  .cell .cval .unit{ font-size:10px; color:var(--ink-dim); margin-left:2px; }
 
   /* footer */
   .foot{
-    margin-top:18px;
-    padding-top:14px;
+    margin-top:10px;
+    padding:10px 18px max(10px, env(safe-area-inset-bottom));
     border-top:1px solid var(--line);
     display:flex; justify-content:space-between; align-items:center;
     font-size:10px; color:var(--ink-dim); letter-spacing:.08em;
@@ -122,6 +171,19 @@
     padding:10px 0 0; letter-spacing:.05em; line-height:1.6;
   }
 
+  /* leaflet dark-theme tweaks */
+  .leaflet-control-zoom a{
+    background:rgba(14,18,16,.85) !important;
+    color:var(--brass) !important;
+    border-color:var(--line) !important;
+  }
+  .leaflet-control-attribution{
+    background:rgba(14,18,16,.7) !important;
+    color:var(--ink-dim) !important;
+    font-size:9px !important;
+  }
+  .leaflet-control-attribution a{ color:var(--brass-dim) !important; }
+
   /* crosshair decoration */
   .mark{
     position:fixed; pointer-events:none; opacity:.5;
@@ -133,37 +195,45 @@
 <body>
 <div class="wrap">
 
-  <div class="head">
-    <div class="title">Coordinate Reader</div>
-    <div class="status"><span class="dot" id="dot"></span><span id="statusText">待機中</span></div>
+  <div class="top">
+    <div class="head">
+      <div class="title">Coordinate Reader</div>
+      <div class="status"><span class="dot" id="dot"></span><span id="statusText">待機中</span></div>
+    </div>
+
+    <div class="coords">
+      <div class="row">
+        <div class="label"><span>緯度 / Latitude</span><span class="hemi" id="latHemi">—</span></div>
+        <div class="value" id="latVal">--.------°</div>
+      </div>
+      <div class="row">
+        <div class="label"><span>経度 / Longitude</span><span class="hemi" id="lngHemi">—</span></div>
+        <div class="value" id="lngVal">--.------°</div>
+      </div>
+
+      <div class="grid">
+        <div class="cell">
+          <div class="clabel">精度</div>
+          <div class="cval" id="accVal">--<span class="unit">m</span></div>
+        </div>
+        <div class="cell">
+          <div class="clabel">高度</div>
+          <div class="cval" id="altVal">--<span class="unit">m</span></div>
+        </div>
+        <div class="cell">
+          <div class="clabel">速度</div>
+          <div class="cval" id="spdVal">--<span class="unit">km/h</span></div>
+        </div>
+      </div>
+
+      <div class="msg" id="msg"></div>
+    </div>
   </div>
 
-  <div class="coords">
-    <div class="row">
-      <div class="label"><span>緯度 / Latitude</span><span class="hemi" id="latHemi">—</span></div>
-      <div class="value" id="latVal">--.------°</div>
-    </div>
-    <div class="row">
-      <div class="label"><span>経度 / Longitude</span><span class="hemi" id="lngHemi">—</span></div>
-      <div class="value" id="lngVal">--.------°</div>
-    </div>
-
-    <div class="grid">
-      <div class="cell">
-        <div class="clabel">精度</div>
-        <div class="cval" id="accVal">--<span class="unit">m</span></div>
-      </div>
-      <div class="cell">
-        <div class="clabel">高度</div>
-        <div class="cval" id="altVal">--<span class="unit">m</span></div>
-      </div>
-      <div class="cell">
-        <div class="clabel">速度</div>
-        <div class="cval" id="spdVal">--<span class="unit">km/h</span></div>
-      </div>
-    </div>
-
-    <div class="msg" id="msg"></div>
+  <div class="mapPane">
+    <div id="map"></div>
+    <div class="mapOverlay">Map View</div>
+    <button class="recenterBtn" id="recenterBtn" aria-label="現在地に戻る">◎</button>
   </div>
 
   <div class="foot">
@@ -173,6 +243,7 @@
 
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
   const dot = document.getElementById('dot');
   const statusText = document.getElementById('statusText');
@@ -188,6 +259,107 @@
   const toggleBtn = document.getElementById('toggleBtn');
 
   let watchId = null;
+  let followMe = true;
+
+  // --- map setup ---
+  const map = L.map('map', {
+    zoomControl: false,
+    attributionControl: true
+  }).setView([35.681236, 139.767125], 15);
+
+  L.control.attribution({ prefix:false }).addTo(map);
+  L.control.zoom({ position:'bottomleft' }).addTo(map);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
+
+  const posIcon = L.divIcon({
+    className: '',
+    html: '<div style="width:16px;height:16px;border-radius:50%;background:#39ff8f;border:2px solid #0e1210;box-shadow:0 0 8px 2px #39ff8f, 0 0 16px 6px rgba(57,255,143,.5);"></div>',
+    iconSize: [16,16],
+    iconAnchor: [8,8]
+  });
+
+  let marker = null;
+  let accCircle = null;
+
+  function updateMap(lat, lng, accuracy){
+    const latlng = [lat, lng];
+    if(!marker){
+      marker = L.marker(latlng, { icon: posIcon }).addTo(map);
+      accCircle = L.circle(latlng, {
+        radius: accuracy || 0,
+        color:'#39ff8f', weight:1, opacity:.4,
+        fillColor:'#39ff8f', fillOpacity:.08
+      }).addTo(map);
+      map.setView(latlng, 17);
+    } else {
+      marker.setLatLng(latlng);
+      accCircle.setLatLng(latlng);
+      accCircle.setRadius(accuracy || 0);
+      if(followMe) map.panTo(latlng, { animate:true });
+    }
+  }
+
+  map.on('dragstart', ()=>{ followMe = false; });
+
+  document.getElementById('recenterBtn').addEventListener('click', ()=>{
+    followMe = true;
+    if(marker) map.setView(marker.getLatLng(), Math.max(map.getZoom(), 17), { animate:true });
+  });
+
+  // --- station labels via Overpass API ---
+  let stationMarkers = [];
+  let stationFetchTimer = null;
+  let lastStationCenter = null;
+
+  function clearStations(){
+    stationMarkers.forEach(m => map.removeLayer(m));
+    stationMarkers = [];
+  }
+
+  function stationIcon(name){
+    return L.divIcon({
+      className: 'station-label',
+      html: '<div class="pin"></div><div class="name">'+name+'</div>',
+      iconSize: [120, 34],
+      iconAnchor: [60, 30]
+    });
+  }
+
+  async function fetchStations(){
+    if(map.getZoom() < 13){ clearStations(); return; }
+    const b = map.getBounds();
+    const bbox = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].join(',');
+
+    if(lastStationCenter){
+      const c = map.getCenter();
+      if(lastStationCenter.distanceTo(c) < 400) return;
+    }
+    lastStationCenter = map.getCenter();
+
+    const query = `[out:json][timeout:10];(node["railway"="station"](${bbox});node["railway"="halt"](${bbox}););out body;`;
+    try{
+      const res = await fetch('https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query));
+      const data = await res.json();
+      clearStations();
+      (data.elements || []).forEach(el=>{
+        const name = (el.tags && (el.tags['name:ja'] || el.tags.name)) || null;
+        if(!name) return;
+        const m = L.marker([el.lat, el.lon], { icon: stationIcon(name), interactive:false }).addTo(map);
+        stationMarkers.push(m);
+      });
+    }catch(e){
+      // silently ignore network errors for station overlay
+    }
+  }
+
+  map.on('moveend', ()=>{
+    clearTimeout(stationFetchTimer);
+    stationFetchTimer = setTimeout(fetchStations, 600);
+  });
 
   function fmtCoord(v){
     const abs = Math.abs(v);
@@ -214,6 +386,8 @@
 
     const d = new Date(pos.timestamp);
     tsVal.textContent = pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+
+    updateMap(c.latitude, c.longitude, c.accuracy);
   }
 
   function onError(err){
@@ -262,6 +436,11 @@
 
   // auto start on load
   start();
+
+  setTimeout(()=> map.invalidateSize(), 200);
+  window.addEventListener('resize', ()=> map.invalidateSize());
+  window.addEventListener('orientationchange', ()=> setTimeout(()=> map.invalidateSize(), 300));
+  setTimeout(fetchStations, 800);
 </script>
 </body>
 </html>
