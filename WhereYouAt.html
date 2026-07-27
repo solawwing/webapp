@@ -627,11 +627,15 @@
       .filter(s => s.dist <= STATION_RADIUS_FAR);
     updateTicker(nearby);
 
-    if(nearby.length > 0){
-      const nearest = nearby.slice().sort((a,b)=> a.dist - b.dist)[0];
-      updateNearestArrow(origin, L.latLng(nearest.lat, nearest.lng));
-    } else {
-      updateNearestArrow(null, null);
+    try{
+      if(nearby.length > 0){
+        const nearest = nearby.slice().sort((a,b)=> a.dist - b.dist)[0];
+        updateNearestArrow(origin, L.latLng(nearest.lat, nearest.lng));
+      } else {
+        updateNearestArrow(null, null);
+      }
+    }catch(arrowErr){
+      console.warn('updateNearestArrow failed (non-critical):', arrowErr);
     }
   }
 
@@ -744,12 +748,16 @@
             count++;
           });
           mapOverlay.textContent = count > 0 ? ('駅 ' + count + '件') : 'MAP VIEW';
-          updateTicker(nearby);
-          if(nearby.length > 0){
-            const nearest = nearby.slice().sort((a,b)=> a.dist - b.dist)[0];
-            updateNearestArrow(origin, L.latLng(nearest.lat, nearest.lng));
-          } else {
-            updateNearestArrow(null, null);
+          try{ updateTicker(nearby); }catch(tickerErr){ console.warn('updateTicker failed (non-critical):', tickerErr); }
+          try{
+            if(nearby.length > 0){
+              const nearest = nearby.slice().sort((a,b)=> a.dist - b.dist)[0];
+              updateNearestArrow(origin, L.latLng(nearest.lat, nearest.lng));
+            } else {
+              updateNearestArrow(null, null);
+            }
+          }catch(arrowErr){
+            console.warn('updateNearestArrow failed (non-critical):', arrowErr);
           }
           lastStationCenter = origin; // 成功時のみ記録(失敗時は次回も必ず再試行させる)
           clearTimeout(stationRetryTimer);
