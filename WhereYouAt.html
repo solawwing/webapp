@@ -603,12 +603,9 @@
       lastStationCenter = origin;
 
       // 現在地を中心とした半径3kmの円でOverpassに問い合わせ(駅ノード + 路線リレーション)
-      const query = `[out:json][timeout:15];
+      const query = `[out:json][timeout:20];
         (
           node["railway"="station"](around:${STATION_RADIUS_FAR},${origin.lat},${origin.lng});
-        );
-        out body;
-        (
           rel["type"="route"]["route"~"^(train|subway|light_rail)$"](around:${STATION_RADIUS_FAR},${origin.lat},${origin.lng});
         );
         out body;`;
@@ -626,17 +623,32 @@
           // 駅ノードと路線リレーションを分離
           const stationNodes = (data.elements || []).filter(el => el.type === 'node' && el.tags && el.tags.railway === 'station');
           const routeRelations = (data.elements || []).filter(el => el.type === 'relation');
+          console.log('[station debug] stations:', stationNodes.length, 'routes:', routeRelations.length, routeRelations);
 
           // 駅ノードID → その駅を通る路線名の配列
           const stationIdToLines = new Map();
           routeRelations.forEach(rel=>{
             const lineName = (rel.tags && (rel.tags['name:ja'] || rel.tags.name)) || (rel.tags && rel.tags.ref) || null;
             if(!lineName) return;
+
+            // 方式1: relationのmembersに駅ノードが直接含まれる場合
             (rel.members || []).forEach(mem=>{
               if(mem.type !== 'node') return;
               if(!stationIdToLines.has(mem.ref)) stationIdToLines.set(mem.ref, new Set());
               stationIdToLines.get(mem.ref).add(lineName);
             });
+
+            // 方式2: relationのfrom/to/viaタグに駅名が含まれる場合、名前一致でも紐付ける
+            const relText = [rel.tags.from, rel.tags.to, rel.tags.via].filter(Boolean).join(' ');
+            if(relText){
+              stationNodes.forEach(st=>{
+                const stName = (st.tags && (st.tags['name:ja'] || st.tags.name)) || '';
+                if(stName && relText.includes(stName)){
+                  if(!stationIdToLines.has(st.id)) stationIdToLines.set(st.id, new Set());
+                  stationIdToLines.get(st.id).add(lineName);
+                }
+              });
+            }
           });
 
           let count = 0;
@@ -646,8 +658,10 @@
             const name = (el.tags && (el.tags['name:ja'] || el.tags.name)) || null;
             if(!name) return;
             const dist = origin.distanceTo([el.lat, el.lon]);
-            const lineSet = stationIdToLines.get(el.id);
-            const lines = lineSet ? Array.from(lineSet) : [];
+            const lineSet = stationIdToLines.get(el.id) || new Set();
+            // 方式3: 駅ノード自体にnetworkタグが付いている場合はそれも追加
+            if(el.tags.network) lineSet.add(el.tags.network);
+            const lines = Array.from(lineSet);
             cachedStations.push({ name, lat: el.lat, lng: el.lon, lines });
             if(dist > STATION_RADIUS_FAR) return; // 2km超は非表示
             const color = dist <= STATION_RADIUS_NEAR ? COLOR_NEAR : COLOR_FAR;
