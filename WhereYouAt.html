@@ -360,7 +360,6 @@
       html: `
         <div style="position:relative; width:60px; height:60px; display:flex; align-items:center; justify-content:center;">
           <div class="pulse-ring" style="color:${color};"></div>
-          <div class="pos-core" style="position:relative; width:18px;height:18px;border-radius:50%;background:transparent;border:3px solid ${color};box-sizing:border-box; z-index:2;"></div>
         </div>`,
       iconSize: [60,60],
       iconAnchor: [30,30]
@@ -407,8 +406,6 @@
         const el = marker.getElement();
         if(el){
           el.querySelectorAll('.pulse-ring').forEach(r => r.style.color = color);
-          const core = el.querySelector('.pos-core');
-          if(core) core.style.borderColor = color;
         }
       }
       accCircle.setLatLng(latlng);
