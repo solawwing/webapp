@@ -69,7 +69,7 @@
   .tickerItem{
     display:inline-flex;
     align-items:baseline;
-    gap:6px;
+    gap:0;
     padding:0 28px 0 0;
     font-family:var(--mono);
     font-size:12px;
@@ -77,12 +77,11 @@
     color:#ff9d1f;
     text-shadow:0 0 4px currentColor;
   }
-  .tickerItem .tName{ font-weight:400; font-size:14px; color:#FFFFFF; }
-  .tickerItem .tDist{ color:#22e5e5; font-size:10px; }
-  .tickerItem .tDist .tNum{ font-size:12px; }
-  .tickerItem .tLine{ color:#FF9D1F; font-size:9px; }
-  .tickerItem .tSep{ color:var(--line); padding:0 10px; }
-  .tickerItem .tNearest{ color:#39FF14; font-size:14px; }
+  .tickerItem .tName{ font-weight:400; font-size:14px; color:#FF0000; margin-right:6px; }
+  .tickerItem .tDist{ color:#22e5e5; font-size:14px; margin-left:6px; }
+  .tickerItem .tLine{ color:#FF9D1F; font-size:9px; margin-right:6px; }
+  .tickerItem .tSep{ color:#FFFFFF; font-size:14px; padding:0 10px; }
+  .tickerItem .tNearest{ color:#39FF14; font-size:14px; margin-right:2px; }
   @keyframes ticker-scroll{
     0%   { transform: translateX(0); }
     100% { transform: translateX(-50%); }
@@ -244,6 +243,8 @@
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
+    flex:1;
+    text-align:right;
   }
 
   /* secondary grid */
@@ -547,14 +548,16 @@
     }
     const top3 = nearby.slice().sort((a,b)=> a.dist - b.dist).slice(0, 3);
 
+    const circledNumbers = ['①', '②', '③'];
     const itemsHtml = top3.map((s, idx)=>{
       const lineText = (s.lines && s.lines.length > 0)
         ? '<span class="tLine">' + (s.lines.slice(0,2).join('/') + (s.lines.length > 2 ? '他' : '')) + '</span>'
         : '';
       const walkMin = Math.round(s.dist / 80); // 徒歩1分=80mとして換算(整数)
       const nearestTag = idx === 0 ? '<span class="tNearest">(最寄り駅)</span>' : '';
-      const distText = `<span class="tNum">${Math.round(s.dist)}</span>m(徒歩<span class="tNum">${walkMin}</span>分)`;
-      return `<span class="tickerItem">${nearestTag}<span class="tName">${s.name}駅</span>${lineText}<span class="tDist">${distText}</span></span><span class="tSep">・</span>`;
+      const distText = `${Math.round(s.dist)}m(徒歩${walkMin}分)`;
+      const sep = '<span class="tSep">' + circledNumbers[idx % circledNumbers.length] + '</span>';
+      return `<span class="tickerItem">${nearestTag}<span class="tName">${s.name}駅</span>${lineText}<span class="tDist">${distText}</span></span>${sep}`;
     }).join('');
 
     // シームレスループのため2回連結
