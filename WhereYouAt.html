@@ -79,12 +79,15 @@
   }
   .tickerItem .tName{ font-weight:400; font-size:14px; color:#FF0000; margin-right:6px; }
   .tickerItem .tDist{ color:#22e5e5; font-size:14px; margin-left:6px; }
-  .tickerItem .tDist.near-blink{ animation: dist-blink 0.8s step-start infinite; }
+  .tickerItem .tDist .tUnit{ font-size:9px; }
+  .tickerItem .tDist.near-blink,
+  .tickerItem .tDist.near-blink .tUnit{
+    animation: dist-blink 0.8s step-start infinite;
+  }
   @keyframes dist-blink{
     0%, 49%   { opacity: 1; }
-    50%, 100% { opacity: 0.15; }
+    50%, 100% { opacity: 0.1; }
   }
-  .tickerItem .tDist .tUnit{ font-size:9px; }
   .tickerItem .tLine{ color:#FF9D1F; font-size:9px; margin-right:6px; }
   .tickerItem .tSep{ color:#FFFFFF; font-size:14px; padding-right:0; }
   .tickerItem .tNearest{ color:#39FF14; font-size:14px; margin-right:2px; }
