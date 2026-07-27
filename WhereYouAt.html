@@ -621,9 +621,14 @@
 
     const circledNumbers = ['①', '②', '③'];
     const itemsHtml = top3.map((s, idx)=>{
-      const lineText = (s.lines && s.lines.length > 0)
-        ? '<span class="tLine">' + (s.lines.slice(0,2).join('/') + (s.lines.length > 2 ? '他' : '')) + '</span>'
-        : '';
+      let lineText = '';
+      if(s.lines && s.lines.length > 0){
+        let lineNameJoined = s.lines.slice(0,2).join('/') + (s.lines.length > 2 ? '他' : '');
+        if(lineNameJoined.length > 10){
+          lineNameJoined = lineNameJoined.slice(0, 9) + '‥';
+        }
+        lineText = '<span class="tLine">' + lineNameJoined + '</span>';
+      }
       const walkMin = Math.round(s.dist / 80); // 徒歩1分=80mとして換算(整数)
       const nearestTag = idx === 0 ? '<span class="tNearest">(最寄り駅)</span>' : '';
       const blinkClass = s.dist <= 50 ? ' near-blink' : '';
