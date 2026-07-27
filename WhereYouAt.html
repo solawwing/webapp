@@ -250,6 +250,7 @@
   }
   .cell{
     padding:0;
+    text-align:right;
   }
   .cell .clabel{ font-size:8px; letter-spacing:.15em; color:var(--ink-dim); text-transform:uppercase; margin-bottom:3px; }
   .cell .cval{ font-size:14px; color:var(--ink); font-variant-numeric: tabular-nums; }
@@ -562,6 +563,70 @@
     updateTicker(nearby);
   }
 
+  let preferredEndpointIndex = 0; // 直近成功したエンドポイントを優先する
+
+  function orderedEndpoints(){
+    const list = OVERPASS_ENDPOINTS.slice();
+    const [preferred] = list.splice(preferredEndpointIndex, 1);
+    return preferred ? [preferred, ...list] : list;
+  }
+
+  // 路線名はベストエフォートで後追い取得(失敗しても駅表示自体には影響しない)
+  async function fetchStationLines(origin, stationNodes, preferredEndpoint){
+    try{
+      const lineQuery = `[out:json][timeout:12];rel["type"="route"]["route"~"^(train|subway|light_rail)$"](around:${STATION_RADIUS_FAR},${origin.lat},${origin.lng});out body;`;
+      const res = await fetchWithTimeout(preferredEndpoint + '?data=' + encodeURIComponent(lineQuery), 8000);
+      if(!res.ok) return;
+      const data = await res.json();
+      const routeRelations = (data.elements || []).filter(el => el.type === 'relation');
+      if(routeRelations.length === 0) return;
+
+      const stationIdToLines = new Map();
+      routeRelations.forEach(rel=>{
+        const lineName = (rel.tags && (rel.tags['name:ja'] || rel.tags.name)) || (rel.tags && rel.tags.ref) || null;
+        if(!lineName) return;
+        (rel.members || []).forEach(mem=>{
+          if(mem.type !== 'node') return;
+          if(!stationIdToLines.has(mem.ref)) stationIdToLines.set(mem.ref, new Set());
+          stationIdToLines.get(mem.ref).add(lineName);
+        });
+        const relText = [rel.tags.from, rel.tags.to, rel.tags.via].filter(Boolean).join(' ');
+        if(relText){
+          stationNodes.forEach(st=>{
+            const stName = (st.tags && (st.tags['name:ja'] || st.tags.name)) || '';
+            if(stName && relText.includes(stName)){
+              if(!stationIdToLines.has(st.id)) stationIdToLines.set(st.id, new Set());
+              stationIdToLines.get(st.id).add(lineName);
+            }
+          });
+        }
+      });
+
+      if(stationIdToLines.size === 0) return;
+
+      // キャッシュと地図上のラベルに路線名を反映
+      cachedStations.forEach(s=>{
+        const lineSet = stationIdToLines.get(s.id);
+        if(lineSet){
+          lineSet.forEach(l => { if(!s.lines.includes(l)) s.lines.push(l); });
+        }
+      });
+      refreshTickerDistances();
+      // 地図上のラベルも路線名付きで再描画
+      const origin2 = marker.getLatLng();
+      clearStations();
+      cachedStations.forEach(s=>{
+        const dist = origin2.distanceTo([s.lat, s.lng]);
+        if(dist > STATION_RADIUS_FAR) return;
+        const color = dist <= STATION_RADIUS_NEAR ? COLOR_NEAR : COLOR_FAR;
+        const m = L.marker([s.lat, s.lng], { icon: stationIcon(s.name, color, s.lines), interactive:false }).addTo(map);
+        stationMarkers.push(m);
+      });
+    }catch(e){
+      console.warn('fetchStationLines failed (non-critical):', e);
+    }
+  }
+
   async function fetchStations(){
     try{
       if(!marker){ return; } // 現在地が未取得ならまだ実行しない
@@ -572,53 +637,22 @@
         return; // 現在地がほぼ動いていなければAPI再取得は間引く(距離表示自体は別途更新される)
       }
 
-      // 現在地を中心とした半径3kmの円でOverpassに問い合わせ(駅ノード + 路線リレーション)
-      const query = `[out:json][timeout:20];
-        (
-          node["railway"="station"](around:${STATION_RADIUS_FAR},${origin.lat},${origin.lng});
-          rel["type"="route"]["route"~"^(train|subway|light_rail)$"](around:${STATION_RADIUS_FAR},${origin.lat},${origin.lng});
-        );
-        out body;`;
+      // まず駅ノードのみを軽量取得(路線リレーションは含めない: レスポンスを軽くして成功率を上げる)
+      const stationQuery = `[out:json][timeout:10];node["railway"="station"](around:${STATION_RADIUS_FAR},${origin.lat},${origin.lng});out body;`;
 
       mapOverlay.textContent = '駅情報取得中…';
 
       let succeeded = false;
-      for(const endpoint of OVERPASS_ENDPOINTS){
+      const endpoints = orderedEndpoints();
+      for(let i = 0; i < endpoints.length; i++){
+        const endpoint = endpoints[i];
         try{
-          const res = await fetchWithTimeout(endpoint + '?data=' + encodeURIComponent(query), 9000);
+          const res = await fetchWithTimeout(endpoint + '?data=' + encodeURIComponent(stationQuery), 7000);
           if(!res.ok) throw new Error('HTTP ' + res.status);
           const data = await res.json();
           clearStations();
 
-          // 駅ノードと路線リレーションを分離
           const stationNodes = (data.elements || []).filter(el => el.type === 'node' && el.tags && el.tags.railway === 'station');
-          const routeRelations = (data.elements || []).filter(el => el.type === 'relation');
-
-          // 駅ノードID → その駅を通る路線名の配列
-          const stationIdToLines = new Map();
-          routeRelations.forEach(rel=>{
-            const lineName = (rel.tags && (rel.tags['name:ja'] || rel.tags.name)) || (rel.tags && rel.tags.ref) || null;
-            if(!lineName) return;
-
-            // 方式1: relationのmembersに駅ノードが直接含まれる場合
-            (rel.members || []).forEach(mem=>{
-              if(mem.type !== 'node') return;
-              if(!stationIdToLines.has(mem.ref)) stationIdToLines.set(mem.ref, new Set());
-              stationIdToLines.get(mem.ref).add(lineName);
-            });
-
-            // 方式2: relationのfrom/to/viaタグに駅名が含まれる場合、名前一致でも紐付ける
-            const relText = [rel.tags.from, rel.tags.to, rel.tags.via].filter(Boolean).join(' ');
-            if(relText){
-              stationNodes.forEach(st=>{
-                const stName = (st.tags && (st.tags['name:ja'] || st.tags.name)) || '';
-                if(stName && relText.includes(stName)){
-                  if(!stationIdToLines.has(st.id)) stationIdToLines.set(st.id, new Set());
-                  stationIdToLines.get(st.id).add(lineName);
-                }
-              });
-            }
-          });
 
           let count = 0;
           const nearby = []; // { name, dist, lines }
@@ -627,11 +661,8 @@
             const name = (el.tags && (el.tags['name:ja'] || el.tags.name)) || null;
             if(!name) return;
             const dist = origin.distanceTo([el.lat, el.lon]);
-            const lineSet = stationIdToLines.get(el.id) || new Set();
-            // 方式3: 駅ノード自体にnetworkタグが付いている場合はそれも追加
-            if(el.tags.network) lineSet.add(el.tags.network);
-            const lines = Array.from(lineSet);
-            cachedStations.push({ name, lat: el.lat, lng: el.lon, lines });
+            const lines = el.tags.network ? [el.tags.network] : [];
+            cachedStations.push({ name, lat: el.lat, lng: el.lon, lines, id: el.id });
             if(dist > STATION_RADIUS_FAR) return; // 2km超は非表示
             const color = dist <= STATION_RADIUS_NEAR ? COLOR_NEAR : COLOR_FAR;
             const m = L.marker([el.lat, el.lon], { icon: stationIcon(name, color, lines), interactive:false }).addTo(map);
@@ -644,6 +675,13 @@
           lastStationCenter = origin; // 成功時のみ記録(失敗時は次回も必ず再試行させる)
           clearTimeout(stationRetryTimer);
           succeeded = true;
+
+          // 使えたエンドポイントを次回優先にする
+          preferredEndpointIndex = OVERPASS_ENDPOINTS.indexOf(endpoint);
+          if(preferredEndpointIndex < 0) preferredEndpointIndex = 0;
+
+          // 路線名は失敗しても駅表示に影響しないよう、別途ベストエフォートで取得
+          fetchStationLines(origin, stationNodes, endpoint);
           break;
         }catch(e){
           console.warn('overpass endpoint failed:', endpoint, e);
@@ -652,13 +690,13 @@
       if(!succeeded){
         mapOverlay.textContent = '駅情報取得失敗(再試行中)';
         clearTimeout(stationRetryTimer);
-        stationRetryTimer = setTimeout(fetchStations, 4000); // 全エンドポイント失敗時は短い間隔で自動リトライ
+        stationRetryTimer = setTimeout(fetchStations, 3000); // 全エンドポイント失敗時は短い間隔で自動リトライ
       }
     }catch(e){
       console.error('fetchStations error:', e);
       mapOverlay.textContent = '駅情報取得失敗(再試行中)';
       clearTimeout(stationRetryTimer);
-      stationRetryTimer = setTimeout(fetchStations, 4000);
+      stationRetryTimer = setTimeout(fetchStations, 3000);
     }
   }
 
