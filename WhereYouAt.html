@@ -80,7 +80,7 @@
   .tickerItem .tName{ font-weight:400; font-size:14px; color:#FF0000; margin-right:6px; }
   .tickerItem .tDist{ color:#22e5e5; font-size:14px; margin-left:6px; }
   .tickerItem .tLine{ color:#FF9D1F; font-size:9px; margin-right:6px; }
-  .tickerItem .tSep{ color:#FFFFFF; font-size:14px; padding:0 10px; }
+  .tickerItem .tSep{ color:#FFFFFF; font-size:14px; padding-right:10px; }
   .tickerItem .tNearest{ color:#39FF14; font-size:14px; margin-right:2px; }
   @keyframes ticker-scroll{
     0%   { transform: translateX(0); }
@@ -151,8 +151,11 @@
   }
   .statusFoot{
     flex:0 0 auto;
-    padding:8px 18px;
-    padding-bottom:calc(8px + env(safe-area-inset-bottom));
+    min-height:34px;
+    display:flex;
+    align-items:center;
+    padding:0 18px;
+    padding-bottom:env(safe-area-inset-bottom);
     border-top:1px solid var(--line);
     background:var(--panel);
   }
@@ -556,8 +559,8 @@
       const walkMin = Math.round(s.dist / 80); // 徒歩1分=80mとして換算(整数)
       const nearestTag = idx === 0 ? '<span class="tNearest">(最寄り駅)</span>' : '';
       const distText = `${Math.round(s.dist)}m(徒歩${walkMin}分)`;
-      const sep = '<span class="tSep">' + circledNumbers[idx % circledNumbers.length] + '</span>';
-      return `<span class="tickerItem">${nearestTag}<span class="tName">${s.name}駅</span>${lineText}<span class="tDist">${distText}</span></span>${sep}`;
+      const num = '<span class="tSep">' + circledNumbers[idx % circledNumbers.length] + '</span>';
+      return `<span class="tickerItem">${num}${nearestTag}<span class="tName">${s.name}駅</span>${lineText}<span class="tDist">${distText}</span></span>`;
     }).join('');
 
     // シームレスループのため2回連結
