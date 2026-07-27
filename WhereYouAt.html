@@ -372,12 +372,12 @@
     stationMarkers = [];
   }
 
-  function stationIcon(name){
+  function stationIcon(name, color){
     return L.divIcon({
       className: 'station-label',
-      html: '<div class="pin"></div><div class="name">'+name+'</div>',
+      html: '<div class="pin" style="background:'+color+'"></div><div class="name" style="color:'+color+'; text-shadow:1px 0 0 #fff,-1px 0 0 #fff,0 1px 0 #fff,0 -1px 0 #fff,1px 1px 0 #fff,-1px 1px 0 #fff,1px -1px 0 #fff,-1px -1px 0 #fff,2px 0 0 #fff,-2px 0 0 #fff,0 2px 0 #fff,0 -2px 0 #fff;">'+name+'</div>',
       iconSize: [130, 36],
-      iconAnchor: [60, 30]
+      iconAnchor: [65, 30]
     });
   }
 
@@ -393,19 +393,24 @@
     return fetch(url, { signal: controller.signal }).finally(()=> clearTimeout(timer));
   }
 
+  const STATION_RADIUS_NEAR = 1000; // 蛍光赤 [m]
+  const STATION_RADIUS_FAR  = 3000; // 蛍光オレンジ(これを超えると非表示) [m]
+  const COLOR_NEAR = '#ff3b3b'; // 蛍光赤
+  const COLOR_FAR  = '#ff9d1f'; // 蛍光オレンジ
+
   async function fetchStations(){
     try{
+      if(!marker){ return; } // 現在地が未取得ならまだ実行しない
       if(map.getZoom() < 13){ clearStations(); mapOverlay.textContent = 'MAP VIEW'; return; }
 
-      const c = map.getCenter();
-      if(lastStationCenter && lastStationCenter.distanceTo(c) < 400){
-        return; // 近距離の移動では再取得を間引く
+      const origin = marker.getLatLng(); // 現在地(GPS)中心
+      if(lastStationCenter && lastStationCenter.distanceTo(origin) < 200){
+        return; // 現在地がほぼ動いていなければ再取得を間引く
       }
-      lastStationCenter = c;
+      lastStationCenter = origin;
 
-      const b = map.getBounds();
-      const bbox = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].join(',');
-      const query = `[out:json][timeout:12];(node["railway"="station"](${bbox});node["railway"="halt"](${bbox}););out body;`;
+      // 現在地を中心とした半径3kmの円でOverpassに問い合わせ
+      const query = `[out:json][timeout:12];node["railway"="station"](around:${STATION_RADIUS_FAR},${origin.lat},${origin.lng});out body;`;
 
       mapOverlay.textContent = '駅データ取得中…';
 
@@ -420,7 +425,10 @@
           (data.elements || []).forEach(el=>{
             const name = (el.tags && (el.tags['name:ja'] || el.tags.name)) || null;
             if(!name) return;
-            const m = L.marker([el.lat, el.lon], { icon: stationIcon(name), interactive:false }).addTo(map);
+            const dist = origin.distanceTo([el.lat, el.lon]);
+            if(dist > STATION_RADIUS_FAR) return; // 3km超は非表示
+            const color = dist <= STATION_RADIUS_NEAR ? COLOR_NEAR : COLOR_FAR;
+            const m = L.marker([el.lat, el.lon], { icon: stationIcon(name, color), interactive:false }).addTo(map);
             stationMarkers.push(m);
             count++;
           });
@@ -483,6 +491,9 @@
     tsVal.textContent = pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
 
     updateMap(smoothed.lat, smoothed.lng, c.accuracy, c.altitude);
+
+    clearTimeout(stationFetchTimer);
+    stationFetchTimer = setTimeout(fetchStations, 300);
   }
 
   function onError(err){
