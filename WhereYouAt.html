@@ -344,8 +344,8 @@
         color: color, weight:1, opacity:.4,
         fillColor: color, fillOpacity:.08
       }).addTo(map);
-      // 初期表示: 半径5km(直径10km)が画面に収まるように表示
-      const bounds = L.latLng(latlng).toBounds(10000); // 一辺10kmの正方形
+      // 初期表示: 半径3km(直径6km)が画面に収まるように表示
+      const bounds = L.latLng(latlng).toBounds(6000); // 一辺6kmの正方形
       map.fitBounds(bounds);
     } else {
       marker.setLatLng(latlng);
@@ -396,7 +396,7 @@
   }
 
   const STATION_RADIUS_NEAR = 1000; // 蛍光赤 [m]
-  const STATION_RADIUS_FAR  = 3000; // 蛍光オレンジ(これを超えると非表示) [m]
+  const STATION_RADIUS_FAR  = 2000; // 蛍光オレンジ(これを超えると非表示) [m]
   const COLOR_NEAR = '#ff3b3b'; // 蛍光赤
   const COLOR_FAR  = '#ff9d1f'; // 蛍光オレンジ
 
@@ -428,7 +428,7 @@
             const name = (el.tags && (el.tags['name:ja'] || el.tags.name)) || null;
             if(!name) return;
             const dist = origin.distanceTo([el.lat, el.lon]);
-            if(dist > STATION_RADIUS_FAR) return; // 3km超は非表示
+            if(dist > STATION_RADIUS_FAR) return; // 2km超は非表示
             const color = dist <= STATION_RADIUS_NEAR ? COLOR_NEAR : COLOR_FAR;
             const m = L.marker([el.lat, el.lon], { icon: stationIcon(name, color), interactive:false }).addTo(map);
             stationMarkers.push(m);
