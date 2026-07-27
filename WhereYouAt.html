@@ -447,6 +447,31 @@
   let currentMarkerColor = null;
   let nearestArrowLine = null;   // 現在地→最寄り駅 中間点までの線
   let nearestArrowHead = null;   // 矢印の先端(三角形)
+  let radiusLabelNear = null; // 1000mラベル
+  let radiusLabelFar = null;  // 2000mラベル
+
+  // 中心点から指定方位角(度)・距離(m)先の緯度経度を計算(球面上の目的地点)
+  function destinationPoint(lat, lng, bearingDeg, distanceM){
+    const R = 6378137; // 地球の半径[m]
+    const brng = bearingDeg * Math.PI / 180;
+    const lat1 = lat * Math.PI / 180;
+    const lng1 = lng * Math.PI / 180;
+    const lat2 = Math.asin(Math.sin(lat1) * Math.cos(distanceM / R) + Math.cos(lat1) * Math.sin(distanceM / R) * Math.cos(brng));
+    const lng2 = lng1 + Math.atan2(
+      Math.sin(brng) * Math.sin(distanceM / R) * Math.cos(lat1),
+      Math.cos(distanceM / R) - Math.sin(lat1) * Math.sin(lat2)
+    );
+    return L.latLng(lat2 * 180 / Math.PI, lng2 * 180 / Math.PI);
+  }
+
+  function radiusLabelIcon(text, color){
+    return L.divIcon({
+      className: '',
+      html: `<div style="font-size:8px; font-family:var(--mono); color:${color}; white-space:nowrap;">${text}</div>`,
+      iconSize: [50, 14],
+      iconAnchor: [0, 14] // 左下を基準にすることで、円周点から見て右上方向にテキストが伸びる(円の縁と重ならない)
+    });
+  }
 
   function updateMap(lat, lng, accuracy, altitude){
     const latlng = [lat, lng];
@@ -471,6 +496,12 @@
         fill:false
       }).addTo(map);
 
+      // 右上(北東・方位角45度)の円周上にメートル数のラベルを配置(縁と重ならないよう外側にアンカー)
+      const nearLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_NEAR);
+      const farLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_FAR);
+      radiusLabelNear = L.marker(nearLabelPos, { icon: radiusLabelIcon('1000m', COLOR_NEAR), interactive:false }).addTo(map);
+      radiusLabelFar = L.marker(farLabelPos, { icon: radiusLabelIcon('2000m', COLOR_FAR), interactive:false }).addTo(map);
+
       // 初期表示: 半径3km(直径6km)が画面に収まるように表示
       const bounds = L.latLng(latlng).toBounds(6000); // 一辺6kmの正方形
       map.fitBounds(bounds);
@@ -489,6 +520,10 @@
       accCircle.setStyle({ color: color, fillColor: color });
       radiusCircleNear.setLatLng(latlng);
       radiusCircleFar.setLatLng(latlng);
+      const nearLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_NEAR);
+      const farLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_FAR);
+      if(radiusLabelNear) radiusLabelNear.setLatLng(nearLabelPos);
+      if(radiusLabelFar) radiusLabelFar.setLatLng(farLabelPos);
       if(followMe) map.panTo(latlng, { animate:true });
     }
   }
