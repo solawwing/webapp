@@ -79,8 +79,9 @@
   }
   .tickerItem .tName{ font-weight:400; font-size:14px; color:#FF0000; margin-right:6px; }
   .tickerItem .tDist{ color:#22e5e5; font-size:14px; margin-left:6px; }
+  .tickerItem .tDist .tUnit{ font-size:9px; }
   .tickerItem .tLine{ color:#FF9D1F; font-size:9px; margin-right:6px; }
-  .tickerItem .tSep{ color:#FFFFFF; font-size:14px; padding-right:10px; }
+  .tickerItem .tSep{ color:#FFFFFF; font-size:14px; padding-right:0; }
   .tickerItem .tNearest{ color:#39FF14; font-size:14px; margin-right:2px; }
   @keyframes ticker-scroll{
     0%   { transform: translateX(0); }
@@ -444,6 +445,8 @@
   let radiusCircleNear = null; // 半径1km
   let radiusCircleFar = null;  // 半径2km
   let currentMarkerColor = null;
+  let nearestArrowLine = null;   // 現在地→最寄り駅 中間点までの線
+  let nearestArrowHead = null;   // 矢印の先端(三角形)
 
   function updateMap(lat, lng, accuracy, altitude){
     const latlng = [lat, lng];
@@ -558,7 +561,7 @@
         : '';
       const walkMin = Math.round(s.dist / 80); // 徒歩1分=80mとして換算(整数)
       const nearestTag = idx === 0 ? '<span class="tNearest">(最寄り駅)</span>' : '';
-      const distText = `${Math.round(s.dist)}m(徒歩${walkMin}分)`;
+      const distText = `${Math.round(s.dist)}<span class="tUnit">m(徒歩</span>${walkMin}<span class="tUnit">分)</span>`;
       const num = '<span class="tSep">' + circledNumbers[idx % circledNumbers.length] + '</span>';
       return `<span class="tickerItem">${num}${nearestTag}<span class="tName">${s.name}駅</span>${lineText}<span class="tDist">${distText}</span></span>`;
     }).join('');
@@ -574,13 +577,62 @@
 
   let cachedStations = []; // { name, lat, lng, lines } 直近取得した駅の生データ(距離を都度再計算するため)
 
+  // 現在地から最寄り駅方向への矢印(中間点まで線を伸ばし、先端を矢印にする)
+  function updateNearestArrow(originLatLng, nearestLatLng){
+    if(!originLatLng || !nearestLatLng){
+      if(nearestArrowLine){ map.removeLayer(nearestArrowLine); nearestArrowLine = null; }
+      if(nearestArrowHead){ map.removeLayer(nearestArrowHead); nearestArrowHead = null; }
+      return;
+    }
+
+    const midLat = (originLatLng.lat + nearestLatLng.lat) / 2;
+    const midLng = (originLatLng.lng + nearestLatLng.lng) / 2;
+    const midPoint = L.latLng(midLat, midLng);
+
+    if(!nearestArrowLine){
+      nearestArrowLine = L.polyline([originLatLng, midPoint], {
+        color: '#39FF14', weight: 2, opacity: 0.85
+      }).addTo(map);
+    } else {
+      nearestArrowLine.setLatLngs([originLatLng, midPoint]);
+    }
+
+    // 矢印の向き(北基準の角度)を計算
+    const angleRad = Math.atan2(
+      midPoint.lng - originLatLng.lng,
+      midPoint.lat - originLatLng.lat
+    );
+    const angleDeg = angleRad * 180 / Math.PI;
+
+    const arrowIcon = L.divIcon({
+      className: '',
+      html: `<div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:12px solid #39FF14;transform:rotate(${angleDeg}deg);transform-origin:center center;"></div>`,
+      iconSize: [12, 12],
+      iconAnchor: [6, 6]
+    });
+
+    if(!nearestArrowHead){
+      nearestArrowHead = L.marker(midPoint, { icon: arrowIcon, interactive:false }).addTo(map);
+    } else {
+      nearestArrowHead.setLatLng(midPoint);
+      nearestArrowHead.setIcon(arrowIcon);
+    }
+  }
+
   function refreshTickerDistances(){
     if(!marker || cachedStations.length === 0) return;
     const origin = marker.getLatLng();
     const nearby = cachedStations
-      .map(s => ({ name: s.name, dist: origin.distanceTo([s.lat, s.lng]), lines: s.lines }))
+      .map(s => ({ name: s.name, dist: origin.distanceTo([s.lat, s.lng]), lines: s.lines, lat: s.lat, lng: s.lng }))
       .filter(s => s.dist <= STATION_RADIUS_FAR);
     updateTicker(nearby);
+
+    if(nearby.length > 0){
+      const nearest = nearby.slice().sort((a,b)=> a.dist - b.dist)[0];
+      updateNearestArrow(origin, L.latLng(nearest.lat, nearest.lng));
+    } else {
+      updateNearestArrow(null, null);
+    }
   }
 
   let preferredEndpointIndex = 0; // 直近成功したエンドポイントを優先する
@@ -676,7 +728,7 @@
           const stationNodes = (data.elements || []).filter(el => el.type === 'node' && el.tags && el.tags.railway === 'station');
 
           let count = 0;
-          const nearby = []; // { name, dist, lines }
+          const nearby = []; // { name, dist, lines, lat, lng }
           cachedStations = [];
           stationNodes.forEach(el=>{
             const name = (el.tags && (el.tags['name:ja'] || el.tags.name)) || null;
@@ -688,11 +740,17 @@
             const color = dist <= STATION_RADIUS_NEAR ? COLOR_NEAR : COLOR_FAR;
             const m = L.marker([el.lat, el.lon], { icon: stationIcon(name, color, lines), interactive:false }).addTo(map);
             stationMarkers.push(m);
-            nearby.push({ name, dist, lines });
+            nearby.push({ name, dist, lines, lat: el.lat, lng: el.lon });
             count++;
           });
           mapOverlay.textContent = count > 0 ? ('駅 ' + count + '件') : 'MAP VIEW';
           updateTicker(nearby);
+          if(nearby.length > 0){
+            const nearest = nearby.slice().sort((a,b)=> a.dist - b.dist)[0];
+            updateNearestArrow(origin, L.latLng(nearest.lat, nearest.lng));
+          } else {
+            updateNearestArrow(null, null);
+          }
           lastStationCenter = origin; // 成功時のみ記録(失敗時は次回も必ず再試行させる)
           clearTimeout(stationRetryTimer);
           stationFailCount = 0;
