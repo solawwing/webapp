@@ -62,22 +62,19 @@
   }
   .station-label .pin{
     width:9px; height:9px; border-radius:50%;
-    background:#39ff8f;
-    box-shadow:0 0 6px 2px #39ff8f, 0 0 14px 4px rgba(57,255,143,.5);
+    background:#ff2d95;
     margin:0 auto 3px;
   }
   .station-label .name{
-    color:#39ff8f;
+    color:#ff2d95;
     font-family: var(--mono);
     font-size:10px;
     font-weight:700;
     letter-spacing:.03em;
-    text-shadow:
-      0 0 4px rgba(57,255,143,.9),
-      0 0 8px rgba(57,255,143,.6),
-      0 1px 2px rgba(0,0,0,.9);
     white-space:nowrap;
     text-align:center;
+    -webkit-text-stroke: 2px #0e1210;
+    paint-order: stroke fill;
   }
   .mapOverlay{
     position:absolute; top:10px; left:10px; z-index:500;
