@@ -85,8 +85,8 @@
     100% { transform: translateX(-50%); }
   }
   .mapPane{
-    flex:1 1 50%;
-    min-height:0;
+    flex:1 1 auto;
+    min-height:160px;
     position:relative;
     border-top:1px solid var(--line);
   }
@@ -197,15 +197,22 @@
   .coordItem{
     flex:1;
     display:flex;
-    align-items:baseline;
+    align-items:center;
     gap:8px;
     min-width:0;
   }
   .coordItem .clabel{
     font-size:9px; letter-spacing:.12em; color:var(--ink-dim);
     text-transform:uppercase; flex:none;
+    line-height:1.4;
+    text-align:left;
   }
   .coordItem .hemi{ color:var(--brass-dim); }
+  .coordItem .hemiJa{
+    color:var(--brass-dim);
+    font-size:9px;
+    letter-spacing:.08em;
+  }
   .coordItem .value{
     font-size:clamp(13px, 4.4vw, 17px);
     font-weight:600;
@@ -237,6 +244,7 @@
 
   /* footer */
   .foot{
+    flex:0 0 auto;
     margin-top:10px;
     padding:10px 18px max(10px, env(safe-area-inset-bottom));
     border-top:1px solid var(--line);
@@ -296,11 +304,11 @@
       <div class="row">
         <div class="coordLine">
           <div class="coordItem">
-            <span class="clabel">LAT <span class="hemi" id="latHemi">—</span></span>
+            <span class="clabel">LAT <span class="hemi" id="latHemi">—</span><br><span class="hemiJa" id="latHemiJa">—</span></span>
             <span class="value" id="latVal">--.------°</span>
           </div>
           <div class="coordItem">
-            <span class="clabel">LNG <span class="hemi" id="lngHemi">—</span></span>
+            <span class="clabel">LNG <span class="hemi" id="lngHemi">—</span><br><span class="hemiJa" id="lngHemiJa">—</span></span>
             <span class="value" id="lngVal">--.------°</span>
           </div>
         </div>
@@ -352,6 +360,8 @@
   const lngVal = document.getElementById('lngVal');
   const latHemi = document.getElementById('latHemi');
   const lngHemi = document.getElementById('lngHemi');
+  const latHemiJa = document.getElementById('latHemiJa');
+  const lngHemiJa = document.getElementById('lngHemiJa');
   const accVal = document.getElementById('accVal');
   const altVal = document.getElementById('altVal');
   const spdVal = document.getElementById('spdVal');
@@ -645,8 +655,10 @@
 
     latVal.textContent = fmtCoord(smoothed.lat);
     lngVal.textContent = fmtCoord(smoothed.lng);
-    latHemi.textContent = smoothed.lat >= 0 ? 'N 北緯' : 'S 南緯';
-    lngHemi.textContent = smoothed.lng >= 0 ? 'E 東経' : 'W 西経';
+    latHemi.textContent = smoothed.lat >= 0 ? 'N' : 'S';
+    latHemiJa.textContent = smoothed.lat >= 0 ? '北緯' : '南緯';
+    lngHemi.textContent = smoothed.lng >= 0 ? 'E' : 'W';
+    lngHemiJa.textContent = smoothed.lng >= 0 ? '東経' : '西経';
 
     accVal.innerHTML = (c.accuracy != null ? Math.round(c.accuracy) : '--') + '<span class="unit">m</span>';
     altVal.innerHTML = (c.altitude != null ? Math.round(c.altitude) : '--') + '<span class="unit">m</span>';
@@ -710,8 +722,21 @@
   start();
 
   setTimeout(()=> map.invalidateSize(), 200);
+  setTimeout(()=> map.invalidateSize(), 800); // レイアウト確定の遅延分の保険
+  if(document.fonts && document.fonts.ready){
+    document.fonts.ready.then(()=> map.invalidateSize()); // Webフォント読み込みで高さが変わるケースに対応
+  }
   window.addEventListener('resize', ()=> map.invalidateSize());
   window.addEventListener('orientationchange', ()=> setTimeout(()=> map.invalidateSize(), 300));
+
+  // .mapPane自体のサイズ変化(共有シートの開閉、アドレスバーの表示切替等)にも追従
+  if(window.ResizeObserver){
+    const mapPaneEl = document.querySelector('.mapPane');
+    if(mapPaneEl){
+      const ro = new ResizeObserver(()=> map.invalidateSize());
+      ro.observe(mapPaneEl);
+    }
+  }
 
   setTimeout(fetchStations, 500);
   // 駅データの再取得はGPS更新とは無関係に、一定間隔(10秒)だけで判断する
