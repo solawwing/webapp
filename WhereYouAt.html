@@ -36,7 +36,7 @@
   }
   .top{
     flex:0 0 auto;
-    padding: max(14px, env(safe-area-inset-top)) 18px 0;
+    padding: max(10px, env(safe-area-inset-top)) 18px 0;
   }
   .mapPane{
     flex:1 1 50%;
@@ -105,7 +105,7 @@
   /* header */
   .head{
     display:flex; justify-content:space-between; align-items:baseline;
-    padding-bottom:14px; margin-bottom:14px;
+    padding-bottom:8px; margin-bottom:10px;
     border-bottom:1px solid var(--line);
     letter-spacing:.12em;
   }
@@ -117,16 +117,16 @@
   .dot.low{ background:var(--warn); box-shadow:0 0 6px var(--warn); animation:pulse 1s infinite; }
   @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.35} }
   @keyframes ripple{
-    0%   { transform:scale(0.3); opacity:.8; }
+    0%   { transform:scale(0.2); opacity:.7; }
     100% { transform:scale(1);   opacity:0; }
   }
   .pulse-ring{
     position:absolute;
     top:50%; left:50%;
-    width:56px; height:56px;
-    margin-top:-28px; margin-left:-28px;
+    width:18px; height:18px;
+    margin-top:-9px; margin-left:-9px;
     border-radius:50%;
-    border:2px solid;
+    background: currentColor;
     box-sizing:border-box;
     animation: ripple 2.2s ease-out infinite;
     transform-origin: center center;
@@ -139,28 +139,38 @@
   .coords{
     display:flex;
     flex-direction:column;
-    gap:14px;
+    gap:8px;
   }
   .row{
     position:relative;
   }
-  .label{
-    font-size:9px; letter-spacing:.18em; color:var(--ink-dim);
-    text-transform:uppercase; margin-bottom:4px;
-    display:flex; justify-content:space-between;
+  .coordLine{
+    display:flex;
+    gap:16px;
   }
-  .label .hemi{ color:var(--brass-dim); }
-  .value{
-    font-size:clamp(24px, 8vw, 36px);
+  .coordItem{
+    flex:1;
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+    min-width:0;
+  }
+  .coordItem .clabel{
+    font-size:9px; letter-spacing:.12em; color:var(--ink-dim);
+    text-transform:uppercase; flex:none;
+  }
+  .coordItem .hemi{ color:var(--brass-dim); }
+  .coordItem .value{
+    font-size:clamp(15px, 4.4vw, 19px);
     font-weight:600;
-    letter-spacing:.01em;
-    line-height:1.05;
+    letter-spacing:0;
+    line-height:1.1;
     font-variant-numeric: tabular-nums;
     color:var(--ink);
-    word-break:break-all;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
   }
-  .value .deg{ color:var(--brass); }
-  .value .sub{ font-size:.42em; color:var(--ink-dim); margin-left:6px; letter-spacing:.05em; }
 
   /* secondary grid */
   .grid{
@@ -238,12 +248,16 @@
 
     <div class="coords">
       <div class="row">
-        <div class="label"><span>緯度 / Latitude</span><span class="hemi" id="latHemi">—</span></div>
-        <div class="value" id="latVal">--.------°</div>
-      </div>
-      <div class="row">
-        <div class="label"><span>経度 / Longitude</span><span class="hemi" id="lngHemi">—</span></div>
-        <div class="value" id="lngVal">--.------°</div>
+        <div class="coordLine">
+          <div class="coordItem">
+            <span class="clabel">LAT <span class="hemi" id="latHemi">—</span></span>
+            <span class="value" id="latVal">--.------°</span>
+          </div>
+          <div class="coordItem">
+            <span class="clabel">LNG <span class="hemi" id="lngHemi">—</span></span>
+            <span class="value" id="lngVal">--.------°</span>
+          </div>
+        </div>
       </div>
 
       <div class="grid">
@@ -345,9 +359,8 @@
       className: '',
       html: `
         <div style="position:relative; width:60px; height:60px; display:flex; align-items:center; justify-content:center;">
-          <div class="pulse-ring" style="border-color:${color};"></div>
-          <div class="pulse-ring pulse-ring-delay" style="border-color:${color};"></div>
-          <div style="position:relative; width:18px;height:18px;border-radius:50%;background:transparent;border:3px solid ${color};box-sizing:border-box; z-index:2;"></div>
+          <div class="pulse-ring" style="color:${color};"></div>
+          <div class="pos-core" style="position:relative; width:18px;height:18px;border-radius:50%;background:transparent;border:3px solid ${color};box-sizing:border-box; z-index:2;"></div>
         </div>`,
       iconSize: [60,60],
       iconAnchor: [30,30]
@@ -388,10 +401,15 @@
       map.fitBounds(bounds);
     } else {
       marker.setLatLng(latlng);
-      // 色が変わった時だけアイコンを再生成する(毎回作り直すとCSSアニメーションがリセットされ続けてしまうため)
+      // 色が変わった時はDOM要素を作り直さず、色だけを直接書き換える(波紋アニメーションを継続させるため)
       if(color !== currentMarkerColor){
-        marker.setIcon(makePosIcon(color));
         currentMarkerColor = color;
+        const el = marker.getElement();
+        if(el){
+          el.querySelectorAll('.pulse-ring').forEach(r => r.style.color = color);
+          const core = el.querySelector('.pos-core');
+          if(core) core.style.borderColor = color;
+        }
       }
       accCircle.setLatLng(latlng);
       accCircle.setRadius(accuracy || 0);
