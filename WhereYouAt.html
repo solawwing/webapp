@@ -106,6 +106,7 @@
   .dot{ width:6px; height:6px; border-radius:50%; background:var(--ink-dim); flex:none; }
   .dot.live{ background:var(--ok); box-shadow:0 0 6px var(--ok); animation:pulse 2s infinite; }
   .dot.err{ background:var(--warn); box-shadow:0 0 6px var(--warn); }
+  .dot.low{ background:var(--warn); box-shadow:0 0 6px var(--warn); animation:pulse 1s infinite; }
   @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.35} }
 
   /* main coordinate display */
@@ -270,6 +271,26 @@
   let watchId = null;
   let followMe = true;
 
+  // --- 精度フィルタ & 移動平均 ---
+  const MAX_ACCEPT_ACCURACY = 50; // これより精度(誤差半径)が悪い測位は棄却 [m]
+  const SMOOTH_WINDOW = 5;        // 移動平均に使う直近サンプル数
+  let recentFixes = [];           // { lat, lng, accuracy } の履歴
+
+  function smoothedPosition(lat, lng, accuracy){
+    recentFixes.push({ lat, lng, accuracy });
+    if(recentFixes.length > SMOOTH_WINDOW) recentFixes.shift();
+
+    // 精度が良いサンプルほど重みを大きくした加重平均
+    let wSum = 0, latSum = 0, lngSum = 0;
+    recentFixes.forEach(f=>{
+      const w = 1 / Math.max(f.accuracy, 5); // 精度(誤差)が小さいほど重み大
+      wSum += w;
+      latSum += f.lat * w;
+      lngSum += f.lng * w;
+    });
+    return { lat: latSum / wSum, lng: lngSum / wSum };
+  }
+
   // --- map setup ---
   const map = L.map('map', {
     zoomControl: false,
@@ -324,38 +345,6 @@
   let stationFetchTimer = null;
   let lastStationCenter = null;
 
-  // 主要駅の静的データ(外部API失敗時のフォールバック / 初期表示用)
-  const MAJOR_STATIONS = [
-    ['渋谷', 35.658034, 139.701636],
-    ['新宿', 35.690921, 139.700258],
-    ['東京', 35.681236, 139.767125],
-    ['池袋', 35.728926, 139.710733],
-    ['品川', 35.630152, 139.740570],
-    ['原宿', 35.670168, 139.702687],
-    ['恵比寿', 35.646722, 139.710055],
-    ['代々木', 35.683061, 139.702042],
-    ['目黒', 35.633998, 139.715828],
-    ['五反田', 35.625999, 139.723816],
-    ['上野', 35.713768, 139.777254],
-    ['秋葉原', 35.698683, 139.774219],
-    ['神田', 35.691711, 139.770883],
-    ['有楽町', 35.675069, 139.763328],
-    ['新橋', 35.666379, 139.758587],
-    ['浜松町', 35.655430, 139.756871],
-    ['田町', 35.645736, 139.747575],
-    ['大崎', 35.619772, 139.728439],
-    ['中野', 35.705620, 139.665896],
-    ['吉祥寺', 35.703191, 139.579649],
-    ['三鷹', 35.702794, 139.560234],
-    ['立川', 35.697950, 139.413849],
-    ['八王子', 35.655833, 139.339161],
-    ['横浜', 35.465970, 139.622045],
-    ['川崎', 35.531231, 139.696658],
-    ['千葉', 35.613400, 140.113104],
-    ['大宮', 35.906461, 139.623780],
-    ['浦和', 35.858629, 139.657407]
-  ];
-
   function clearStations(){
     stationMarkers.forEach(m => map.removeLayer(m));
     stationMarkers = [];
@@ -368,20 +357,6 @@
       iconSize: [120, 34],
       iconAnchor: [60, 30]
     });
-  }
-
-  function drawMajorStationsInView(){
-    clearStations();
-    const b = map.getBounds();
-    let count = 0;
-    MAJOR_STATIONS.forEach(([name, lat, lng])=>{
-      if(b.contains([lat, lng])){
-        const m = L.marker([lat, lng], { icon: stationIcon(name), interactive:false }).addTo(map);
-        stationMarkers.push(m);
-        count++;
-      }
-    });
-    return count;
   }
 
   const OVERPASS_ENDPOINTS = [
@@ -399,16 +374,17 @@
   async function fetchStations(){
     try{
       if(map.getZoom() < 13){ clearStations(); mapOverlay.textContent = 'MAP VIEW'; return; }
+
+      const c = map.getCenter();
+      if(lastStationCenter && lastStationCenter.distanceTo(c) < 400){
+        return; // 近距離の移動では再取得を間引く
+      }
+      lastStationCenter = c;
+
       const b = map.getBounds();
       const bbox = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].join(',');
-
-      if(lastStationCenter){
-        const c = map.getCenter();
-        if(lastStationCenter.distanceTo(c) < 400) return;
-      }
-      lastStationCenter = map.getCenter();
-
       const query = `[out:json][timeout:12];(node["railway"="station"](${bbox});node["railway"="halt"](${bbox}););out body;`;
+
       mapOverlay.textContent = '駅データ取得中…';
 
       let succeeded = false;
@@ -434,20 +410,17 @@
         }
       }
       if(!succeeded){
-        const count = drawMajorStationsInView();
-        mapOverlay.textContent = count > 0 ? ('駅 ' + count + '件(簡易)') : 'MAP VIEW';
+        mapOverlay.textContent = '駅データ取得失敗';
       }
     }catch(e){
       console.error('fetchStations error:', e);
-      const count = drawMajorStationsInView();
-      mapOverlay.textContent = count > 0 ? ('駅 ' + count + '件(簡易)') : 'MAP VIEW';
+      mapOverlay.textContent = '駅データ取得失敗';
     }
   }
 
   map.on('moveend', ()=>{
-    drawMajorStationsInView();
     clearTimeout(stationFetchTimer);
-    stationFetchTimer = setTimeout(fetchStations, 600);
+    stationFetchTimer = setTimeout(fetchStations, 300);
   });
 
   function fmtCoord(v){
@@ -459,14 +432,25 @@
 
   function onPosition(pos){
     const c = pos.coords;
+
+    // 精度の悪い測位は棄却(表示は更新するが座標には使わない)
+    if(c.accuracy != null && c.accuracy > MAX_ACCEPT_ACCURACY){
+      dot.className = 'dot low';
+      statusText.textContent = '精度低(除外 ' + Math.round(c.accuracy) + 'm)';
+      accVal.innerHTML = Math.round(c.accuracy) + '<span class="unit">m</span>';
+      return;
+    }
+
     dot.className = 'dot live';
     statusText.textContent = '受信中';
     msg.textContent = '';
 
-    latVal.textContent = fmtCoord(c.latitude);
-    lngVal.textContent = fmtCoord(c.longitude);
-    latHemi.textContent = c.latitude >= 0 ? 'N 北緯' : 'S 南緯';
-    lngHemi.textContent = c.longitude >= 0 ? 'E 東経' : 'W 西経';
+    const smoothed = smoothedPosition(c.latitude, c.longitude, c.accuracy || 30);
+
+    latVal.textContent = fmtCoord(smoothed.lat);
+    lngVal.textContent = fmtCoord(smoothed.lng);
+    latHemi.textContent = smoothed.lat >= 0 ? 'N 北緯' : 'S 南緯';
+    lngHemi.textContent = smoothed.lng >= 0 ? 'E 東経' : 'W 西経';
 
     accVal.innerHTML = (c.accuracy != null ? Math.round(c.accuracy) : '--') + '<span class="unit">m</span>';
     altVal.innerHTML = (c.altitude != null ? Math.round(c.altitude) : '--') + '<span class="unit">m</span>';
@@ -476,7 +460,7 @@
     const d = new Date(pos.timestamp);
     tsVal.textContent = pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
 
-    updateMap(c.latitude, c.longitude, c.accuracy);
+    updateMap(smoothed.lat, smoothed.lng, c.accuracy);
   }
 
   function onError(err){
@@ -496,6 +480,7 @@
       msg.textContent = 'このブラウザは位置情報に対応していません。';
       return;
     }
+    recentFixes = [];
     dot.className = 'dot';
     statusText.textContent = '取得中…';
     watchId = navigator.geolocation.watchPosition(onPosition, onError, {
@@ -530,8 +515,6 @@
   window.addEventListener('resize', ()=> map.invalidateSize());
   window.addEventListener('orientationchange', ()=> setTimeout(()=> map.invalidateSize(), 300));
 
-  // 即座に静的データで駅名を表示 → 続けてOverpassで詳細取得を試みる
-  drawMajorStationsInView();
   setTimeout(fetchStations, 500);
 </script>
 </body>
