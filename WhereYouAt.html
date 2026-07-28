@@ -616,6 +616,7 @@
   let lastAddressFetchTime = 0;
   const ADDRESS_MIN_DISTANCE = 80;   // これ以上動いたら再取得 [m]
   const ADDRESS_MIN_INTERVAL = 20000; // 最短でもこの間隔は空ける [ms]
+  let isFetchingStations = false; // 駅取得と住所取得のネットワーク処理が重ならないようにする排他フラグ
 
   async function fetchAddress(lat, lng){
     try{
@@ -644,6 +645,7 @@
   }
 
   function refreshAddressIfNeeded(lat, lng){
+    if(isFetchingStations) return; // 駅取得と同時にネットワークリクエストが重ならないようにする
     const now = Date.now();
     const current = L.latLng(lat, lng);
     if(lastAddressCenter){
@@ -985,6 +987,8 @@
   }
 
   async function fetchStations(){
+    if(isFetchingStations) return; // 既に実行中なら重複実行しない
+    isFetchingStations = true;
     try{
       if(!marker){ return; } // 現在地が未取得ならまだ実行しない
       if(map.getZoom() < 13){ clearStations(); mapOverlay.textContent = 'MAP VIEW'; return; }
@@ -1077,6 +1081,8 @@
       clearTimeout(stationRetryTimer);
       const backoff = Math.min(30000, 3000 * Math.pow(2, stationFailCount - 1));
       stationRetryTimer = setTimeout(fetchStations, backoff);
+    }finally{
+      isFetchingStations = false;
     }
   }
 
@@ -1124,8 +1130,10 @@
 
     updateMap(smoothed.lat, smoothed.lng, c.accuracy, c.altitude);
     refreshTickerDistances(); // 通信を伴わない軽量処理: GPS移動のたびに距離表示だけ更新
-    // [一時的に無効化: 駅取得が止まる問題の原因切り分けのため]
-    // try{ refreshAddressIfNeeded(smoothed.lat, smoothed.lng); }catch(addrErr){ console.warn('refreshAddressIfNeeded failed (non-critical):', addrErr); }
+    // 住所取得はGPS更新の同期処理から切り離し、少し遅延させて実行する(他のネットワーク処理との競合を避けるため)
+    setTimeout(()=>{
+      try{ refreshAddressIfNeeded(smoothed.lat, smoothed.lng); }catch(addrErr){ console.warn('refreshAddressIfNeeded failed (non-critical):', addrErr); }
+    }, 50);
   }
 
   function onError(err){
