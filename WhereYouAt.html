@@ -209,28 +209,6 @@
     animation-delay: 1.1s;
   }
 
-  /* 最寄り駅への矢印: 現在地から伸びていき、到達後フェードアウトを繰り返す */
-  @keyframes arrow-line-draw{
-    0%   { stroke-dashoffset: var(--arrow-len, 1000); opacity: 0; }
-    8%   { opacity: 1; }
-    55%  { stroke-dashoffset: 0; opacity: 1; }
-    82%  { stroke-dashoffset: 0; opacity: 0; }
-    100% { stroke-dashoffset: 0; opacity: 0; }
-  }
-  .nearest-arrow-line{
-    stroke-dasharray: var(--arrow-len, 1000);
-    animation: arrow-line-draw 2.6s ease-in-out infinite;
-  }
-  @keyframes arrow-head-fade{
-    0%, 52% { opacity: 0; }
-    58%     { opacity: 1; }
-    82%     { opacity: 1; }
-    100%    { opacity: 0; }
-  }
-  .nearest-arrow-head{
-    animation: arrow-head-fade 2.6s ease-in-out infinite;
-  }
-
   /* main coordinate display */
   .coords{
     display:flex;
@@ -690,9 +668,88 @@
 
   let cachedStations = []; // { name, lat, lng, lines } 直近取得した駅の生データ(距離を都度再計算するため)
 
-  // 現在地から最寄り駅方向への矢印(放物線を描きながら中間点まで伸ばし、先端を矢印にする)
+  // --- 最寄り駅への矢印: requestAnimationFrameで「線が伸びて到達→フェードアウト」を矢印の先端と完全同期させる ---
+  let arrowControlPoints = null; // { p0, p1, p2, cosLat } 現在の曲線制御点(GPS更新のたびに差し替え)
+  let arrowAnimId = null;
+  let arrowAnimStart = null;
+  const ARROW_CYCLE_MS = 2600;   // 1周期
+  const ARROW_DRAW_END = 0.55;   // このタイミングで線が到達
+  const ARROW_FADE_END = 0.82;   // このタイミングでフェードアウト完了
+
+  function bezierPoint(p0, p1, p2, t){
+    return {
+      x: (1-t)*(1-t)*p0.x + 2*(1-t)*t*p1.x + t*t*p2.x,
+      y: (1-t)*(1-t)*p0.y + 2*(1-t)*t*p1.y + t*t*p2.y
+    };
+  }
+
+  function arrowAnimFrame(ts){
+    if(!arrowControlPoints){ arrowAnimId = null; return; }
+    if(!arrowAnimStart) arrowAnimStart = ts;
+    const cycle = ((ts - arrowAnimStart) % ARROW_CYCLE_MS) / ARROW_CYCLE_MS; // 0〜1
+
+    const { p0, p1, p2, cosLat } = arrowControlPoints;
+
+    let drawT, opacity;
+    if(cycle < ARROW_DRAW_END){
+      drawT = cycle / ARROW_DRAW_END; // 線が伸びる進行度 0〜1
+      opacity = Math.min(1, cycle / 0.08);
+    } else if(cycle < ARROW_FADE_END){
+      drawT = 1;
+      opacity = 1;
+    } else {
+      drawT = 1;
+      opacity = 1 - (cycle - ARROW_FADE_END) / (1 - ARROW_FADE_END);
+    }
+
+    // 現在の進行度(drawT)まで曲線を点列化(矢印の先端はこの曲線の終点と常に一致する)
+    const steps = 24;
+    const linePoints = [];
+    for(let i = 0; i <= steps; i++){
+      const t = (i / steps) * drawT;
+      const pt = bezierPoint(p0, p1, p2, t);
+      linePoints.push(L.latLng(pt.y, pt.x / cosLat));
+    }
+    const tip = linePoints[linePoints.length - 1];
+
+    // 接線方向(矢印の向き)
+    const tangentX = 2*(1-drawT)*(p1.x-p0.x) + 2*drawT*(p2.x-p1.x);
+    const tangentY = 2*(1-drawT)*(p1.y-p0.y) + 2*drawT*(p2.y-p1.y);
+    const angleDeg = Math.atan2(tangentX, tangentY) * 180 / Math.PI;
+
+    if(!nearestArrowLine){
+      nearestArrowLine = L.polyline(linePoints, { color: '#0095d9', weight: 2, smoothFactor: 1 }).addTo(map);
+      if(nearestArrowLine.bringToFront) nearestArrowLine.bringToFront();
+    } else {
+      nearestArrowLine.setLatLngs(linePoints);
+    }
+    const pathEl = (nearestArrowLine.getElement ? nearestArrowLine.getElement() : null) || nearestArrowLine._path;
+    if(pathEl) pathEl.style.opacity = opacity;
+
+    if(!nearestArrowHead){
+      const arrowIcon = L.divIcon({
+        className: '',
+        html: `<div class="arrow-head-inner" style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:12px solid #0095d9;transform:rotate(${angleDeg}deg);transform-origin:center center;"></div>`,
+        iconSize: [12, 12],
+        iconAnchor: [6, 6]
+      });
+      nearestArrowHead = L.marker(tip, { icon: arrowIcon, interactive:false, zIndexOffset: 1000 }).addTo(map);
+    } else {
+      nearestArrowHead.setLatLng(tip);
+      const el = nearestArrowHead.getElement();
+      const inner = el ? el.querySelector('.arrow-head-inner') : null;
+      if(inner) inner.style.transform = `rotate(${angleDeg}deg)`;
+      if(el) el.style.opacity = opacity;
+    }
+
+    arrowAnimId = requestAnimationFrame(arrowAnimFrame);
+  }
+
+  // 現在地から最寄り駅方向への矢印(放物線の制御点だけを更新する軽量な関数。実際の描画はrequestAnimationFrameループが担当)
   function updateNearestArrow(originLatLng, nearestLatLng){
     if(!originLatLng || !nearestLatLng){
+      arrowControlPoints = null;
+      if(arrowAnimId){ cancelAnimationFrame(arrowAnimId); arrowAnimId = null; }
       if(nearestArrowLine){ map.removeLayer(nearestArrowLine); nearestArrowLine = null; }
       if(nearestArrowHead){ map.removeLayer(nearestArrowHead); nearestArrowHead = null; }
       return;
@@ -715,69 +772,11 @@
     const bulge = dist * 0.28; // 膨らみ量(距離の28%)
     const p1 = { x: (p0.x + p2.x) / 2 + perpX * bulge, y: (p0.y + p2.y) / 2 + perpY * bulge };
 
-    // 2次ベジェ曲線をt=0(現在地)〜t=1(駅名の位置)まで刻んで点列化
-    const steps = 24;
-    const curvePoints = [];
-    for(let i = 0; i <= steps; i++){
-      const t = i / steps;
-      const x = (1-t)*(1-t)*p0.x + 2*(1-t)*t*p1.x + t*t*p2.x;
-      const y = (1-t)*(1-t)*p0.y + 2*(1-t)*t*p1.y + t*t*p2.y;
-      curvePoints.push(L.latLng(y, x / cosLat));
-    }
+    arrowControlPoints = { p0, p1, p2, cosLat };
 
-    if(!nearestArrowLine){
-      nearestArrowLine = L.polyline(curvePoints, {
-        color: '#0095d9', weight: 2, smoothFactor: 1, className: 'nearest-arrow-line'
-      }).addTo(map);
-    } else {
-      nearestArrowLine.setLatLngs(curvePoints);
-    }
-    if(nearestArrowLine.bringToFront) nearestArrowLine.bringToFront();
-
-    // SVGパスの実長を取得し、CSS変数にセット(「線が伸びる」アニメーションに使用)
-    try{
-      const pathEl = (nearestArrowLine.getElement ? nearestArrowLine.getElement() : null) || nearestArrowLine._path;
-      if(pathEl && pathEl.getTotalLength){
-        const len = pathEl.getTotalLength();
-        pathEl.style.setProperty('--arrow-len', len);
-      }
-    }catch(lenErr){ /* SVG未対応環境などは無視 */ }
-
-    // 曲線の先端(t=1: 駅名の位置)の座標と、その地点での接線ベクトルから矢印の向きを計算
-    const t = 1;
-    const endX = (1-t)*(1-t)*p0.x + 2*(1-t)*t*p1.x + t*t*p2.x;
-    const endY = (1-t)*(1-t)*p0.y + 2*(1-t)*t*p1.y + t*t*p2.y;
-    const tangentX = 2*(1-t)*(p1.x-p0.x) + 2*t*(p2.x-p1.x);
-    const tangentY = 2*(1-t)*(p1.y-p0.y) + 2*t*(p2.y-p1.y);
-
-    const arrowTip = L.latLng(endY, endX / cosLat);
-    const angleRad = Math.atan2(tangentX, tangentY);
-    const angleDeg = angleRad * 180 / Math.PI;
-
-    if(!nearestArrowHead){
-      const arrowIcon = L.divIcon({
-        className: 'nearest-arrow-head',
-        html: `<div class="arrow-head-inner" style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:12px solid #0095d9;transform:rotate(${angleDeg}deg);transform-origin:center center;"></div>`,
-        iconSize: [12, 12],
-        iconAnchor: [6, 6]
-      });
-      nearestArrowHead = L.marker(arrowTip, { icon: arrowIcon, interactive:false, zIndexOffset: 1000 }).addTo(map);
-    } else {
-      nearestArrowHead.setLatLng(arrowTip);
-      // DOM要素を作り直さず回転角度だけ更新する(フェードアニメーションを継続させるため)
-      const el = nearestArrowHead.getElement();
-      const inner = el ? el.querySelector('.arrow-head-inner') : null;
-      if(inner){
-        inner.style.transform = `rotate(${angleDeg}deg)`;
-      } else if(el){
-        const arrowIcon = L.divIcon({
-          className: 'nearest-arrow-head',
-          html: `<div class="arrow-head-inner" style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:12px solid #0095d9;transform:rotate(${angleDeg}deg);transform-origin:center center;"></div>`,
-          iconSize: [12, 12],
-          iconAnchor: [6, 6]
-        });
-        nearestArrowHead.setIcon(arrowIcon);
-      }
+    if(!arrowAnimId){
+      arrowAnimStart = null;
+      arrowAnimId = requestAnimationFrame(arrowAnimFrame);
     }
   }
 
