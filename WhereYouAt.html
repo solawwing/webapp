@@ -608,7 +608,10 @@
   function fetchWithTimeout(url, ms){
     const controller = new AbortController();
     const timer = setTimeout(()=> controller.abort(), ms);
-    return fetch(url, { signal: controller.signal }).finally(()=> clearTimeout(timer));
+    return fetch(url, {
+      signal: controller.signal,
+      headers: { 'Accept': 'application/json' }
+    }).finally(()=> clearTimeout(timer));
   }
 
   // --- 住所表示(逆ジオコーディング / Nominatim) ---
@@ -617,6 +620,7 @@
   const ADDRESS_MIN_DISTANCE = 80;   // これ以上動いたら再取得 [m]
   const ADDRESS_MIN_INTERVAL = 20000; // 最短でもこの間隔は空ける [ms]
   let isFetchingStations = false; // 駅取得と住所取得のネットワーク処理が重ならないようにする排他フラグ
+  let isFetchingExtended = false; // 拡張取得(5km圏)・路線名取得の重複実行を防ぐフラグ(Overpassの同時実行制限対策)
   let stationFetchAttempted = false; // 一度でも駅取得を開始したか(最初の駅取得より前に住所取得が走らないようにする)
 
   async function fetchAddress(lat, lng){
@@ -1061,10 +1065,16 @@
           isFetchingStations = false;
 
           // 2km〜5km圏の駅、路線名は、同じサーバーへの同時リクエストを避けるため順番に実行する
-          // (失敗しても基本の駅表示には影響しないベストエフォート処理)
-          fetchExtendedStations(origin).then(()=>{
-            return fetchStationLines(origin, stationNodes, endpoint);
-          });
+          // (失敗しても基本の駅表示には影響しないベストエフォート処理。Overpassは同時実行数が
+          //  厳しく制限されているため、既に実行中なら重複させない)
+          if(!isFetchingExtended){
+            isFetchingExtended = true;
+            fetchExtendedStations(origin).then(()=>{
+              return fetchStationLines(origin, stationNodes, endpoint);
+            }).finally(()=>{
+              isFetchingExtended = false;
+            });
+          }
           break;
         }catch(e){
           lastError = e;
