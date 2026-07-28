@@ -936,10 +936,9 @@
           preferredEndpointIndex = OVERPASS_ENDPOINTS.indexOf(endpoint);
           if(preferredEndpointIndex < 0) preferredEndpointIndex = 0;
 
-          // 路線名は失敗しても駅表示に影響しないよう、別途ベストエフォートで取得
-          fetchStationLines(origin, stationNodes, endpoint);
-          // 2km〜5km圏の駅も失敗しても基本表示に影響しないよう、別途ベストエフォートで取得
-          fetchExtendedStations(origin, endpoint);
+          // [一時的に無効化: 駅取得タイムアウト問題の原因切り分けのため]
+          // fetchStationLines(origin, stationNodes, endpoint);
+          // fetchExtendedStations(origin, endpoint);
           break;
         }catch(e){
           lastError = e;
