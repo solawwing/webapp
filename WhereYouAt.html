@@ -1056,10 +1056,15 @@
           preferredEndpointIndex = OVERPASS_ENDPOINTS.indexOf(endpoint);
           if(preferredEndpointIndex < 0) preferredEndpointIndex = 0;
 
+          // 基本の駅名(1km/2km圏)はここまでで確定・表示済み。以降の拡張取得・路線名取得は
+          // バックグラウンドで続けるが、住所取得をブロックし続けないようフラグはここで先に解除する。
+          isFetchingStations = false;
+
           // 2km〜5km圏の駅、路線名は、同じサーバーへの同時リクエストを避けるため順番に実行する
-          // (失敗しても基本の駅表示には影響しないベストエフォート処理。完了まで住所取得を待たせるためawaitする)
-          await fetchExtendedStations(origin);
-          await fetchStationLines(origin, stationNodes, endpoint);
+          // (失敗しても基本の駅表示には影響しないベストエフォート処理)
+          fetchExtendedStations(origin).then(()=>{
+            return fetchStationLines(origin, stationNodes, endpoint);
+          });
           break;
         }catch(e){
           lastError = e;
