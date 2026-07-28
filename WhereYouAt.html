@@ -110,7 +110,9 @@
   #map .leaflet-marker-pane,
   #map .leaflet-marker-pane *,
   #map .leaflet-overlay-pane,
-  #map .leaflet-overlay-pane *{
+  #map .leaflet-overlay-pane *,
+  #map .leaflet-arrowPane-pane,
+  #map .leaflet-arrowPane-pane *{
     filter:none;
   }
   .station-label{
@@ -422,6 +424,15 @@
     attribution: '&copy; OpenStreetMap'
   }).addTo(map);
 
+  // 最寄り駅への矢印を他の全レイヤー(駅ラベル・現在地マーカー含む)より最前面に表示するための専用pane
+  try{
+    map.createPane('arrowPane');
+    map.getPane('arrowPane').style.zIndex = 700;
+    map.getPane('arrowPane').style.pointerEvents = 'none';
+  }catch(paneErr){
+    console.warn('arrowPane creation failed (non-critical):', paneErr);
+  }
+
   // 高度に応じたマーカー色: 50m以下は緑、超えると蛍光ブルー
   const ALT_THRESHOLD = 50;
   const COLOR_LOW = '#39ff8f';   // 緑
@@ -693,11 +704,11 @@
     const bulge = dist * 0.28; // 膨らみ量(距離の28%)
     const p1 = { x: (p0.x + p2.x) / 2 + perpX * bulge, y: (p0.y + p2.y) / 2 + perpY * bulge };
 
-    // 2次ベジェ曲線をt=0(現在地)〜t=0.5(中間点)まで刻んで点列化
-    const steps = 20;
+    // 2次ベジェ曲線をt=0(現在地)〜t=1(駅名の位置)まで刻んで点列化
+    const steps = 24;
     const curvePoints = [];
     for(let i = 0; i <= steps; i++){
-      const t = (i / steps) * 0.5;
+      const t = i / steps;
       const x = (1-t)*(1-t)*p0.x + 2*(1-t)*t*p1.x + t*t*p2.x;
       const y = (1-t)*(1-t)*p0.y + 2*(1-t)*t*p1.y + t*t*p2.y;
       curvePoints.push(L.latLng(y, x / cosLat));
@@ -705,14 +716,14 @@
 
     if(!nearestArrowLine){
       nearestArrowLine = L.polyline(curvePoints, {
-        color: '#00A0FF', weight: 2, opacity: 0.85, smoothFactor: 1
+        color: '#0068b7', weight: 2, opacity: 0.9, smoothFactor: 1, pane: 'arrowPane'
       }).addTo(map);
     } else {
       nearestArrowLine.setLatLngs(curvePoints);
     }
 
-    // 曲線の先端(t=0.5)の座標と、その地点での接線ベクトルから矢印の向きを計算
-    const t = 0.5;
+    // 曲線の先端(t=1: 駅名の位置)の座標と、その地点での接線ベクトルから矢印の向きを計算
+    const t = 1;
     const endX = (1-t)*(1-t)*p0.x + 2*(1-t)*t*p1.x + t*t*p2.x;
     const endY = (1-t)*(1-t)*p0.y + 2*(1-t)*t*p1.y + t*t*p2.y;
     const tangentX = 2*(1-t)*(p1.x-p0.x) + 2*t*(p2.x-p1.x);
@@ -724,13 +735,13 @@
 
     const arrowIcon = L.divIcon({
       className: '',
-      html: `<div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:12px solid #00A0FF;transform:rotate(${angleDeg}deg);transform-origin:center center;"></div>`,
+      html: `<div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:12px solid #0068b7;transform:rotate(${angleDeg}deg);transform-origin:center center;"></div>`,
       iconSize: [12, 12],
       iconAnchor: [6, 6]
     });
 
     if(!nearestArrowHead){
-      nearestArrowHead = L.marker(arrowTip, { icon: arrowIcon, interactive:false }).addTo(map);
+      nearestArrowHead = L.marker(arrowTip, { icon: arrowIcon, interactive:false, pane: 'arrowPane' }).addTo(map);
     } else {
       nearestArrowHead.setLatLng(arrowTip);
       nearestArrowHead.setIcon(arrowIcon);
@@ -805,17 +816,24 @@
           lineSet.forEach(l => { if(!s.lines.includes(l)) s.lines.push(l); });
         }
       });
-      refreshTickerDistances();
-      // 地図上のラベルも路線名付きで再描画
-      const origin2 = marker.getLatLng();
-      clearStations();
-      cachedStations.forEach(s=>{
-        const dist = origin2.distanceTo([s.lat, s.lng]);
-        if(dist > STATION_RADIUS_XFAR) return;
-        const color = colorForStationDistance(dist);
-        const m = L.marker([s.lat, s.lng], { icon: stationIcon(s.name, color, s.lines), interactive:false }).addTo(map);
-        stationMarkers.push(m);
-      });
+      try{ refreshTickerDistances(); }catch(e){ console.warn('refreshTickerDistances failed (non-critical):', e); }
+
+      // 地図上のラベルも路線名付きで再描画(失敗しても既存ラベルが消えたままにならないよう、新規描画が全て成功した場合のみ置き換える)
+      try{
+        const origin2 = marker.getLatLng();
+        const newMarkers = [];
+        cachedStations.forEach(s=>{
+          const dist = origin2.distanceTo([s.lat, s.lng]);
+          if(dist > STATION_RADIUS_XFAR) return;
+          const color = colorForStationDistance(dist);
+          const m = L.marker([s.lat, s.lng], { icon: stationIcon(s.name, color, s.lines), interactive:false });
+          newMarkers.push(m);
+        });
+        clearStations();
+        newMarkers.forEach(m=>{ m.addTo(map); stationMarkers.push(m); });
+      }catch(e){
+        console.warn('station label redraw failed (non-critical, existing labels kept):', e);
+      }
     }catch(e){
       console.warn('fetchStationLines failed (non-critical):', e);
     }
