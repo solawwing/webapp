@@ -633,7 +633,7 @@
           a.neighbourhood || a.quarter,
           a.road
         ].filter(Boolean);
-        addressVal.textContent = (parts.length > 0 ? parts.join(' ') : (data.display_name || '住所不明')) + '付近';
+        addressVal.textContent = (parts.length > 0 ? parts.join(' ') : (data.display_name || '住所不明')) + ' 付近';
       } else {
         addressVal.textContent = '住所不明';
       }
