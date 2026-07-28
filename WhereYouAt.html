@@ -816,36 +816,40 @@
   }
 
   // 2km〜5km圏の駅は失敗しても基本表示(1km/2km圏)に影響しないよう、別途ベストエフォートで取得
-  async function fetchExtendedStations(origin, preferredEndpoint){
-    try{
-      const query = `[out:json][timeout:12];node["railway"="station"](around:${STATION_RADIUS_XFAR},${origin.lat},${origin.lng});out body;`;
-      const res = await fetchWithTimeout(preferredEndpoint + '?data=' + encodeURIComponent(query), 16000);
-      if(!res.ok) return;
-      const data = await res.json();
-      const stationNodes = (data.elements || []).filter(el => el.type === 'node' && el.tags && el.tags.railway === 'station');
-      if(stationNodes.length === 0) return;
+  async function fetchExtendedStations(origin){
+    const query = `[out:json][timeout:15];node["railway"="station"](around:${STATION_RADIUS_XFAR},${origin.lat},${origin.lng});out body;`;
 
-      // 基本取得(cachedStations)に、まだ含まれていない駅(2km超)だけ追加する
-      const existingIds = new Set(cachedStations.map(s => s.id));
-      let addedCount = 0;
-      stationNodes.forEach(el=>{
-        if(existingIds.has(el.id)) return; // 既に基本取得(2km圏)で描画済み
-        const name = (el.tags && (el.tags['name:ja'] || el.tags.name)) || null;
-        if(!name) return;
-        const dist = origin.distanceTo([el.lat, el.lon]);
-        if(dist <= STATION_RADIUS_FAR || dist > STATION_RADIUS_XFAR) return; // 2001m〜5000mのみ対象
-        const lines = el.tags.network ? [el.tags.network] : [];
-        cachedStations.push({ name, lat: el.lat, lng: el.lon, lines, id: el.id });
-        const color = colorForStationDistance(dist);
-        const m = L.marker([el.lat, el.lon], { icon: stationIcon(name, color, lines), interactive:false }).addTo(map);
-        stationMarkers.push(m);
-        addedCount++;
-      });
-      if(addedCount > 0){
-        mapOverlay.textContent = '駅 ' + cachedStations.length + '件';
+    for(const endpoint of orderedEndpoints()){
+      try{
+        const res = await fetchWithTimeout(endpoint + '?data=' + encodeURIComponent(query), 20000);
+        if(!res.ok) continue;
+        const data = await res.json();
+        const stationNodes = (data.elements || []).filter(el => el.type === 'node' && el.tags && el.tags.railway === 'station');
+        if(stationNodes.length === 0) return;
+
+        // 基本取得(cachedStations)に、まだ含まれていない駅(2km超)だけ追加する
+        const existingIds = new Set(cachedStations.map(s => s.id));
+        let addedCount = 0;
+        stationNodes.forEach(el=>{
+          if(existingIds.has(el.id)) return; // 既に基本取得(2km圏)で描画済み
+          const name = (el.tags && (el.tags['name:ja'] || el.tags.name)) || null;
+          if(!name) return;
+          const dist = origin.distanceTo([el.lat, el.lon]);
+          if(dist <= STATION_RADIUS_FAR || dist > STATION_RADIUS_XFAR) return; // 2001m〜5000mのみ対象
+          const lines = el.tags.network ? [el.tags.network] : [];
+          cachedStations.push({ name, lat: el.lat, lng: el.lon, lines, id: el.id });
+          const color = colorForStationDistance(dist);
+          const m = L.marker([el.lat, el.lon], { icon: stationIcon(name, color, lines), interactive:false }).addTo(map);
+          stationMarkers.push(m);
+          addedCount++;
+        });
+        if(addedCount > 0){
+          mapOverlay.textContent = '駅 ' + cachedStations.length + '件';
+        }
+        return; // 成功したらそこで終了(他のエンドポイントは試さない)
+      }catch(e){
+        console.warn('fetchExtendedStations endpoint failed (non-critical):', endpoint, e);
       }
-    }catch(e){
-      console.warn('fetchExtendedStations failed (non-critical):', e);
     }
   }
 
@@ -980,7 +984,7 @@
 
           // 2km〜5km圏の駅、路線名は、同じサーバーへの同時リクエストを避けるため順番に実行する
           // (失敗しても基本の駅表示には影響しないベストエフォート処理)
-          fetchExtendedStations(origin, endpoint).then(()=>{
+          fetchExtendedStations(origin).then(()=>{
             fetchStationLines(origin, stationNodes, endpoint);
           });
           break;
