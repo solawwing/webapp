@@ -94,6 +94,7 @@
   let horizonShift = 0;
   let prevCamX = 0;
   let starDriftX = 0;
+  const shootingStars = []; // ごくたまに出現する流れ星（残像つき）
 
   // ---- 星（3階層：遠い星はゆっくり、近い星は速く流れる。道の動きに同期） ----
   const starLayers = [
@@ -199,14 +200,14 @@
   function ensureTrees(maxZ){
     while(treeGenZ < maxZ){
       const i = treeList.length + Math.floor(treeGenZ) + 1;
-      const gap = 30 + hash(i * 3.7 + 21) * 65; // 候補地点の間隔（世界単位・出現頻度アップ）
+      const gap = 10 + hash(i * 3.7 + 21) * 22; // 候補地点の間隔（世界単位・さらに出現頻度アップ）
       treeGenZ += gap;
       const spawn = hash(i * 5.3 + 37) < 0.62;   // 出現確率を引き上げ
       if(spawn){
         const side = hash(i * 2.9 + 41) < 0.5 ? -1 : 1;
         const extra = 10 + hash(i * 4.1 + 53) * 13;      // 道端からの追加オフセット（さらに2倍ほど離す）
         const height = (5.5 + hash(i * 6.5 + 61) * 4.5) * 3;   // 木の高さ（3倍）
-        const baseHalf = (0.45 + hash(i * 7.3 + 67) * 0.35) * 3; // 底辺の半幅（3倍）
+        const baseHalf = (0.45 + hash(i * 7.3 + 67) * 0.35) * 4.2; // 底辺の半幅（さらに大きく）
         treeList.push({ z: treeGenZ, side, extra, height, baseHalf });
       }
     }
@@ -221,7 +222,7 @@
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1;
     const worldUnitPx = (W * roadScreenFrac / 2) / roadHalfWidth; // scale=1地点でのワールド単位あたりのピクセル数
     for(const t of treeList){
       const z = t.z - scrollZ;
@@ -295,6 +296,45 @@
         ctx.fillStyle = 'rgba(210,225,255,' + alpha + ')';
         ctx.fillRect(sx, sy, layer.size, layer.size);
       }
+    }
+    ctx.restore();
+
+    // ---- ごくたまに現れる流れ星（残像つき） ----
+    if(Math.random() < 0.0018 && horizonY > 30){
+      const startX = Math.random() * W;
+      const startY = -10;
+      const spd = 90 + Math.random() * 60; // ゆっくり
+      const dir = Math.random() < 0.5 ? -1 : 1;
+      shootingStars.push({
+        x: startX, y: startY,
+        vx: dir * (0.6 + Math.random() * 0.5) * spd, // しっかり斜めに流れる
+        vy: spd,
+        life: 0,
+        maxLife: 8
+      });
+    }
+    ctx.save();
+    for(let i = shootingStars.length - 1; i >= 0; i--){
+      const s = shootingStars[i];
+      s.life += dt;
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      if(s.life >= s.maxLife || s.y > horizonY || s.x < -60 || s.x > W + 60){
+        shootingStars.splice(i, 1);
+        continue;
+      }
+      const fadeAlpha = Math.max(0, Math.min(1, 1 - s.y / horizonY));
+      const tx = s.x - s.vx * 0.9;
+      const ty = s.y - s.vy * 0.9;
+      const trailGrad = ctx.createLinearGradient(tx, ty, s.x, s.y);
+      trailGrad.addColorStop(0, 'rgba(255,255,255,0)');
+      trailGrad.addColorStop(1, 'rgba(255,255,255,' + fadeAlpha + ')');
+      ctx.strokeStyle = trailGrad;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(s.x, s.y);
+      ctx.stroke();
     }
     ctx.restore();
 
