@@ -1124,7 +1124,8 @@
 
     updateMap(smoothed.lat, smoothed.lng, c.accuracy, c.altitude);
     refreshTickerDistances(); // 通信を伴わない軽量処理: GPS移動のたびに距離表示だけ更新
-    refreshAddressIfNeeded(smoothed.lat, smoothed.lng);
+    // [一時的に無効化: 駅取得が止まる問題の原因切り分けのため]
+    // try{ refreshAddressIfNeeded(smoothed.lat, smoothed.lng); }catch(addrErr){ console.warn('refreshAddressIfNeeded failed (non-critical):', addrErr); }
   }
 
   function onError(err){
