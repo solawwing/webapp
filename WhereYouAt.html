@@ -110,7 +110,9 @@
   #map .leaflet-marker-pane,
   #map .leaflet-marker-pane *,
   #map .leaflet-overlay-pane,
-  #map .leaflet-overlay-pane *{
+  #map .leaflet-overlay-pane *,
+  #map .leaflet-arrowPane-pane,
+  #map .leaflet-arrowPane-pane *{
     filter:none;
   }
   .station-label{
@@ -422,6 +424,15 @@
     attribution: '&copy; OpenStreetMap'
   }).addTo(map);
 
+  // 最寄り駅への矢印を駅ラベル等より確実に最前面へ表示するための専用pane
+  try{
+    map.createPane('arrowPane');
+    map.getPane('arrowPane').style.zIndex = 700;
+    map.getPane('arrowPane').style.pointerEvents = 'none';
+  }catch(paneErr){
+    console.warn('arrowPane creation failed (non-critical):', paneErr);
+  }
+
   // 高度に応じたマーカー色: 50m以下は緑、超えると蛍光ブルー
   const ALT_THRESHOLD = 50;
   const COLOR_LOW = '#39ff8f';   // 緑
@@ -673,8 +684,7 @@
   let arrowAnimId = null;
   let arrowAnimStart = null;
   const ARROW_CYCLE_MS = 2600;   // 1周期
-  const ARROW_DRAW_END = 0.55;   // このタイミングで線が到達
-  const ARROW_FADE_END = 0.82;   // このタイミングでフェードアウト完了
+  const ARROW_DRAW_END = 0.6;    // このタイミングで線が最寄り駅に到達
 
   function bezierPoint(p0, p1, p2, t){
     return {
@@ -693,13 +703,10 @@
     let drawT, opacity;
     if(cycle < ARROW_DRAW_END){
       drawT = cycle / ARROW_DRAW_END; // 線が伸びる進行度 0〜1
-      opacity = Math.min(1, cycle / 0.08);
-    } else if(cycle < ARROW_FADE_END){
-      drawT = 1;
-      opacity = 1;
+      opacity = drawT; // 現在地(薄い/透明)→最寄り駅(濃い/不透明)へ徐々にフェードイン
     } else {
       drawT = 1;
-      opacity = 1 - (cycle - ARROW_FADE_END) / (1 - ARROW_FADE_END);
+      opacity = 1 - (cycle - ARROW_DRAW_END) / (1 - ARROW_DRAW_END); // 到達後、最寄り駅側からフェードアウト
     }
 
     // 現在の進行度(drawT)まで曲線を点列化(矢印の先端はこの曲線の終点と常に一致する)
@@ -718,7 +725,7 @@
     const angleDeg = Math.atan2(tangentX, tangentY) * 180 / Math.PI;
 
     if(!nearestArrowLine){
-      nearestArrowLine = L.polyline(linePoints, { color: '#0095d9', weight: 2, smoothFactor: 1 }).addTo(map);
+      nearestArrowLine = L.polyline(linePoints, { color: '#0095d9', weight: 2, smoothFactor: 1, pane: 'arrowPane' }).addTo(map);
       if(nearestArrowLine.bringToFront) nearestArrowLine.bringToFront();
     } else {
       nearestArrowLine.setLatLngs(linePoints);
@@ -733,7 +740,7 @@
         iconSize: [12, 12],
         iconAnchor: [6, 6]
       });
-      nearestArrowHead = L.marker(tip, { icon: arrowIcon, interactive:false, zIndexOffset: 1000 }).addTo(map);
+      nearestArrowHead = L.marker(tip, { icon: arrowIcon, interactive:false, pane: 'arrowPane' }).addTo(map);
     } else {
       nearestArrowHead.setLatLng(tip);
       const el = nearestArrowHead.getElement();
