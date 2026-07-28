@@ -668,7 +668,7 @@
 
   let cachedStations = []; // { name, lat, lng, lines } 直近取得した駅の生データ(距離を都度再計算するため)
 
-  // 現在地から最寄り駅方向への矢印(中間点まで線を伸ばし、先端を矢印にする)
+  // 現在地から最寄り駅方向への矢印(放物線を描きながら中間点まで伸ばし、先端を矢印にする)
   function updateNearestArrow(originLatLng, nearestLatLng){
     if(!originLatLng || !nearestLatLng){
       if(nearestArrowLine){ map.removeLayer(nearestArrowLine); nearestArrowLine = null; }
@@ -676,23 +676,50 @@
       return;
     }
 
-    const midLat = (originLatLng.lat + nearestLatLng.lat) / 2;
-    const midLng = (originLatLng.lng + nearestLatLng.lng) / 2;
-    const midPoint = L.latLng(midLat, midLng);
+    // 緯度による経度方向の縮尺差を補正した簡易平面座標(短距離のみ対象なので十分な精度)
+    const latRad = originLatLng.lat * Math.PI / 180;
+    const cosLat = Math.cos(latRad) || 1;
 
-    if(!nearestArrowLine){
-      nearestArrowLine = L.polyline([originLatLng, midPoint], {
-        color: '#00A0FF', weight: 2, opacity: 0.85
-      }).addTo(map);
-    } else {
-      nearestArrowLine.setLatLngs([originLatLng, midPoint]);
+    const p0 = { x: originLatLng.lng * cosLat, y: originLatLng.lat };
+    const p2 = { x: nearestLatLng.lng * cosLat, y: nearestLatLng.lat };
+
+    const dx = p2.x - p0.x;
+    const dy = p2.y - p0.y;
+    const dist = Math.sqrt(dx*dx + dy*dy) || 1e-9;
+
+    // 進行方向に対して垂直な向きに膨らませ、放物線の制御点を作る
+    const perpX = -dy / dist;
+    const perpY = dx / dist;
+    const bulge = dist * 0.28; // 膨らみ量(距離の28%)
+    const p1 = { x: (p0.x + p2.x) / 2 + perpX * bulge, y: (p0.y + p2.y) / 2 + perpY * bulge };
+
+    // 2次ベジェ曲線をt=0(現在地)〜t=0.5(中間点)まで刻んで点列化
+    const steps = 20;
+    const curvePoints = [];
+    for(let i = 0; i <= steps; i++){
+      const t = (i / steps) * 0.5;
+      const x = (1-t)*(1-t)*p0.x + 2*(1-t)*t*p1.x + t*t*p2.x;
+      const y = (1-t)*(1-t)*p0.y + 2*(1-t)*t*p1.y + t*t*p2.y;
+      curvePoints.push(L.latLng(y, x / cosLat));
     }
 
-    // 矢印の向き(北基準の角度)を計算
-    const angleRad = Math.atan2(
-      midPoint.lng - originLatLng.lng,
-      midPoint.lat - originLatLng.lat
-    );
+    if(!nearestArrowLine){
+      nearestArrowLine = L.polyline(curvePoints, {
+        color: '#00A0FF', weight: 2, opacity: 0.85, smoothFactor: 1
+      }).addTo(map);
+    } else {
+      nearestArrowLine.setLatLngs(curvePoints);
+    }
+
+    // 曲線の先端(t=0.5)の座標と、その地点での接線ベクトルから矢印の向きを計算
+    const t = 0.5;
+    const endX = (1-t)*(1-t)*p0.x + 2*(1-t)*t*p1.x + t*t*p2.x;
+    const endY = (1-t)*(1-t)*p0.y + 2*(1-t)*t*p1.y + t*t*p2.y;
+    const tangentX = 2*(1-t)*(p1.x-p0.x) + 2*t*(p2.x-p1.x);
+    const tangentY = 2*(1-t)*(p1.y-p0.y) + 2*t*(p2.y-p1.y);
+
+    const arrowTip = L.latLng(endY, endX / cosLat);
+    const angleRad = Math.atan2(tangentX, tangentY);
     const angleDeg = angleRad * 180 / Math.PI;
 
     const arrowIcon = L.divIcon({
@@ -703,9 +730,9 @@
     });
 
     if(!nearestArrowHead){
-      nearestArrowHead = L.marker(midPoint, { icon: arrowIcon, interactive:false }).addTo(map);
+      nearestArrowHead = L.marker(arrowTip, { icon: arrowIcon, interactive:false }).addTo(map);
     } else {
-      nearestArrowHead.setLatLng(midPoint);
+      nearestArrowHead.setLatLng(arrowTip);
       nearestArrowHead.setIcon(arrowIcon);
     }
   }
