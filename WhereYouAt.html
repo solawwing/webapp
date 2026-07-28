@@ -626,7 +626,7 @@
   async function fetchAddress(lat, lng){
     try{
       const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&accept-language=ja`;
-      const res = await fetchWithTimeout(url, 8000);
+      const res = await fetchWithTimeout(url, 12000);
       if(!res.ok) return;
       const data = await res.json();
       if(data && data.address){
@@ -650,7 +650,7 @@
   }
 
   function refreshAddressIfNeeded(lat, lng){
-    if(isFetchingStations || !stationFetchAttempted) return; // 駅取得中、または駅取得が一度も開始されていなければスキップ(駅名を優先)
+    if(isFetchingStations || isFetchingExtended || !stationFetchAttempted) return; // 駅関連の通信中、または駅取得が一度も開始されていなければスキップ(駅名を優先)
     const now = Date.now();
     const current = L.latLng(lat, lng);
     if(lastAddressCenter){
