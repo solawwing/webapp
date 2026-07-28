@@ -274,12 +274,17 @@
   .addressBox{
     display:flex;
     align-items:baseline;
-    gap:8px;
+    gap:0;
     min-width:0;
+  }
+  .addressLabel{
+    font-size:11px;
+    color:#39FF14;
+    flex:none;
   }
   .addressVal{
     font-size:11px;
-    color:var(--ink);
+    color:#FFFFFF;
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
@@ -350,7 +355,7 @@
           <span class="value" id="lngVal">--.------°</span>
         </div>
         <div class="addressBox">
-          <span class="clabel">住所</span>
+          <span class="addressLabel">現在地 </span>
           <span class="addressVal" id="addressVal">--</span>
         </div>
       </div>
@@ -628,7 +633,7 @@
           a.neighbourhood || a.quarter,
           a.road
         ].filter(Boolean);
-        addressVal.textContent = parts.length > 0 ? parts.join(' ') : (data.display_name || '住所不明');
+        addressVal.textContent = (parts.length > 0 ? parts.join(' ') : (data.display_name || '住所不明')) + '付近';
       } else {
         addressVal.textContent = '住所不明';
       }
