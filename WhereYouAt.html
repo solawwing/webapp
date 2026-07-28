@@ -271,6 +271,19 @@
   .cell .clabel{ font-size:8px; letter-spacing:.15em; color:var(--ink-dim); text-transform:uppercase; margin-bottom:3px; }
   .cell .cval{ font-size:14px; color:var(--ink); font-variant-numeric: tabular-nums; }
   .cell .cval .unit{ font-size:10px; color:var(--ink-dim); margin-left:2px; }
+  .addressBox{
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+    min-width:0;
+  }
+  .addressVal{
+    font-size:11px;
+    color:var(--ink);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
 
   .msg{
     text-align:center; color:var(--warn); font-size:12px;
@@ -336,7 +349,10 @@
           <span class="clabel">LNG <span class="hemi" id="lngHemi">—</span><br><span class="hemiJa" id="lngHemiJa">—</span></span>
           <span class="value" id="lngVal">--.------°</span>
         </div>
-        <div></div>
+        <div class="addressBox">
+          <span class="clabel">住所</span>
+          <span class="addressVal" id="addressVal">--</span>
+        </div>
       </div>
 
       <div class="msg" id="msg"></div>
@@ -373,6 +389,7 @@
   const accVal = document.getElementById('accVal');
   const altVal = document.getElementById('altVal');
   const spdVal = document.getElementById('spdVal');
+  const addressVal = document.getElementById('addressVal');
   const msg = document.getElementById('msg');
   const mapOverlay = document.querySelector('.mapOverlay');
 
@@ -587,6 +604,52 @@
     const controller = new AbortController();
     const timer = setTimeout(()=> controller.abort(), ms);
     return fetch(url, { signal: controller.signal }).finally(()=> clearTimeout(timer));
+  }
+
+  // --- 住所表示(逆ジオコーディング / Nominatim) ---
+  let lastAddressCenter = null;
+  let lastAddressFetchTime = 0;
+  const ADDRESS_MIN_DISTANCE = 80;   // これ以上動いたら再取得 [m]
+  const ADDRESS_MIN_INTERVAL = 20000; // 最短でもこの間隔は空ける [ms]
+
+  async function fetchAddress(lat, lng){
+    try{
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&accept-language=ja`;
+      const res = await fetchWithTimeout(url, 8000);
+      if(!res.ok) return;
+      const data = await res.json();
+      if(data && data.address){
+        const a = data.address;
+        // 都道府県・市区町村・町名などを優先順位で組み立てる(存在するものだけ)
+        const parts = [
+          a.state,
+          a.city || a.town || a.village || a.county,
+          a.suburb || a.city_district,
+          a.neighbourhood || a.quarter,
+          a.road
+        ].filter(Boolean);
+        addressVal.textContent = parts.length > 0 ? parts.join(' ') : (data.display_name || '住所不明');
+      } else {
+        addressVal.textContent = '住所不明';
+      }
+    }catch(e){
+      console.warn('fetchAddress failed (non-critical):', e);
+      addressVal.textContent = '取得失敗';
+    }
+  }
+
+  function refreshAddressIfNeeded(lat, lng){
+    const now = Date.now();
+    const current = L.latLng(lat, lng);
+    if(lastAddressCenter){
+      const moved = lastAddressCenter.distanceTo(current);
+      if(moved < ADDRESS_MIN_DISTANCE && (now - lastAddressFetchTime) < ADDRESS_MIN_INTERVAL){
+        return; // 移動が小さく、時間も経っていなければスキップ
+      }
+    }
+    lastAddressCenter = current;
+    lastAddressFetchTime = now;
+    fetchAddress(lat, lng);
   }
 
   const STATION_RADIUS_NEAR = 1000; // 蛍光赤 [m]
@@ -1056,6 +1119,7 @@
 
     updateMap(smoothed.lat, smoothed.lng, c.accuracy, c.altitude);
     refreshTickerDistances(); // 通信を伴わない軽量処理: GPS移動のたびに距離表示だけ更新
+    refreshAddressIfNeeded(smoothed.lat, smoothed.lng);
   }
 
   function onError(err){
