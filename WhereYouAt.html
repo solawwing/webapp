@@ -617,6 +617,7 @@
   const ADDRESS_MIN_DISTANCE = 80;   // これ以上動いたら再取得 [m]
   const ADDRESS_MIN_INTERVAL = 20000; // 最短でもこの間隔は空ける [ms]
   let isFetchingStations = false; // 駅取得と住所取得のネットワーク処理が重ならないようにする排他フラグ
+  let stationFetchAttempted = false; // 一度でも駅取得を開始したか(最初の駅取得より前に住所取得が走らないようにする)
 
   async function fetchAddress(lat, lng){
     try{
@@ -645,7 +646,7 @@
   }
 
   function refreshAddressIfNeeded(lat, lng){
-    if(isFetchingStations) return; // 駅取得と同時にネットワークリクエストが重ならないようにする
+    if(isFetchingStations || !stationFetchAttempted) return; // 駅取得中、または駅取得が一度も開始されていなければスキップ(駅名を優先)
     const now = Date.now();
     const current = L.latLng(lat, lng);
     if(lastAddressCenter){
@@ -989,6 +990,7 @@
   async function fetchStations(){
     if(isFetchingStations) return; // 既に実行中なら重複実行しない
     isFetchingStations = true;
+    stationFetchAttempted = true;
     try{
       if(!marker){ return; } // 現在地が未取得ならまだ実行しない
       if(map.getZoom() < 13){ clearStations(); mapOverlay.textContent = 'MAP VIEW'; return; }
@@ -1055,10 +1057,9 @@
           if(preferredEndpointIndex < 0) preferredEndpointIndex = 0;
 
           // 2km〜5km圏の駅、路線名は、同じサーバーへの同時リクエストを避けるため順番に実行する
-          // (失敗しても基本の駅表示には影響しないベストエフォート処理)
-          fetchExtendedStations(origin).then(()=>{
-            fetchStationLines(origin, stationNodes, endpoint);
-          });
+          // (失敗しても基本の駅表示には影響しないベストエフォート処理。完了まで住所取得を待たせるためawaitする)
+          await fetchExtendedStations(origin);
+          await fetchStationLines(origin, stationNodes, endpoint);
           break;
         }catch(e){
           lastError = e;
