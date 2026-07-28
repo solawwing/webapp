@@ -426,9 +426,9 @@
 
   // 最寄り駅への矢印を駅ラベル等より確実に最前面へ表示するための専用pane
   try{
-    map.createPane('arrowPane');
-    map.getPane('arrowPane').style.zIndex = 700;
-    map.getPane('arrowPane').style.pointerEvents = 'none';
+    const arrowPaneEl = map.createPane('arrowPane');
+    arrowPaneEl.style.zIndex = 700;
+    arrowPaneEl.style.pointerEvents = 'none';
   }catch(paneErr){
     console.warn('arrowPane creation failed (non-critical):', paneErr);
   }
@@ -730,8 +730,8 @@
     } else {
       nearestArrowLine.setLatLngs(linePoints);
     }
-    const pathEl = (nearestArrowLine.getElement ? nearestArrowLine.getElement() : null) || nearestArrowLine._path;
-    if(pathEl) pathEl.style.opacity = opacity;
+    const pathEl = nearestArrowLine._path;
+    if(pathEl) pathEl.style.opacity = String(opacity);
 
     if(!nearestArrowHead){
       const arrowIcon = L.divIcon({
@@ -746,7 +746,7 @@
       const el = nearestArrowHead.getElement();
       const inner = el ? el.querySelector('.arrow-head-inner') : null;
       if(inner) inner.style.transform = `rotate(${angleDeg}deg)`;
-      if(el) el.style.opacity = opacity;
+      if(el) el.style.opacity = String(opacity);
     }
 
     arrowAnimId = requestAnimationFrame(arrowAnimFrame);
