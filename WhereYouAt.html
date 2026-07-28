@@ -583,9 +583,17 @@
   }
 
   const STATION_RADIUS_NEAR = 1000; // 蛍光赤 [m]
-  const STATION_RADIUS_FAR  = 2000; // 蛍光オレンジ(これを超えると非表示) [m]
+  const STATION_RADIUS_FAR  = 2000; // 蛍光オレンジ [m]
+  const STATION_RADIUS_XFAR = 5000; // 蛍光ブルー(これを超えると非表示) [m]
   const COLOR_NEAR = '#ff3b3b'; // 蛍光赤
   const COLOR_FAR  = '#ff9d1f'; // 蛍光オレンジ
+  const COLOR_XFAR = '#25A2FF'; // 蛍光ブルー(2001m〜5000m)
+
+  function colorForStationDistance(dist){
+    if(dist <= STATION_RADIUS_NEAR) return COLOR_NEAR;
+    if(dist <= STATION_RADIUS_FAR) return COLOR_FAR;
+    return COLOR_XFAR;
+  }
 
   const tickerTrack = document.getElementById('tickerTrack');
 
@@ -737,7 +745,7 @@
   // 路線名はベストエフォートで後追い取得(失敗しても駅表示自体には影響しない)
   async function fetchStationLines(origin, stationNodes, preferredEndpoint){
     try{
-      const lineQuery = `[out:json][timeout:12];rel["type"="route"]["route"~"^(train|subway|light_rail)$"](around:${STATION_RADIUS_FAR},${origin.lat},${origin.lng});out body;`;
+      const lineQuery = `[out:json][timeout:12];rel["type"="route"]["route"~"^(train|subway|light_rail)$"](around:${STATION_RADIUS_XFAR},${origin.lat},${origin.lng});out body;`;
       const res = await fetchWithTimeout(preferredEndpoint + '?data=' + encodeURIComponent(lineQuery), 16000);
       if(!res.ok) return;
       const data = await res.json();
@@ -780,8 +788,8 @@
       clearStations();
       cachedStations.forEach(s=>{
         const dist = origin2.distanceTo([s.lat, s.lng]);
-        if(dist > STATION_RADIUS_FAR) return;
-        const color = dist <= STATION_RADIUS_NEAR ? COLOR_NEAR : COLOR_FAR;
+        if(dist > STATION_RADIUS_XFAR) return;
+        const color = colorForStationDistance(dist);
         const m = L.marker([s.lat, s.lng], { icon: stationIcon(s.name, color, s.lines), interactive:false }).addTo(map);
         stationMarkers.push(m);
       });
@@ -801,7 +809,7 @@
       }
 
       // まず駅ノードのみを軽量取得(路線リレーションは含めない: レスポンスを軽くして成功率を上げる)
-      const stationQuery = `[out:json][timeout:10];node["railway"="station"](around:${STATION_RADIUS_FAR},${origin.lat},${origin.lng});out body;`;
+      const stationQuery = `[out:json][timeout:10];node["railway"="station"](around:${STATION_RADIUS_XFAR},${origin.lat},${origin.lng});out body;`;
 
       mapOverlay.textContent = '駅情報取得中…';
 
@@ -828,8 +836,8 @@
             const dist = origin.distanceTo([el.lat, el.lon]);
             const lines = el.tags.network ? [el.tags.network] : [];
             cachedStations.push({ name, lat: el.lat, lng: el.lon, lines, id: el.id });
-            if(dist > STATION_RADIUS_FAR) return; // 2km超は非表示
-            const color = dist <= STATION_RADIUS_NEAR ? COLOR_NEAR : COLOR_FAR;
+            if(dist > STATION_RADIUS_XFAR) return; // 5km超は非表示
+            const color = colorForStationDistance(dist);
             const m = L.marker([el.lat, el.lon], { icon: stationIcon(name, color, lines), interactive:false }).addTo(map);
             stationMarkers.push(m);
             nearby.push({ name, dist, lines, lat: el.lat, lng: el.lon });
