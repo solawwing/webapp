@@ -17,6 +17,7 @@
     overflow: hidden;
     touch-action: none;
     -webkit-tap-highlight-color: transparent;
+    font-family: 'BIZ UDPGothic', sans-serif;
   }
   canvas {
     display: block;
@@ -50,15 +51,45 @@
     opacity: 0;
     letter-spacing: 1.6em;
   }
+  .clock {
+    position: fixed;
+    top: max(8px, env(safe-area-inset-top, 8px));
+    right: max(6px, env(safe-area-inset-right, 6px));
+    pointer-events: none;
+    font-family: 'BIZ UDPGothic', sans-serif;
+    font-size: 6pt;
+    letter-spacing: 0.06em;
+    color: #eafcff;
+    text-shadow:
+      0 0 4px rgba(255,255,255,0.85),
+      0 0 12px rgba(0,255,242,0.7);
+    user-select: none;
+    -webkit-user-select: none;
+  }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div class="title" id="title">FREE WAY</div>
+<div class="clock" id="clock"></div>
 <script>
   setTimeout(function(){
     document.getElementById('title').classList.add('title-exit');
   }, 5000);
+
+  function updateClock(){
+    const now = new Date();
+    let h = now.getHours();
+    const ampm = h >= 12 ? 'pm' : 'am';
+    h = h % 12;
+    if(h === 0) h = 12;
+    const hh = String(h).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    document.getElementById('clock').textContent = hh + ':' + mm + ':' + ss + ampm;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
 </script>
 <script>
 (function(){
@@ -82,7 +113,7 @@
   const roadScreenFrac = 1.0; // 基準：z=0で画面幅と同じになる基準値（この上に手前2倍・最遠1.5倍のテーパーをかける）
   const widthMulNear = 2.0;   // 画面最下部（z=0）の道幅倍率
   const widthMulFar = 1.5;    // 描画最遠端（z=drawDist）の道幅倍率
-  const camHeight = 0.75;
+  const camHeight = 0.5;
   const camDepth = 2.6;
   const horizonBaseFrac = 0.44; // 画面中央よりわずかに上を基準にし、少し見下ろす視点にする
   const segLen = 0.6;
@@ -159,12 +190,12 @@
     while(hillWP[hillWP.length - 1].z < maxZ){
       const i = hillWP.length;
       const prev = hillWP[hillWP.length - 1];
-      const isHill = (i % 3 === 2);
+      const isHill = (i % 2 === 1); // 出現頻度を上げる
       let val = prev.val;
       let len;
       if(isHill){
         const dir = hash(i * 7.7 + 3) < 0.5 ? -1 : 1;
-        const mag = 3.2 + hash(i * 9.3 + 4) * 2.6;         // 急なアップダウン
+        const mag = 6 + hash(i * 9.3 + 4) * 5;         // より急なアップダウン
         val = prev.val + dir * mag;
         const seconds = 4.5 + hash(i * 6.1 + 8) * 2.5;      // 坂の持続時間:4.5〜7秒
         len = seconds * speed;
@@ -205,9 +236,9 @@
       const spawn = hash(i * 5.3 + 37) < 0.62;   // 出現確率を引き上げ
       if(spawn){
         const side = hash(i * 2.9 + 41) < 0.5 ? -1 : 1;
-        const extra = 10 + hash(i * 4.1 + 53) * 13;      // 道端からの追加オフセット（さらに2倍ほど離す）
+        const extra = 20 + hash(i * 4.1 + 53) * 55;      // 道端からの追加オフセット（さらに離す）
         const height = (5.5 + hash(i * 6.5 + 61) * 4.5) * 3;   // 木の高さ（3倍）
-        const baseHalf = (0.45 + hash(i * 7.3 + 67) * 0.35) * 4.2; // 底辺の半幅（さらに大きく）
+        const baseHalf = (0.45 + hash(i * 7.3 + 67) * 0.35) * 5.2; // 底辺の半幅（もう少し広げる）
         treeList.push({ z: treeGenZ, side, extra, height, baseHalf });
       }
     }
@@ -239,12 +270,18 @@
       if(pBaseC.y < horizonY - 0.5) continue;
       // 木の高さは道の起伏用のスケールとは切り離し、専用の見た目のバランスで計算する
       const apexY = pBaseC.y - pBaseC.scale * t.height * worldUnitPx * 1.15;
+      const trunkY = pBaseC.y + pBaseC.scale * t.height * worldUnitPx * 0.28;
 
       ctx.beginPath();
       ctx.moveTo(pBaseC.x, apexY);
       ctx.lineTo(pBaseR.x, pBaseR.y);
       ctx.lineTo(pBaseL.x, pBaseL.y);
       ctx.closePath();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(pBaseC.x, pBaseC.y);
+      ctx.lineTo(pBaseC.x, trunkY);
       ctx.stroke();
     }
     ctx.restore();
@@ -253,7 +290,12 @@
   function draw(now){
     const dt = Math.min((now - last) / 1000, 0.05);
     last = now;
-    scrollZ += speed * dt;
+
+    // 坂の傾斜（上り/下り）を先読みし、上りは減速・下りは加速させて起伏をダイナミックに見せる
+    const slopeEps = 3;
+    const slopeNow = (hillAt(scrollZ + slopeEps) - hillAt(scrollZ - slopeEps)) / (2 * slopeEps);
+    const speedFactor = Math.max(0.55, Math.min(1.4, 1 - slopeNow * 5.5));
+    scrollZ += speed * speedFactor * dt;
 
     const camX = lateralAt(scrollZ);
     const camY = hillAt(scrollZ);
@@ -262,12 +304,13 @@
     starDriftX += camXDelta * 5.5;
     starDriftX *= Math.max(0, 1 - dt * 1.1);
 
-    // 坂の傾斜（上り/下り）に応じて地平線を上下させ、臨場感を出す
-    const slopeEps = 3;
+    // 坂の傾斜（上り/下り）に応じて地平線を上下させる。下り坂は上がりすぎないよう控えめに。
     const slope = (hillAt(scrollZ + slopeEps) - hillAt(scrollZ - slopeEps)) / (2 * slopeEps);
-    const targetHorizonShift = Math.max(-1, Math.min(1, slope * 6.5)) * (H * 0.4);
-    horizonShift += (targetHorizonShift - horizonShift) * Math.min(1, dt * 2.6);
-    const horizonY = H * horizonBaseFrac + horizonShift;
+    const targetHorizonShift = slope >= 0
+      ? Math.min(1, slope * 9) * (H * 0.42)      // 上り：地平線が下がる（そのまま）
+      : Math.max(-1, slope * 4) * (H * 0.16);    // 下り：地平線が上がりすぎないよう控えめに
+    horizonShift += (targetHorizonShift - horizonShift) * Math.min(1, dt * 2.2);
+    const horizonY = Math.max(H * 0.2, Math.min(H * 0.85, H * horizonBaseFrac + horizonShift));
 
     const hFrac = Math.max(0.06, Math.min(0.94, horizonY / H));
     const bg = ctx.createLinearGradient(0, 0, 0, H);
