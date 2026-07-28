@@ -670,13 +670,6 @@
 
   // 現在地から最寄り駅方向への矢印(放物線を描きながら中間点まで伸ばし、先端を矢印にする)
   function updateNearestArrow(originLatLng, nearestLatLng){
-    // [一時的に無効化: 駅取得タイムアウト問題の原因切り分けのため]
-    if(nearestArrowLine){ map.removeLayer(nearestArrowLine); nearestArrowLine = null; }
-    if(nearestArrowHead){ map.removeLayer(nearestArrowHead); nearestArrowHead = null; }
-    return;
-  }
-
-  function updateNearestArrow_DISABLED(originLatLng, nearestLatLng){
     if(!originLatLng || !nearestLatLng){
       if(nearestArrowLine){ map.removeLayer(nearestArrowLine); nearestArrowLine = null; }
       if(nearestArrowHead){ map.removeLayer(nearestArrowHead); nearestArrowHead = null; }
@@ -936,9 +929,10 @@
           preferredEndpointIndex = OVERPASS_ENDPOINTS.indexOf(endpoint);
           if(preferredEndpointIndex < 0) preferredEndpointIndex = 0;
 
-          // [一時的に無効化: 駅取得タイムアウト問題の原因切り分けのため]
-          // fetchStationLines(origin, stationNodes, endpoint);
-          // fetchExtendedStations(origin, endpoint);
+          // 路線名は失敗しても駅表示に影響しないよう、別途ベストエフォートで取得
+          fetchStationLines(origin, stationNodes, endpoint);
+          // 2km〜5km圏の駅も失敗しても基本表示に影響しないよう、別途ベストエフォートで取得
+          fetchExtendedStations(origin, endpoint);
           break;
         }catch(e){
           lastError = e;
