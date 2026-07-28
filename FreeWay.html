@@ -204,7 +204,7 @@
         const dir = hash(i * 3.1 + 11) < 0.5 ? -1 : 1;
         const seconds = 3.5 + hash(i * 2.3 + 9) * 1.5;   // カーブ:3.5〜5秒
         len = seconds * speed;
-        const mag = len * 1.55;                          // 区間長に対し約60度分の急さ
+        const mag = len * 2.3;                          // カーブをさらに急に
         val = prev.val + dir * mag;
       } else {
         const seconds = 3 + hash(i * 4.1 + 5) * 2;      // 直線:3〜5秒
@@ -228,18 +228,25 @@
     while(hillWP[hillWP.length - 1].z < maxZ){
       const i = hillWP.length;
       const prev = hillWP[hillWP.length - 1];
-      const isHill = (i % 2 === 1); // 出現頻度を上げる
+      const r = hash(i * 7.7 + 3); // 上り:平坦:下り = 1:20:3 の確率
       let val = prev.val;
       let len;
-      if(isHill){
-        const dir = hash(i * 7.7 + 3) < 0.5 ? -1 : 1;
-        const mag = 6 + hash(i * 9.3 + 4) * 5;         // より急なアップダウン
-        val = prev.val + dir * mag;
-        const seconds = 4.5 + hash(i * 6.1 + 8) * 2.5;      // 坂の持続時間:4.5〜7秒
+      if(r < 1 / 24){
+        // 上り
+        const mag = 12 + hash(i * 9.3 + 4) * 9;
+        val = prev.val + mag;
+        const seconds = 4.5 + hash(i * 6.1 + 8) * 2.5;
         len = seconds * speed;
-      } else {
+      } else if(r < 21 / 24){
+        // 平坦
         len = 80 + hash(i * 8.9 + 1) * 90;
         val = prev.val;
+      } else {
+        // 下り
+        const mag = 12 + hash(i * 9.3 + 4) * 9;
+        val = prev.val - mag;
+        const seconds = 4.5 + hash(i * 6.1 + 8) * 2.5;
+        len = seconds * speed;
       }
       hillWP.push({ z: prev.z + len, val });
     }
@@ -432,7 +439,7 @@
     // 坂の傾斜（上り/下り）を先読みし、上りは減速・下りは加速させて起伏をダイナミックに見せる
     const slopeEps = 3;
     const slopeNow = (hillAt(scrollZ + slopeEps) - hillAt(scrollZ - slopeEps)) / (2 * slopeEps);
-    const speedFactor = Math.max(0.55, Math.min(1.4, 1 - slopeNow * 5.5));
+    const speedFactor = Math.max(0.45, Math.min(1.55, 1 - slopeNow * 7.5));
     scrollZ += speed * speedFactor * dt;
 
     const camX = lateralAt(scrollZ);
@@ -447,8 +454,8 @@
     // 坂の傾斜（上り/下り）に応じて地平線を上下させる。下り坂は上がりすぎないよう控えめに。
     const slope = (hillAt(scrollZ + slopeEps) - hillAt(scrollZ - slopeEps)) / (2 * slopeEps);
     const targetHorizonShift = slope >= 0
-      ? Math.min(1, slope * 9) * (H * 0.42)      // 上り：地平線が下がる（そのまま）
-      : Math.max(-1, slope * 4) * (H * 0.16);    // 下り：地平線が上がりすぎないよう控えめに
+      ? Math.min(1, slope * 13) * (H * 0.46)      // 上り：地平線が下がる
+      : Math.max(-1, slope * 30) * (H * 1.1);     // 下り：上りの5倍ダイナミックに（地平線側でクランプ）
     horizonShift += (targetHorizonShift - horizonShift) * Math.min(1, dt * 2.2);
     const horizonY = Math.max(H * 0.2, Math.min(H * 0.85, H * horizonBaseFrac + horizonShift));
 
