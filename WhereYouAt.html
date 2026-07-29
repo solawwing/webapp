@@ -332,7 +332,7 @@
     height:85%;
     max-width:85vw;
     max-height:85vh;
-    background:rgba(20,25,21,0.2);
+    background:rgba(20,25,21,0.1);
     border:1px solid #ffffff;
     border-radius:14px;
     box-shadow:0 8px 30px rgba(0,0,0,0.5);
@@ -853,24 +853,28 @@
     return (brng + 360) % 360;
   }
   function bearingToDirection(bearing){
-    const dirs = ['北', '北東', '東', '南東', '南', '南西', '西', '北西'];
-    return dirs[Math.round(bearing / 45) % 8];
+    const dirs = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
+    return dirs[Math.round(bearing / 22.5) % 16];
   }
 
   const infoAddressEl = document.getElementById('infoAddress');
   const infoStationListEl = document.getElementById('infoStationList');
 
-  function updateInfoModal(nearby){
+  function updateInfoModal(){
     if(!infoAddressEl || !infoStationListEl) return;
+    if(!marker) return;
 
     infoAddressEl.textContent = (addressVal && addressVal.textContent) ? addressVal.textContent : '--';
 
+    const origin = marker.getLatLng();
+    const nearby = cachedStations
+      .map(s => ({ name: s.name, dist: origin.distanceTo([s.lat, s.lng]), lines: s.lines, lat: s.lat, lng: s.lng }));
+
     if(!nearby || nearby.length === 0){
-      infoStationListEl.innerHTML = '<div style="color:var(--ink-dim); font-size:13px;">周辺2km以内に駅が見つかりません</div>';
+      infoStationListEl.innerHTML = '<div style="color:var(--ink-dim); font-size:13px;">周辺に駅が見つかりません</div>';
       return;
     }
-    const top3 = nearby.slice().sort((a,b)=> a.dist - b.dist).slice(0, 3);
-    const origin = marker ? marker.getLatLng() : null;
+    const top3 = nearby.slice().sort((a,b)=> a.dist - b.dist).slice(0, 7);
 
     const rowsHtml = top3.map((s, idx)=>{
       const lineNameJoined = formatLineName(s.lines);
@@ -1084,7 +1088,7 @@
       .map(s => ({ name: s.name, dist: origin.distanceTo([s.lat, s.lng]), lines: s.lines, lat: s.lat, lng: s.lng }))
       .filter(s => s.dist <= STATION_RADIUS_FAR);
     updateTicker(nearby);
-    try{ updateInfoModal(nearby); }catch(modalErr){ console.warn('updateInfoModal failed (non-critical):', modalErr); }
+    try{ updateInfoModal(); }catch(modalErr){ console.warn('updateInfoModal failed (non-critical):', modalErr); }
 
     try{
       if(nearby.length > 0){
@@ -1264,7 +1268,7 @@
           });
           mapOverlay.textContent = count > 0 ? ('駅 ' + count + '件') : 'MAP VIEW';
           try{ updateTicker(nearby); }catch(tickerErr){ console.warn('updateTicker failed (non-critical):', tickerErr); }
-          try{ updateInfoModal(nearby); }catch(modalErr){ console.warn('updateInfoModal failed (non-critical):', modalErr); }
+          try{ updateInfoModal(); }catch(modalErr){ console.warn('updateInfoModal failed (non-critical):', modalErr); }
           try{
             if(nearby.length > 0){
               const nearest = nearby.slice().sort((a,b)=> a.dist - b.dist)[0];
