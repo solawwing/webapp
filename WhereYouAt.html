@@ -636,13 +636,13 @@
       const data = await res.json();
       if(data && data.address){
         const a = data.address;
-        // 都道府県・市区町村・町名などを優先順位で組み立てる(存在するものだけ)
+        // 都道府県・市区町村・町名・丁目・番地の順で組み立てる(存在するものだけ)
         const parts = [
           a.state,
           a.city || a.town || a.village || a.county,
           a.suburb || a.city_district,
           a.neighbourhood || a.quarter,
-          a.road
+          a.house_number
         ].filter(Boolean);
         addressVal.textContent = (parts.length > 0 ? parts.join(' ') : (data.display_name || '住所不明')) + ' 付近';
       } else {
