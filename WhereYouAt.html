@@ -130,9 +130,9 @@
     letter-spacing:.03em;
     white-space:nowrap;
     text-align:center;
-    background:rgba(0,0,0,0.35);
-    padding:0px 1px;
-    border-radius:2px;
+    background:rgba(0,0,0,0.2);
+    padding:0px 3px;
+    border-radius:4px;
     display:block;
     width:fit-content;
     margin:0 auto;
@@ -149,9 +149,9 @@
     letter-spacing:.02em;
     white-space:nowrap;
     text-align:center;
-    background:rgba(0,0,0,0.35);
-    padding:0px 1px;
-    border-radius:2px;
+    background:rgba(0,0,0,0.2);
+    padding:0px 3px;
+    border-radius:4px;
     display:block;
     width:fit-content;
     margin:0 auto;
@@ -509,7 +509,7 @@
   function radiusLabelIcon(text, color){
     return L.divIcon({
       className: '',
-      html: `<div style="font-size:9px; font-weight:700; font-family:var(--mono); color:${color}; white-space:nowrap; background:rgba(0,0,0,0.35); padding:0px 1px; border-radius:2px; display:inline-block; text-shadow:1px 0 0 #fff,-1px 0 0 #fff,0 1px 0 #fff,0 -1px 0 #fff,1px 1px 0 #fff,-1px 1px 0 #fff,1px -1px 0 #fff,-1px -1px 0 #fff;">${text}</div>`,
+      html: `<div style="font-size:9px; font-weight:700; font-family:var(--mono); color:${color}; white-space:nowrap; background:rgba(0,0,0,0.2); padding:0px 3px; border-radius:4px; display:inline-block; text-shadow:1px 0 0 #fff,-1px 0 0 #fff,0 1px 0 #fff,0 -1px 0 #fff,1px 1px 0 #fff,-1px 1px 0 #fff,1px -1px 0 #fff,-1px -1px 0 #fff;">${text}</div>`,
       iconSize: [56, 16],
       iconAnchor: [0, 16] // 左下を基準にすることで、円周点から見て右上方向にテキストが伸びる(円の縁と重ならない)
     });
