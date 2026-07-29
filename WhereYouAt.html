@@ -383,8 +383,8 @@
   }
   .infoThName{ text-align:right; }
   .infoThLine{ text-align:right; }
-  .infoThDist{ text-align:left; }
-  .infoThTime{ text-align:left; }
+  .infoThDist{ text-align:right; }
+  .infoThTime{ text-align:right; }
   .infoThDir{ text-align:center; }
   .infoTd{
     padding:8px 8px;
@@ -392,10 +392,6 @@
     font-size:13px;
     color:#FFFFFF;
     vertical-align:top;
-  }
-  .infoTdNum{
-    color:#FFFFFF;
-    font-size:14px;
   }
   .infoTdName{
     color:#FF0000;
@@ -413,13 +409,13 @@
   .infoTdDist{
     color:#22e5e5;
     font-size:13px;
-    text-align:left;
+    text-align:right;
     white-space:nowrap;
   }
   .infoTdTime{
     color:#22e5e5;
     font-size:13px;
-    text-align:left;
+    text-align:right;
     white-space:nowrap;
   }
   .infoTdDir{
@@ -863,7 +859,6 @@
 
   const infoAddressEl = document.getElementById('infoAddress');
   const infoStationListEl = document.getElementById('infoStationList');
-  const circledNumbers2 = ['①', '②', '③'];
 
   function updateInfoModal(nearby){
     if(!infoAddressEl || !infoStationListEl) return;
@@ -886,7 +881,6 @@
         dirText = bearingToDirection(bearing);
       }
       return `<tr>
-        <td class="infoTd infoTdNum">${circledNumbers2[idx % 3]}</td>
         <td class="infoTd infoTdName">${s.name}駅</td>
         <td class="infoTd infoTdLine">${lineNameJoined || '—'}</td>
         <td class="infoTd infoTdDist">${Math.round(s.dist)}m</td>
@@ -898,7 +892,6 @@
     infoStationListEl.innerHTML = `<table class="infoStationTable">
       <thead>
         <tr>
-          <th class="infoTh"></th>
           <th class="infoTh infoThName">駅名</th>
           <th class="infoTh infoThLine">路線名</th>
           <th class="infoTh infoThDist">距離</th>
