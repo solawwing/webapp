@@ -355,7 +355,7 @@
           <span class="value" id="lngVal">--.------°</span>
         </div>
         <div class="addressBox">
-          <span class="addressLabel">現在地</span>
+          <span class="addressLabel">今どこ？</span>
           <span class="addressVal" id="addressVal">--</span>
         </div>
       </div>
@@ -617,8 +617,8 @@
   // --- 住所表示(逆ジオコーディング / Nominatim) ---
   let lastAddressCenter = null;
   let lastAddressFetchTime = 0;
-  const ADDRESS_MIN_DISTANCE = 80;   // これ以上動いたら再取得 [m]
-  const ADDRESS_MIN_INTERVAL = 20000; // 最短でもこの間隔は空ける [ms]
+  const ADDRESS_MIN_DISTANCE = 15;   // これ以上動いたら再取得 [m]
+  const ADDRESS_MIN_INTERVAL = 5000; // 最短でもこの間隔は空ける [ms] (Nominatimの利用ポリシー上、あまり短くしすぎない)
   let isFetchingStations = false; // 駅取得と住所取得のネットワーク処理が重ならないようにする排他フラグ
   let isFetchingExtended = false; // 拡張取得(5km圏)・路線名取得の重複実行を防ぐフラグ(Overpassの同時実行制限対策)
   let stationFetchAttempted = false; // 一度でも駅取得を開始したか(最初の駅取得より前に住所取得が走らないようにする)
