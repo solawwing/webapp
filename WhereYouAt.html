@@ -876,7 +876,7 @@
       infoStationListEl.innerHTML = '<div style="color:var(--ink-dim); font-size:13px;">周辺に駅が見つかりません</div>';
       return;
     }
-    const top3 = nearby.slice().sort((a,b)=> a.dist - b.dist).slice(0, 7);
+    const top3 = nearby.slice().sort((a,b)=> a.dist - b.dist).slice(0, 10);
 
     const rowsHtml = top3.map((s, idx)=>{
       const lineNameJoined = formatLineName(s.lines);
