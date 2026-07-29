@@ -166,6 +166,7 @@
     min-height:34px;
     display:flex;
     align-items:center;
+    justify-content:space-between;
     padding:0 18px;
     padding-bottom:env(safe-area-inset-bottom);
     border-top:1px solid var(--line);
@@ -174,6 +175,11 @@
   .mapOverlay{
     font-size:9px; letter-spacing:.15em; text-transform:uppercase;
     color:#FFFFFF;
+  }
+  .versionLabel{
+    font-size:9px; letter-spacing:.05em;
+    color:#FFFFFF;
+    font-family: var(--mono);
   }
   .recenterBtn{
     position:absolute; bottom:max(14px, env(safe-area-inset-bottom)); right:14px; z-index:500;
@@ -514,6 +520,7 @@
 
   <div class="statusFoot">
     <span class="mapOverlay">Map View</span>
+    <span class="versionLabel">v20260730080719</span>
   </div>
 
 </div>
