@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
-<title>FREE WAY (2026 SUMMER)</title>
+<title>ROLLING FREE WAY</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
@@ -70,7 +70,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div class="title" id="title">FREE WAY (2026 SUMMER)</div>
+<div class="title" id="title">ROLLING FREE WAY</div>
 <div class="clock" id="clock"></div>
 <script>
   setTimeout(function(){
@@ -131,7 +131,7 @@
   const shootingStars = []; // ごくたまに出現する流れ星（残像つき、夜のみ）
   const contrails = []; // ごくたまに出現する飛行機雲（流れ星と逆向き、昼のみ）
 
-  // ---- 昼夜切り替え：タップ、または3分間隔で自動的にトグルする ----
+  // ---- 昼夜切り替え：シングルタップ、または3分間隔で自動的にトグルする ----
   let dayTarget = 0;        // 0=夜, 1=昼
   let dayFactorCur = 0;     // 実際に描画に使う、なめらかに追従する値
   let lastToggleAt = performance.now();
@@ -140,7 +140,29 @@
     dayTarget = dayTarget === 0 ? 1 : 0;
     lastToggleAt = performance.now();
   }
-  window.addEventListener('pointerdown', toggleDayNight);
+
+  // ---- 速度切り替え：ダブルタップで通常速度⇔半分の速度を約2秒かけて切り替える ----
+  let speedModeTarget = 1;   // 1=通常速度, 0.5=半分の速度
+  let speedModeCur = 1;      // 実際の描画・移動に使う、なめらかに追従する値
+  function toggleSpeedMode(){
+    speedModeTarget = speedModeTarget === 1 ? 0.5 : 1;
+  }
+
+  // ---- シングルタップとダブルタップを判定して振り分ける ----
+  let lastTapAt = 0;
+  let singleTapTimer = null;
+  const DOUBLE_TAP_MS = 300;
+  window.addEventListener('pointerdown', function(){
+    const now = performance.now();
+    if(now - lastTapAt < DOUBLE_TAP_MS){
+      clearTimeout(singleTapTimer);
+      lastTapAt = 0;
+      toggleSpeedMode();
+    } else {
+      lastTapAt = now;
+      singleTapTimer = setTimeout(toggleDayNight, DOUBLE_TAP_MS);
+    }
+  });
 
   // ---- 星（3階層：遠い星はゆっくり、近い星は速く流れる。道の動きに同期） ----
   const starLayers = [
@@ -386,6 +408,83 @@
     ctx.restore();
   }
 
+  // ---- ごくたまに道が渡る、ワイヤーフレームのトラス橋 ----
+  const bridgeZones = [];
+  let bridgeGenZ = 0;
+  function ensureBridgeZones(maxZ){
+    while(bridgeGenZ < maxZ){
+      const i = bridgeZones.length + Math.floor(bridgeGenZ) + 1;
+      const gap = 260 + hash(i * 31.1 + 211) * 420; // かなり間隔をあけて稀に出現
+      bridgeGenZ += gap;
+      const len = 40 + hash(i * 17.3 + 223) * 45;
+      bridgeZones.push({ start: bridgeGenZ, end: bridgeGenZ + len });
+      bridgeGenZ += len;
+    }
+    while(bridgeZones.length > 40 && bridgeZones[0].end < bridgeGenZ - drawDist - 200){
+      bridgeZones.shift();
+    }
+  }
+  function drawBridges(scrollZ, camX, camY, horizonY){
+    ensureBridgeZones(scrollZ + drawDist + 20);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(235,238,242,0.9)';
+    ctx.lineWidth = 1;
+    const postSpacing = 3.2;
+    const postHeight = 5.5;
+    const worldUnitPx = (W * roadScreenFrac / 2) / roadHalfWidth;
+    for(const zone of bridgeZones){
+      const zoneStart = Math.max(zone.start, scrollZ);
+      const zoneEnd = Math.min(zone.end, scrollZ + drawDist);
+      if(zoneEnd <= zoneStart) continue;
+      let prevLeftTop = null, prevRightTop = null, prevLeftBase = null, prevRightBase = null;
+      for(let wz = zoneStart; wz <= zoneEnd; wz += postSpacing){
+        const z = wz - scrollZ;
+        if(z < 0 || z > drawDist){ prevLeftTop = null; continue; }
+        const widthMul = widthMulNear + (widthMulFar - widthMulNear) * (z / drawDist);
+        const roadCenter = lateralAt(wz) - camX;
+        const edgeOffset = roadHalfWidth * widthMul + 1.5;
+        const relHeightGround = hillAt(wz) - camY;
+        const leftBase = project(z, roadCenter - edgeOffset, relHeightGround, horizonY);
+        const rightBase = project(z, roadCenter + edgeOffset, relHeightGround, horizonY);
+        if(leftBase.y < horizonY - 0.5){ prevLeftTop = null; continue; }
+
+        const liftL = leftBase.scale * postHeight * worldUnitPx * 1.15;
+        const liftR = rightBase.scale * postHeight * worldUnitPx * 1.15;
+        const leftTop = { x: leftBase.x, y: leftBase.y - liftL };
+        const rightTop = { x: rightBase.x, y: rightBase.y - liftR };
+
+        ctx.beginPath();
+        ctx.moveTo(leftBase.x, leftBase.y);
+        ctx.lineTo(leftTop.x, leftTop.y);
+        ctx.moveTo(rightBase.x, rightBase.y);
+        ctx.lineTo(rightTop.x, rightTop.y);
+        ctx.moveTo(leftTop.x, leftTop.y);
+        ctx.lineTo(rightTop.x, rightTop.y);
+        ctx.stroke();
+
+        if(prevLeftTop){
+          ctx.beginPath();
+          ctx.moveTo(prevLeftTop.x, prevLeftTop.y);
+          ctx.lineTo(leftTop.x, leftTop.y);
+          ctx.moveTo(prevRightTop.x, prevRightTop.y);
+          ctx.lineTo(rightTop.x, rightTop.y);
+          ctx.moveTo(prevLeftBase.x, prevLeftBase.y);
+          ctx.lineTo(leftTop.x, leftTop.y);
+          ctx.moveTo(prevLeftTop.x, prevLeftTop.y);
+          ctx.lineTo(leftBase.x, leftBase.y);
+          ctx.moveTo(prevRightBase.x, prevRightBase.y);
+          ctx.lineTo(rightTop.x, rightTop.y);
+          ctx.moveTo(prevRightTop.x, prevRightTop.y);
+          ctx.lineTo(rightBase.x, rightBase.y);
+          ctx.stroke();
+        }
+        prevLeftTop = leftTop; prevRightTop = rightTop;
+        prevLeftBase = leftBase; prevRightBase = rightBase;
+      }
+    }
+    ctx.restore();
+  }
+
   // ---- 昼間の道の中にランダムに現れる、白い半透明の横線 ----
   const roadMarkList = [];
   let roadMarkGenZ = 0;
@@ -440,7 +539,8 @@
     const slopeEps = 3;
     const slopeNow = (hillAt(scrollZ + slopeEps) - hillAt(scrollZ - slopeEps)) / (2 * slopeEps);
     const speedFactor = Math.max(0.45, Math.min(1.55, 1 - slopeNow * 7.5));
-    scrollZ += speed * speedFactor * dt;
+    speedModeCur += (speedModeTarget - speedModeCur) * Math.min(1, dt * 1.1); // 約2秒かけてなめらかに変化
+    scrollZ += speed * speedFactor * speedModeCur * dt;
 
     const camX = lateralAt(scrollZ);
     const camY = hillAt(scrollZ);
@@ -646,6 +746,7 @@
 
     drawTrees(scrollZ, camX, camY, horizonY);
     drawGrass(scrollZ, camX, camY, horizonY);
+    drawBridges(scrollZ, camX, camY, horizonY);
 
     // 道の内側（左右のラインの間）をグレーで塗る
     function collectEdgePoints(side){
