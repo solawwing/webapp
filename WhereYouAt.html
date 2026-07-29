@@ -800,7 +800,7 @@
     const angleDeg = Math.atan2(tangentX, tangentY) * 180 / Math.PI;
 
     if(!nearestArrowLine){
-      nearestArrowLine = L.polyline(linePoints, { color: '#0095d9', weight: 3, smoothFactor: 1, pane: 'arrowPane' }).addTo(map);
+      nearestArrowLine = L.polyline(linePoints, { color: '#0095d9', weight: 5, smoothFactor: 1, pane: 'arrowPane' }).addTo(map);
       if(nearestArrowLine.bringToFront) nearestArrowLine.bringToFront();
     } else {
       nearestArrowLine.setLatLngs(linePoints);
