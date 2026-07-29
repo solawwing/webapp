@@ -255,8 +255,8 @@
 
       if(prev.z >= nextBridgeZ){
         // ---- 橋：手前で徐々にアップ→橋の上は平坦→渡り終えたら徐々にダウン ----
-        const rampMag = 10 + hash(i * 9.3 + 4) * 6;
-        const rampSeconds = 3 + hash(i * 6.1 + 8) * 1.5;
+        const rampMag = 3 + hash(i * 9.3 + 4) * 2.5;
+        const rampSeconds = 5.5 + hash(i * 6.1 + 8) * 2;
         const rampLen = rampSeconds * speed;
         const bridgeLen = 40 + hash(i * 17.3 + 223) * 45;
 
