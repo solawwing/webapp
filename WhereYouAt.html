@@ -139,7 +139,15 @@
        1px  1px  0 #fff,
       -1px  1px  0 #fff,
        1px -1px  0 #fff,
-      -1px -1px  0 #fff;
+      -1px -1px  0 #fff,
+       2px  0    0 #000,
+      -2px  0    0 #000,
+       0    2px  0 #000,
+       0   -2px  0 #000,
+       2px  2px  0 #000,
+      -2px  2px  0 #000,
+       2px -2px  0 #000,
+      -2px -2px  0 #000;
   }
   .station-label .lineName{
     font-family: var(--mono);
@@ -153,7 +161,11 @@
       1px 0 0 #fff, -1px 0 0 #fff,
       0 1px 0 #fff, 0 -1px 0 #fff,
       1px 1px 0 #fff, -1px 1px 0 #fff,
-      1px -1px 0 #fff, -1px -1px 0 #fff;
+      1px -1px 0 #fff, -1px -1px 0 #fff,
+      2px 0 0 #000, -2px 0 0 #000,
+      0 2px 0 #000, 0 -2px 0 #000,
+      2px 2px 0 #000, -2px 2px 0 #000,
+      2px -2px 0 #000, -2px -2px 0 #000;
   }
   .statusFoot{
     flex:0 0 auto;
@@ -501,7 +513,7 @@
   }
 
   function radiusLabelIcon(text, color){
-    const outline = '1px 0 0 #fff,-1px 0 0 #fff,0 1px 0 #fff,0 -1px 0 #fff,1px 1px 0 #fff,-1px 1px 0 #fff,1px -1px 0 #fff,-1px -1px 0 #fff';
+    const outline = '1px 0 0 #fff,-1px 0 0 #fff,0 1px 0 #fff,0 -1px 0 #fff,1px 1px 0 #fff,-1px 1px 0 #fff,1px -1px 0 #fff,-1px -1px 0 #fff,2px 0 0 #000,-2px 0 0 #000,0 2px 0 #000,0 -2px 0 #000,2px 2px 0 #000,-2px 2px 0 #000,2px -2px 0 #000,-2px -2px 0 #000';
     return L.divIcon({
       className: '',
       html: `<div style="font-size:8px; font-weight:700; font-family:var(--mono); color:${color}; white-space:nowrap; text-shadow:${outline};">${text}</div>`,
@@ -593,7 +605,7 @@
       : '';
     return L.divIcon({
       className: 'station-label',
-      html: '<div class="pin" style="background:'+color+'"></div><div class="name" style="color:'+color+'; text-shadow:1px 0 0 #fff,-1px 0 0 #fff,0 1px 0 #fff,0 -1px 0 #fff,1px 1px 0 #fff,-1px 1px 0 #fff,1px -1px 0 #fff,-1px -1px 0 #fff;">'+name+'</div>' + lineHtml,
+      html: '<div class="pin" style="background:'+color+'"></div><div class="name" style="color:'+color+'; text-shadow:1px 0 0 #fff,-1px 0 0 #fff,0 1px 0 #fff,0 -1px 0 #fff,1px 1px 0 #fff,-1px 1px 0 #fff,1px -1px 0 #fff,-1px -1px 0 #fff,2px 0 0 #000,-2px 0 0 #000,0 2px 0 #000,0 -2px 0 #000,2px 2px 0 #000,-2px 2px 0 #000,2px -2px 0 #000,-2px -2px 0 #000;">'+name+'</div>' + lineHtml,
       iconSize: [140, 48],
       iconAnchor: [70, 4]
     });
