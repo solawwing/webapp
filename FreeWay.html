@@ -246,10 +246,33 @@
   }
 
   const hillWP = [{ z: 0, val: 0 }];
+  const bridgeZones = []; // 橋（平坦な区間）の [start, end] を記録
+  let nextBridgeZ = 260 + hash(211) * 420;
   function ensureHillWP(maxZ){
     while(hillWP[hillWP.length - 1].z < maxZ){
       const i = hillWP.length;
       const prev = hillWP[hillWP.length - 1];
+
+      if(prev.z >= nextBridgeZ){
+        // ---- 橋：手前で徐々にアップ→橋の上は平坦→渡り終えたら徐々にダウン ----
+        const rampMag = 10 + hash(i * 9.3 + 4) * 6;
+        const rampSeconds = 3 + hash(i * 6.1 + 8) * 1.5;
+        const rampLen = rampSeconds * speed;
+        const bridgeLen = 40 + hash(i * 17.3 + 223) * 45;
+
+        const upVal = prev.val + rampMag;
+        hillWP.push({ z: prev.z + rampLen, val: upVal }); // 徐々にアップ
+        const flatStart = prev.z + rampLen;
+        const flatEnd = flatStart + bridgeLen;
+        hillWP.push({ z: flatEnd, val: upVal });           // 橋の上は平坦
+        const bridgeType = hash(i * 21.7 + 233) < 0.5 ? 'truss' : 'suspension';
+        bridgeZones.push({ start: flatStart, end: flatEnd, type: bridgeType });
+        hillWP.push({ z: flatEnd + rampLen, val: prev.val }); // 徐々にダウン（元の高さへ）
+
+        nextBridgeZ = flatEnd + rampLen + 260 + hash(i * 31.1 + 211) * 420;
+        continue;
+      }
+
       const r = hash(i * 7.7 + 3); // 上り:平坦:下り = 1:20:3 の確率
       let val = prev.val;
       let len;
@@ -271,6 +294,9 @@
         len = seconds * speed;
       }
       hillWP.push({ z: prev.z + len, val });
+    }
+    while(bridgeZones.length > 40 && bridgeZones[0].end < hillWP[hillWP.length - 1].z - drawDist - 200){
+      bridgeZones.shift();
     }
   }
   function hillAt(z){
@@ -408,24 +434,9 @@
     ctx.restore();
   }
 
-  // ---- ごくたまに道が渡る、ワイヤーフレームのトラス橋 ----
-  const bridgeZones = [];
-  let bridgeGenZ = 0;
-  function ensureBridgeZones(maxZ){
-    while(bridgeGenZ < maxZ){
-      const i = bridgeZones.length + Math.floor(bridgeGenZ) + 1;
-      const gap = 260 + hash(i * 31.1 + 211) * 420; // かなり間隔をあけて稀に出現
-      bridgeGenZ += gap;
-      const len = 40 + hash(i * 17.3 + 223) * 45;
-      bridgeZones.push({ start: bridgeGenZ, end: bridgeGenZ + len });
-      bridgeGenZ += len;
-    }
-    while(bridgeZones.length > 40 && bridgeZones[0].end < bridgeGenZ - drawDist - 200){
-      bridgeZones.shift();
-    }
-  }
+  // ---- ごくたまに道が渡る、ワイヤーフレームの橋（トラス橋／吊り橋。橋ゾーンは坂道生成側で作られる） ----
   function drawBridges(scrollZ, camX, camY, horizonY, dayFactor){
-    ensureBridgeZones(scrollZ + drawDist + 20);
+    ensureHillWP(scrollZ + drawDist + 20);
     ctx.save();
     const nightR = 235, nightG = 255, nightB = 15; // 蛍光イエロー
     const dayR = 255, dayG = 255, dayB = 255; // 白
@@ -436,17 +447,68 @@
     ctx.strokeStyle = 'rgba(' + brR + ',' + brG + ',' + brB + ',' + brAlpha + ')';
     ctx.lineWidth = 1;
     const nodeSpacing = 2.4;
-    const topHeight = 2.4;
-    const bottomHeight = 22;
-    const sideExtra = 5; // 道から少し離す
+    const sideExtra = 0.3; // 道から少し離す
     const worldUnitPx = (W * roadScreenFrac / 2) / roadHalfWidth;
+
+    // トラス橋のパラメータ
+    const trussTopHeight = 2.4;
+    const trussBottomHeight = 22;
+
+    // 吊り橋のパラメータ（画像参考：塔の間をケーブルがたわみ、等間隔のハンガーが吊る）
+    const towerHeight = 22;
+    const towerOvershoot = 3;
+    const deckDip = 2;
 
     for(const zone of bridgeZones){
       const zoneStart = Math.max(zone.start, scrollZ);
       const zoneEnd = Math.min(zone.end, scrollZ + drawDist);
       if(zoneEnd <= zoneStart) continue;
+      const zoneLen = Math.max(1, zone.end - zone.start);
 
       for(const side of [-1, 1]){
+        if(zone.type === 'suspension'){
+          const nodes = [];
+          for(let wz = zoneStart; wz <= zoneEnd; wz += nodeSpacing){
+            const z = wz - scrollZ;
+            if(z < 0 || z > drawDist) continue;
+            const widthMul = widthMulNear + (widthMulFar - widthMulNear) * (z / drawDist);
+            const roadCenter = lateralAt(wz) - camX;
+            const edgeOffset = roadHalfWidth * widthMul + sideExtra;
+            const relHeightGround = hillAt(wz) - camY;
+            const xWorld = roadCenter + side * edgeOffset;
+            const base = project(z, xWorld, relHeightGround, horizonY);
+            if(base.y < horizonY - 0.5) continue;
+            const f = (wz - zone.start) / zoneLen; // 0(左の塔)〜1(右の塔)
+            const cableH = deckDip + (towerHeight - deckDip) * Math.pow(2 * f - 1, 2);
+            const liftCable = base.scale * cableH * worldUnitPx * 1.15;
+            nodes.push({ x: base.x, y: base.y - liftCable, baseX: base.x, baseY: base.y, f, scale: base.scale });
+          }
+          if(nodes.length < 2) continue;
+
+          // メインケーブル（たわむ曲線）
+          ctx.beginPath();
+          ctx.moveTo(nodes[0].x, nodes[0].y);
+          for(let k = 1; k < nodes.length; k++) ctx.lineTo(nodes[k].x, nodes[k].y);
+          ctx.stroke();
+
+          // ハンガー（ケーブルからデッキへの垂直線）と、両端の塔
+          for(const n of nodes){
+            ctx.beginPath();
+            if(n.f < 0.02 || n.f > 0.98){
+              // 塔：ケーブルより少し上まで突き出す
+              const towerLift = n.scale * (towerHeight + towerOvershoot) * worldUnitPx * 1.15;
+              ctx.moveTo(n.baseX, n.baseY);
+              ctx.lineTo(n.baseX, n.baseY - towerLift);
+            } else {
+              ctx.moveTo(n.baseX, n.baseY);
+              ctx.lineTo(n.x, n.y);
+            }
+            ctx.stroke();
+          }
+          continue;
+        }
+
+        // ---- トラス橋（上弦材＋ジグザグの斜材） ----
         const nodes = [];
         let idx = 0;
         for(let wz = zoneStart; wz <= zoneEnd; wz += nodeSpacing, idx++){
@@ -460,7 +522,7 @@
           const base = project(z, xWorld, relHeightGround, horizonY);
           if(base.y < horizonY - 0.5) continue;
           const isTop = (idx % 2 === 0);
-          const h = isTop ? topHeight : bottomHeight;
+          const h = isTop ? trussTopHeight : trussBottomHeight;
           const lift = base.scale * h * worldUnitPx * 1.15;
           nodes.push({ x: base.x, y: base.y - lift, isTop });
         }
