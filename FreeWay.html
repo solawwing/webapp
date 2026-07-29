@@ -33,7 +33,7 @@
     white-space: nowrap;
     pointer-events: none;
     font-family: 'BIZ UDPGothic', sans-serif;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 9pt;
     letter-spacing: 0.1em;
     color: #eafcff;
@@ -424,62 +424,63 @@
       bridgeZones.shift();
     }
   }
-  function drawBridges(scrollZ, camX, camY, horizonY){
+  function drawBridges(scrollZ, camX, camY, horizonY, dayFactor){
     ensureBridgeZones(scrollZ + drawDist + 20);
     ctx.save();
-    ctx.strokeStyle = 'rgba(235,238,242,0.9)';
+    const nightR = 235, nightG = 255, nightB = 15; // 蛍光イエロー
+    const dayR = 255, dayG = 255, dayB = 255; // 白
+    const brR = Math.round(nightR + (dayR - nightR) * dayFactor);
+    const brG = Math.round(nightG + (dayG - nightG) * dayFactor);
+    const brB = Math.round(nightB + (dayB - nightB) * dayFactor);
+    const brAlpha = 0.4 + (0.8 - 0.4) * dayFactor;
+    ctx.strokeStyle = 'rgba(' + brR + ',' + brG + ',' + brB + ',' + brAlpha + ')';
     ctx.lineWidth = 1;
-    const postSpacing = 3.2;
-    const postHeight = 5.5;
+    const nodeSpacing = 2.4;
+    const topHeight = 2.4;
+    const bottomHeight = 22;
+    const sideExtra = 5; // 道から少し離す
     const worldUnitPx = (W * roadScreenFrac / 2) / roadHalfWidth;
+
     for(const zone of bridgeZones){
       const zoneStart = Math.max(zone.start, scrollZ);
       const zoneEnd = Math.min(zone.end, scrollZ + drawDist);
       if(zoneEnd <= zoneStart) continue;
-      let prevLeftTop = null, prevRightTop = null, prevLeftBase = null, prevRightBase = null;
-      for(let wz = zoneStart; wz <= zoneEnd; wz += postSpacing){
-        const z = wz - scrollZ;
-        if(z < 0 || z > drawDist){ prevLeftTop = null; continue; }
-        const widthMul = widthMulNear + (widthMulFar - widthMulNear) * (z / drawDist);
-        const roadCenter = lateralAt(wz) - camX;
-        const edgeOffset = roadHalfWidth * widthMul + 1.5;
-        const relHeightGround = hillAt(wz) - camY;
-        const leftBase = project(z, roadCenter - edgeOffset, relHeightGround, horizonY);
-        const rightBase = project(z, roadCenter + edgeOffset, relHeightGround, horizonY);
-        if(leftBase.y < horizonY - 0.5){ prevLeftTop = null; continue; }
 
-        const liftL = leftBase.scale * postHeight * worldUnitPx * 1.15;
-        const liftR = rightBase.scale * postHeight * worldUnitPx * 1.15;
-        const leftTop = { x: leftBase.x, y: leftBase.y - liftL };
-        const rightTop = { x: rightBase.x, y: rightBase.y - liftR };
+      for(const side of [-1, 1]){
+        const nodes = [];
+        let idx = 0;
+        for(let wz = zoneStart; wz <= zoneEnd; wz += nodeSpacing, idx++){
+          const z = wz - scrollZ;
+          if(z < 0 || z > drawDist) continue;
+          const widthMul = widthMulNear + (widthMulFar - widthMulNear) * (z / drawDist);
+          const roadCenter = lateralAt(wz) - camX;
+          const edgeOffset = roadHalfWidth * widthMul + sideExtra;
+          const relHeightGround = hillAt(wz) - camY;
+          const xWorld = roadCenter + side * edgeOffset;
+          const base = project(z, xWorld, relHeightGround, horizonY);
+          if(base.y < horizonY - 0.5) continue;
+          const isTop = (idx % 2 === 0);
+          const h = isTop ? topHeight : bottomHeight;
+          const lift = base.scale * h * worldUnitPx * 1.15;
+          nodes.push({ x: base.x, y: base.y - lift, isTop });
+        }
+        if(nodes.length < 2) continue;
 
+        // ジグザグ（上弦材と下側の頂点を交互につなぐ斜材）
         ctx.beginPath();
-        ctx.moveTo(leftBase.x, leftBase.y);
-        ctx.lineTo(leftTop.x, leftTop.y);
-        ctx.moveTo(rightBase.x, rightBase.y);
-        ctx.lineTo(rightTop.x, rightTop.y);
-        ctx.moveTo(leftTop.x, leftTop.y);
-        ctx.lineTo(rightTop.x, rightTop.y);
+        ctx.moveTo(nodes[0].x, nodes[0].y);
+        for(let k = 1; k < nodes.length; k++) ctx.lineTo(nodes[k].x, nodes[k].y);
         ctx.stroke();
 
-        if(prevLeftTop){
-          ctx.beginPath();
-          ctx.moveTo(prevLeftTop.x, prevLeftTop.y);
-          ctx.lineTo(leftTop.x, leftTop.y);
-          ctx.moveTo(prevRightTop.x, prevRightTop.y);
-          ctx.lineTo(rightTop.x, rightTop.y);
-          ctx.moveTo(prevLeftBase.x, prevLeftBase.y);
-          ctx.lineTo(leftTop.x, leftTop.y);
-          ctx.moveTo(prevLeftTop.x, prevLeftTop.y);
-          ctx.lineTo(leftBase.x, leftBase.y);
-          ctx.moveTo(prevRightBase.x, prevRightBase.y);
-          ctx.lineTo(rightTop.x, rightTop.y);
-          ctx.moveTo(prevRightTop.x, prevRightTop.y);
-          ctx.lineTo(rightBase.x, rightBase.y);
-          ctx.stroke();
+        // 上弦材（頂点同士を結ぶ水平に近い直線）
+        ctx.beginPath();
+        let started = false;
+        for(const n of nodes){
+          if(!n.isTop) continue;
+          if(!started){ ctx.moveTo(n.x, n.y); started = true; }
+          else ctx.lineTo(n.x, n.y);
         }
-        prevLeftTop = leftTop; prevRightTop = rightTop;
-        prevLeftBase = leftBase; prevRightBase = rightBase;
+        ctx.stroke();
       }
     }
     ctx.restore();
@@ -746,7 +747,7 @@
 
     drawTrees(scrollZ, camX, camY, horizonY);
     drawGrass(scrollZ, camX, camY, horizonY);
-    drawBridges(scrollZ, camX, camY, horizonY);
+    drawBridges(scrollZ, camX, camY, horizonY, dayFactor);
 
     // 道の内側（左右のラインの間）をグレーで塗る
     function collectEdgePoints(side){
