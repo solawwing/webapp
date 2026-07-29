@@ -301,6 +301,128 @@
     padding:10px 0 0; letter-spacing:.05em; line-height:1.6;
   }
 
+  #coordsTapArea{
+    cursor:pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #coordsTapArea:active{
+    opacity:.85;
+  }
+
+  .infoModalOverlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    z-index:2000;
+    background:rgba(0,0,0,0.55);
+    align-items:center;
+    justify-content:center;
+  }
+  .infoModalOverlay.open{
+    display:flex;
+  }
+  .infoModal{
+    width:85%;
+    height:85%;
+    max-width:85vw;
+    max-height:85vh;
+    background:rgba(20,25,21,0.2);
+    border:1px solid #ffffff;
+    border-radius:14px;
+    box-shadow:0 8px 30px rgba(0,0,0,0.5);
+    overflow-y:auto;
+    padding:18px;
+    box-sizing:border-box;
+    cursor:pointer;
+    -webkit-tap-highlight-color: transparent;
+    font-family: var(--mono);
+  }
+  .infoLine1{
+    font-size:15px;
+    color:var(--ink);
+    letter-spacing:.05em;
+    margin-bottom:6px;
+  }
+  .infoAddress{
+    font-size:20px;
+    font-weight:700;
+    color:#FFFFFF;
+    letter-spacing:.03em;
+    margin-bottom:22px;
+    line-height:1.4;
+  }
+  .infoLine2{
+    font-size:14px;
+    color:#39FF14;
+    letter-spacing:.08em;
+    margin-bottom:10px;
+    padding-bottom:6px;
+    border-bottom:1px solid rgba(255,255,255,0.25);
+  }
+  .infoStationList{
+    overflow-x:auto;
+  }
+  .infoStationTable{
+    border-collapse:collapse;
+    width:100%;
+    font-family: var(--mono);
+  }
+  .infoTh{
+    font-size:10px;
+    color:#39FF14;
+    letter-spacing:.05em;
+    padding:0 8px 6px 8px;
+    white-space:nowrap;
+    vertical-align:top;
+  }
+  .infoThName{ text-align:right; }
+  .infoThLine{ text-align:right; }
+  .infoThDist{ text-align:left; }
+  .infoThTime{ text-align:left; }
+  .infoThDir{ text-align:center; }
+  .infoTd{
+    padding:8px 8px;
+    white-space:nowrap;
+    font-size:13px;
+    color:#FFFFFF;
+    vertical-align:top;
+  }
+  .infoTdNum{
+    color:#FFFFFF;
+    font-size:14px;
+  }
+  .infoTdName{
+    color:#FF0000;
+    font-weight:700;
+    font-size:15px;
+    text-align:right;
+    white-space:nowrap;
+  }
+  .infoTdLine{
+    color:#FF9D1F;
+    font-size:11px;
+    text-align:right;
+    white-space:normal;
+  }
+  .infoTdDist{
+    color:#22e5e5;
+    font-size:13px;
+    text-align:left;
+    white-space:nowrap;
+  }
+  .infoTdTime{
+    color:#22e5e5;
+    font-size:13px;
+    text-align:left;
+    white-space:nowrap;
+  }
+  .infoTdDir{
+    color:#84909b;
+    font-size:13px;
+    text-align:center;
+    white-space:nowrap;
+  }
+
   /* leaflet dark-theme tweaks */
   .leaflet-control-zoom a{
     background:rgba(14,18,16,.85) !important;
@@ -336,7 +458,7 @@
       <div class="status"><span class="dot" id="dot"></span><span id="statusText">待機中</span></div>
     </div>
 
-    <div class="coords">
+    <div class="coords" id="coordsTapArea">
       <div class="coordGrid">
         <div class="coordItem">
           <span class="clabel">LAT <span class="hemi" id="latHemi">—</span><br><span class="hemiJa" id="latHemiJa">—</span></span>
@@ -367,6 +489,15 @@
       </div>
 
       <div class="msg" id="msg"></div>
+    </div>
+  </div>
+
+  <div class="infoModalOverlay" id="infoModalOverlay">
+    <div class="infoModal" id="infoModal">
+      <div class="infoLine1">今いる場所は、</div>
+      <div class="infoAddress" id="infoAddress">--</div>
+      <div class="infoLine2">最寄り駅</div>
+      <div class="infoStationList" id="infoStationList"></div>
     </div>
   </div>
 
@@ -577,6 +708,21 @@
     if(marker) map.setView(marker.getLatLng(), Math.max(map.getZoom(), 17), { animate:true });
   });
 
+  // --- 情報モーダル(緯度経度エリアタップで開閉) ---
+  const coordsTapArea = document.getElementById('coordsTapArea');
+  const infoModalOverlay = document.getElementById('infoModalOverlay');
+  const infoModal = document.getElementById('infoModal');
+
+  function openInfoModal(){
+    infoModalOverlay.classList.add('open');
+  }
+  function closeInfoModal(){
+    infoModalOverlay.classList.remove('open');
+  }
+
+  coordsTapArea.addEventListener('click', openInfoModal);
+  infoModal.addEventListener('click', closeInfoModal);
+
   // --- station labels via Overpass API ---
   let stationMarkers = [];
   let stationFetchTimer = null;
@@ -686,6 +832,77 @@
 
   let lastTickerKey = null; // 直近表示した駅の並び順(名前ベース)を記録し、変化がなければアニメーションを再スタートさせない
 
+  function formatLineName(lines){
+    if(!lines || lines.length === 0) return '';
+    let joined = lines.slice(0,2).join('/') + (lines.length > 2 ? '他' : '');
+    if(joined.length > 10) joined = joined.slice(0, 9) + '‥';
+    return joined;
+  }
+
+  // 2点間の方位角(度)を計算し、8方位の文字列に変換する
+  function calculateBearing(lat1, lng1, lat2, lng2){
+    const toRad = d => d * Math.PI / 180;
+    const toDeg = r => r * 180 / Math.PI;
+    const dLng = toRad(lng2 - lng1);
+    const y = Math.sin(dLng) * Math.cos(toRad(lat2));
+    const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) - Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLng);
+    const brng = toDeg(Math.atan2(y, x));
+    return (brng + 360) % 360;
+  }
+  function bearingToDirection(bearing){
+    const dirs = ['北', '北東', '東', '南東', '南', '南西', '西', '北西'];
+    return dirs[Math.round(bearing / 45) % 8];
+  }
+
+  const infoAddressEl = document.getElementById('infoAddress');
+  const infoStationListEl = document.getElementById('infoStationList');
+  const circledNumbers2 = ['①', '②', '③'];
+
+  function updateInfoModal(nearby){
+    if(!infoAddressEl || !infoStationListEl) return;
+
+    infoAddressEl.textContent = (addressVal && addressVal.textContent) ? addressVal.textContent : '--';
+
+    if(!nearby || nearby.length === 0){
+      infoStationListEl.innerHTML = '<div style="color:var(--ink-dim); font-size:13px;">周辺2km以内に駅が見つかりません</div>';
+      return;
+    }
+    const top3 = nearby.slice().sort((a,b)=> a.dist - b.dist).slice(0, 3);
+    const origin = marker ? marker.getLatLng() : null;
+
+    const rowsHtml = top3.map((s, idx)=>{
+      const lineNameJoined = formatLineName(s.lines);
+      const walkMin = Math.round(s.dist / 80);
+      let dirText = '—';
+      if(origin && s.lat != null && s.lng != null){
+        const bearing = calculateBearing(origin.lat, origin.lng, s.lat, s.lng);
+        dirText = bearingToDirection(bearing);
+      }
+      return `<tr>
+        <td class="infoTd infoTdNum">${circledNumbers2[idx % 3]}</td>
+        <td class="infoTd infoTdName">${s.name}駅</td>
+        <td class="infoTd infoTdLine">${lineNameJoined || '—'}</td>
+        <td class="infoTd infoTdDist">${Math.round(s.dist)}m</td>
+        <td class="infoTd infoTdTime">${walkMin}分</td>
+        <td class="infoTd infoTdDir">${dirText}</td>
+      </tr>`;
+    }).join('');
+
+    infoStationListEl.innerHTML = `<table class="infoStationTable">
+      <thead>
+        <tr>
+          <th class="infoTh"></th>
+          <th class="infoTh infoThName">駅名</th>
+          <th class="infoTh infoThLine">路線名</th>
+          <th class="infoTh infoThDist">距離</th>
+          <th class="infoTh infoThTime">時間(徒歩)</th>
+          <th class="infoTh infoThDir">方角</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>`;
+  }
+
   function updateTicker(nearby){
     if(!nearby || nearby.length === 0){
       lastTickerKey = null;
@@ -695,13 +912,6 @@
     }
     const top3 = nearby.slice().sort((a,b)=> a.dist - b.dist).slice(0, 3);
     const key = top3.map(s => s.name).join('|');
-
-    function formatLineName(lines){
-      if(!lines || lines.length === 0) return '';
-      let joined = lines.slice(0,2).join('/') + (lines.length > 2 ? '他' : '');
-      if(joined.length > 10) joined = joined.slice(0, 9) + '‥';
-      return joined;
-    }
 
     if(key === lastTickerKey){
       // 駅の並び順に変化なし: アニメーションを止めずに距離・徒歩分の数字、路線名だけを更新する
@@ -874,6 +1084,7 @@
       .map(s => ({ name: s.name, dist: origin.distanceTo([s.lat, s.lng]), lines: s.lines, lat: s.lat, lng: s.lng }))
       .filter(s => s.dist <= STATION_RADIUS_FAR);
     updateTicker(nearby);
+    try{ updateInfoModal(nearby); }catch(modalErr){ console.warn('updateInfoModal failed (non-critical):', modalErr); }
 
     try{
       if(nearby.length > 0){
@@ -1053,6 +1264,7 @@
           });
           mapOverlay.textContent = count > 0 ? ('駅 ' + count + '件') : 'MAP VIEW';
           try{ updateTicker(nearby); }catch(tickerErr){ console.warn('updateTicker failed (non-critical):', tickerErr); }
+          try{ updateInfoModal(nearby); }catch(modalErr){ console.warn('updateInfoModal failed (non-critical):', modalErr); }
           try{
             if(nearby.length > 0){
               const nearest = nearby.slice().sort((a,b)=> a.dist - b.dist)[0];
