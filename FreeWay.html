@@ -142,8 +142,8 @@
   }
 
   // ---- 速度切り替え：ダブルタップで通常速度⇔半分の速度を約2秒かけて切り替える ----
-  let speedModeTarget = 1;   // 1=通常速度, 0.5=半分の速度
-  let speedModeCur = 1;      // 実際の描画・移動に使う、なめらかに追従する値
+  let speedModeTarget = 0.5; // 1=通常速度, 0.5=半分の速度（スタート時は遅い方）
+  let speedModeCur = 0.5;    // 実際の描画・移動に使う、なめらかに追従する値
   function toggleSpeedMode(){
     speedModeTarget = speedModeTarget === 1 ? 0.5 : 1;
   }
@@ -447,8 +447,8 @@
     ctx.strokeStyle = 'rgba(' + brR + ',' + brG + ',' + brB + ',' + brAlpha + ')';
     ctx.lineWidth = 1;
     const nodeSpacing = 2.4;
-    const sideExtra = 0.3; // 道から少し離す
     const worldUnitPx = (W * roadScreenFrac / 2) / roadHalfWidth;
+    const sideExtra = 30 / worldUnitPx; // 道から画面上で約30px離す
 
     // トラス橋のパラメータ
     const trussTopHeight = 2.4;
