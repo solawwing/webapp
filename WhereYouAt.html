@@ -332,7 +332,7 @@
     height:85%;
     max-width:85vw;
     max-height:85vh;
-    background:rgba(20,25,21,0.1);
+    background:rgba(20,25,21,0.9);
     border:1px solid #ffffff;
     border-radius:14px;
     box-shadow:0 8px 30px rgba(0,0,0,0.5);
@@ -371,6 +371,7 @@
   .infoStationTable{
     border-collapse:collapse;
     width:100%;
+    table-layout:fixed;
     font-family: var(--mono);
   }
   .infoTh{
@@ -381,8 +382,8 @@
     white-space:nowrap;
     vertical-align:top;
   }
-  .infoThName{ text-align:right; }
-  .infoThLine{ text-align:right; }
+  .infoThName{ text-align:left; }
+  .infoThLine{ text-align:left; }
   .infoThDist{ text-align:right; }
   .infoThTime{ text-align:right; }
   .infoThDir{ text-align:center; }
@@ -392,18 +393,19 @@
     font-size:13px;
     color:#FFFFFF;
     vertical-align:top;
+    height:40px;
   }
   .infoTdName{
     color:#FF0000;
     font-weight:700;
     font-size:15px;
-    text-align:right;
+    text-align:left;
     white-space:nowrap;
   }
   .infoTdLine{
     color:#FF9D1F;
     font-size:11px;
-    text-align:right;
+    text-align:left;
     white-space:normal;
   }
   .infoTdDist{
