@@ -345,18 +345,42 @@
       treeList.shift();
     }
   }
-  function drawTrees(scrollZ, camX, camY, horizonY){
+
+  // ---- 昼のみ現れる、密度の高い追加の木（出現率を大幅に上げるのは昼だけ） ----
+  const dayTreeList = [];
+  let dayTreeGenZ = 0;
+  function ensureDayTrees(maxZ){
+    while(dayTreeGenZ < maxZ){
+      const i = dayTreeList.length + Math.floor(dayTreeGenZ) + 1;
+      const gap = 3 + hash(i * 3.7 + 821) * 6;
+      dayTreeGenZ += gap;
+      const spawn = hash(i * 5.3 + 827) < 0.85;
+      if(spawn){
+        const side = hash(i * 2.9 + 831) < 0.5 ? -1 : 1;
+        const extra = 20 + hash(i * 4.1 + 839) * 55;
+        const height = (5.5 + hash(i * 6.5 + 843) * 4.5) * 3;
+        const baseHalf = (0.45 + hash(i * 7.3 + 847) * 0.35) * 5.2;
+        dayTreeList.push({ z: dayTreeGenZ, side, extra, height, baseHalf });
+      }
+    }
+    while(dayTreeList.length > 1600 && dayTreeList[0].z < dayTreeGenZ - drawDist - 200){
+      dayTreeList.shift();
+    }
+  }
+
+  function drawTrees(scrollZ, camX, camY, horizonY, dayFactor){
     ensureTrees(scrollZ + drawDist + 20);
+    ensureDayTrees(scrollZ + drawDist + 20);
     ctx.save();
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-    ctx.strokeStyle = '#258c6d';
     ctx.lineWidth = 1;
     const worldUnitPx = (W * roadScreenFrac / 2) / roadHalfWidth; // scale=1地点でのワールド単位あたりのピクセル数
-    for(const t of treeList){
+
+    function drawOneTree(t){
       const z = t.z - scrollZ;
-      if(z < 0 || z > drawDist) continue;
-      if(beachSideAt(t.z) === t.side) continue; // 同じ側に浜辺があるときは木を表示しない
+      if(z < 0 || z > drawDist) return;
+      if(beachSideAt(t.z) === t.side) return; // 同じ側に浜辺があるときは木を表示しない
       const widthMul = widthMulNear + (widthMulFar - widthMulNear) * (z / drawDist);
       const roadCenter = lateralAt(t.z) - camX;
       const edgeOffset = roadHalfWidth * widthMul;
@@ -366,7 +390,7 @@
       const pBaseL = project(z, xCenter - t.baseHalf, relHeightGround, horizonY);
       const pBaseR = project(z, xCenter + t.baseHalf, relHeightGround, horizonY);
       const pBaseC = project(z, xCenter, relHeightGround, horizonY);
-      if(pBaseC.y < horizonY - 0.5) continue;
+      if(pBaseC.y < horizonY - 0.5) return;
       // 木の高さは道の起伏用のスケールとは切り離し、専用の見た目のバランスで計算する
       const apexY = pBaseC.y - pBaseC.scale * t.height * worldUnitPx * 1.15;
       const trunkY = pBaseC.y + pBaseC.scale * t.height * worldUnitPx * 0.28;
@@ -382,6 +406,14 @@
       ctx.moveTo(pBaseC.x, pBaseC.y);
       ctx.lineTo(pBaseC.x, trunkY);
       ctx.stroke();
+    }
+
+    ctx.strokeStyle = '#258c6d';
+    for(const t of treeList) drawOneTree(t);
+
+    if(dayFactor > 0.02){
+      ctx.strokeStyle = 'rgba(37,140,109,' + dayFactor + ')';
+      for(const t of dayTreeList) drawOneTree(t);
     }
     ctx.restore();
   }
@@ -447,9 +479,9 @@
   function ensureBeachZones(maxZ){
     while(beachZoneEnd < maxZ){
       const i = beachZones.length + Math.floor(beachZoneEnd) + 1;
-      const gap = 150 + hash(i * 6.3 + 701) * 260; // 浜辺のない区間
+      const gap = 900 + hash(i * 6.3 + 701) * 1400; // 浜辺のない区間（出現率を大幅に下げる）
       const start = beachZoneEnd + gap;
-      const seconds = 5 + hash(i * 8.1 + 709) * 5; // 浜辺が続く時間：5〜10秒
+      const seconds = 30; // 浜辺が続く時間：30秒固定
       const len = seconds * speed;
       const side = hash(i * 3.7 + 719) < 0.5 ? -1 : 1;
       beachZones.push({ start, end: start + len, side });
@@ -471,7 +503,7 @@
     if(dayFactor <= 0.02) return;
     ensureBeachZones(scrollZ + drawDist + 20);
     ctx.save();
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 5;
     const lineSpacing = 0.75; // 区間内でのライン間隔（本数を4倍に）
     const fadeMargin = 20; // 区間の始まり・終わりでフェードする距離（ワールド単位）
     const worldUnitPx = (W * roadScreenFrac / 2) / roadHalfWidth;
@@ -1002,7 +1034,7 @@
 
     ctx.save();
     ctx.globalAlpha = sceneAlpha;
-    drawTrees(scrollZ, camX, camY, horizonY);
+    drawTrees(scrollZ, camX, camY, horizonY, dayFactor);
     drawGrass(scrollZ, camX, camY, horizonY);
     drawBeach(scrollZ, camX, camY, horizonY, dayFactor);
     ctx.restore();
