@@ -316,9 +316,9 @@
   }
 
   .infoModalOverlay{
-    position:fixed;
+    position:absolute;
     inset:0;
-    z-index:2000;
+    z-index:1000;
     background:rgba(0,0,0,0.55);
     display:flex;
     align-items:center;
@@ -539,15 +539,6 @@
     </div>
   </div>
 
-  <div class="infoModalOverlay" id="infoModalOverlay">
-    <div class="infoModal" id="infoModal">
-      <div class="infoLine1">今どこ？</div>
-      <div class="infoAddress" id="infoAddress">--</div>
-      <div class="infoLine2">最寄り駅</div>
-      <div class="infoStationList" id="infoStationList"></div>
-    </div>
-  </div>
-
   <div class="ticker">
     <div class="tickerTrack" id="tickerTrack">
       <span class="tickerEmpty">駅情報を取得中…</span>
@@ -557,6 +548,15 @@
   <div class="mapPane">
     <div id="map"></div>
     <button class="recenterBtn" id="recenterBtn" aria-label="現在地に戻る">◎</button>
+
+    <div class="infoModalOverlay" id="infoModalOverlay">
+      <div class="infoModal" id="infoModal">
+        <div class="infoLine1">今どこ？</div>
+        <div class="infoAddress" id="infoAddress">--</div>
+        <div class="infoLine2">最寄り駅</div>
+        <div class="infoStationList" id="infoStationList"></div>
+      </div>
+    </div>
   </div>
 
   <div class="statusFoot">
