@@ -335,9 +335,7 @@
   }
   .infoModal{
     width:95%;
-    height:85%;
-    max-width:95vw;
-    max-height:85vh;
+    height:95%;
     background:rgba(20,25,21,0.9);
     border:1px solid rgba(255,255,255,0.5);
     border-radius:14px;
@@ -348,24 +346,6 @@
     cursor:pointer;
     -webkit-tap-highlight-color: transparent;
     font-family: var(--mono);
-  }
-  .infoLine1{
-    font-size:14px;
-    font-weight:700;
-    color:var(--ink);
-    letter-spacing:.05em;
-    margin-bottom:6px;
-  }
-  .infoAddress{
-    font-size:14px;
-    font-weight:700;
-    color:#FFFFFF;
-    letter-spacing:.03em;
-    margin-bottom:22px;
-    line-height:1.4;
-    background:rgba(0,0,255,0.2);
-    padding:6px 8px;
-    border-radius:4px;
   }
   .infoLine2{
     font-size:14px;
@@ -551,8 +531,6 @@
 
     <div class="infoModalOverlay" id="infoModalOverlay">
       <div class="infoModal" id="infoModal">
-        <div class="infoLine1">今どこ？</div>
-        <div class="infoAddress" id="infoAddress">--</div>
         <div class="infoLine2">最寄り駅</div>
         <div class="infoStationList" id="infoStationList"></div>
       </div>
@@ -902,14 +880,11 @@
     return dirs[Math.round(bearing / 22.5) % 16];
   }
 
-  const infoAddressEl = document.getElementById('infoAddress');
   const infoStationListEl = document.getElementById('infoStationList');
 
   function updateInfoModal(){
-    if(!infoAddressEl || !infoStationListEl) return;
+    if(!infoStationListEl) return;
     if(!marker) return;
-
-    infoAddressEl.textContent = (addressVal && addressVal.textContent) ? addressVal.textContent : '(取得中‥)';
 
     const origin = marker.getLatLng();
     const nearby = cachedStations
