@@ -502,7 +502,7 @@
         </div>
         <div class="addressBox">
           <span class="addressLabel">今どこ？</span>
-          <span class="addressVal" id="addressVal">--</span>
+          <span class="addressVal" id="addressVal">(取得中‥)</span>
         </div>
       </div>
 
@@ -880,8 +880,7 @@
     if(!infoAddressEl || !infoStationListEl) return;
     if(!marker) return;
 
-    const addrRaw = (addressVal && addressVal.textContent) ? addressVal.textContent : '';
-    infoAddressEl.textContent = (addrRaw && addrRaw !== '--') ? addrRaw : '(取得中‥)';
+    infoAddressEl.textContent = (addressVal && addressVal.textContent) ? addressVal.textContent : '(取得中‥)';
 
     const origin = marker.getLatLng();
     const nearby = cachedStations
