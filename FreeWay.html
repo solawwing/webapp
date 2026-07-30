@@ -95,6 +95,7 @@
 (function(){
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
+  const sessionSeed = Math.random() * 100000; // 毎回のプレイでカーブ・坂などのレイアウトをランダムにする
 
   let W, H, DPR;
   function resize(){
@@ -207,7 +208,7 @@
   }
 
   function hash(i){
-    const s = Math.sin(i * 12.9898 + 78.233) * 43758.5453;
+    const s = Math.sin((i + sessionSeed) * 12.9898 + 78.233) * 43758.5453;
     return s - Math.floor(s);
   }
   function smoothstep(t){
@@ -266,7 +267,7 @@
           : bridgeType === 'suspension' ? baseLen * 1.5
           : baseLen * (2 / 3); // トラスは2/3、吊り橋は1.5倍、トンネルは4.5倍の長さ
 
-        const upVal = prev.val + rampMag;
+        const upVal = Math.max(-60, Math.min(60, prev.val + rampMag));
         hillWP.push({ z: prev.z + rampLen, val: upVal }); // 徐々にアップ
         const flatStart = prev.z + rampLen;
         const flatEnd = flatStart + bridgeLen;
@@ -284,7 +285,7 @@
       if(r < 1 / 24){
         // 上り
         const mag = 12 + hash(i * 9.3 + 4) * 9;
-        val = prev.val + mag;
+        val = Math.max(-60, Math.min(60, prev.val + mag)); // 累積高度の暴走を防ぐ
         const seconds = 4.5 + hash(i * 6.1 + 8) * 2.5;
         len = seconds * speed;
       } else if(r < 21 / 24){
@@ -294,7 +295,7 @@
       } else {
         // 下り
         const mag = 12 + hash(i * 9.3 + 4) * 9;
-        val = prev.val - mag;
+        val = Math.max(-60, Math.min(60, prev.val - mag)); // 累積高度の暴走を防ぐ
         const seconds = 4.5 + hash(i * 6.1 + 8) * 2.5;
         len = seconds * speed;
       }
@@ -315,6 +316,7 @@
   }
 
   function project(z, xWorld, relHeight, horizonY){
+    relHeight = Math.max(-70, Math.min(70, relHeight)); // 高低差が暴走して描画が破綻しないよう安全な範囲に収める
     const scale = camDepth / (z + camDepth);
     const vScale = H - horizonY; // 地平線から画面下端までの高さ（z=0が必ずここに一致する）
     const y = horizonY + scale * vScale - scale * relHeight * (vScale / camHeight);
@@ -337,7 +339,8 @@
         const extra = 20 + hash(i * 4.1 + 53) * 55;      // 道端からの追加オフセット（さらに離す）
         const height = (5.5 + hash(i * 6.5 + 61) * 4.5) * 3;   // 木の高さ（3倍）
         const baseHalf = (0.45 + hash(i * 7.3 + 67) * 0.35) * 5.2; // 底辺の半幅（もう少し広げる）
-        treeList.push({ z: treeGenZ, side, extra, height, baseHalf });
+        const alpha = [1, 0.9, 0.8, 0.5, 0.2][Math.floor(hash(i * 9.9 + 71) * 5)];
+        treeList.push({ z: treeGenZ, side, extra, height, baseHalf, alpha });
       }
     }
     // 通り過ぎた古い木を間引く（軽量化）
@@ -360,7 +363,8 @@
         const extra = 20 + hash(i * 4.1 + 839) * 55;
         const height = (5.5 + hash(i * 6.5 + 843) * 4.5) * 3;
         const baseHalf = (0.45 + hash(i * 7.3 + 847) * 0.35) * 5.2;
-        dayTreeList.push({ z: dayTreeGenZ, side, extra, height, baseHalf });
+        const alpha = [1, 0.9, 0.8, 0.5, 0.2][Math.floor(hash(i * 9.9 + 851) * 5)];
+        dayTreeList.push({ z: dayTreeGenZ, side, extra, height, baseHalf, alpha });
       }
     }
     while(dayTreeList.length > 1600 && dayTreeList[0].z < dayTreeGenZ - drawDist - 200){
@@ -374,10 +378,10 @@
     ctx.save();
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1 + dayFactor; // 昼は線の太さを2倍にする
     const worldUnitPx = (W * roadScreenFrac / 2) / roadHalfWidth; // scale=1地点でのワールド単位あたりのピクセル数
 
-    function drawOneTree(t){
+    function drawOneTree(t, dayMul){
       const z = t.z - scrollZ;
       if(z < 0 || z > drawDist) return;
       if(beachSideAt(t.z) === t.side) return; // 同じ側に浜辺があるときは木を表示しない
@@ -394,6 +398,7 @@
       // 木の高さは道の起伏用のスケールとは切り離し、専用の見た目のバランスで計算する
       const apexY = pBaseC.y - pBaseC.scale * t.height * worldUnitPx * 1.15;
       const trunkY = pBaseC.y + pBaseC.scale * t.height * worldUnitPx * 0.28;
+      ctx.strokeStyle = 'rgba(37,140,109,' + (t.alpha * dayMul) + ')';
 
       ctx.beginPath();
       ctx.moveTo(pBaseC.x, apexY);
@@ -408,12 +413,10 @@
       ctx.stroke();
     }
 
-    ctx.strokeStyle = '#258c6d';
-    for(const t of treeList) drawOneTree(t);
+    for(const t of treeList) drawOneTree(t, 1);
 
     if(dayFactor > 0.02){
-      ctx.strokeStyle = 'rgba(37,140,109,' + dayFactor + ')';
-      for(const t of dayTreeList) drawOneTree(t);
+      for(const t of dayTreeList) drawOneTree(t, dayFactor);
     }
     ctx.restore();
   }
@@ -473,7 +476,144 @@
     ctx.restore();
   }
 
-  // ---- 昼に現れる浜辺：道の片側にしばらく継続して出現する区間（区間内では同じ側の木・草を表示しない） ----
+  // ---- 対向車（単純なワイヤーフレームの箱で表現し、プレイヤーに向かって走ってくる） ----
+  const oncomingCars = [];
+  let nextCarSpawnAt = 2 + Math.random() * 2;
+  let carSpawnTimer = 0;
+  function updateAndDrawCars(scrollZ, camX, camY, horizonY, dt){
+    carSpawnTimer += dt;
+    if(carSpawnTimer >= nextCarSpawnAt){
+      const spawnZ = scrollZ + drawDist + 10;
+      const curveEps = 3;
+      const curveSlope = (lateralAt(spawnZ + curveEps) - lateralAt(spawnZ - curveEps)) / (2 * curveEps);
+      const elevDiff = hillAt(spawnZ) - hillAt(scrollZ);
+      if(Math.abs(curveSlope) < 0.02 && Math.abs(elevDiff) < 2.5){ // 道が直線かつ高さもカメラとほぼ同じ区間でのみ出現させる
+        carSpawnTimer = 0;
+        nextCarSpawnAt = 2.5 + Math.random() * 3.5;
+        const dMag0 = Math.sqrt(1 + curveSlope * curveSlope);
+        oncomingCars.push({
+          worldZ: spawnZ,
+          spd: speed * (0.2 + Math.random() * 0.15),
+          lateralFrac: 0.45 + Math.random() * 0.15, // 対向車線側（道の片側）に寄せる
+          dirX: curveSlope / dMag0, dirZ: 1 / dMag0 // 出現時の道の向きに固定し、以後は回転させない
+        });
+      }
+    }
+
+    const carWidth = 8.5, carHeight = 8.5, carLength = 15 * 0.6;
+    const worldUnitPx = (W * roadScreenFrac / 2) / roadHalfWidth;
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.lineWidth = 1.2;
+
+    for(let i = oncomingCars.length - 1; i >= 0; i--){
+      const c = oncomingCars[i];
+      c.worldZ -= c.spd * dt;
+      const z = c.worldZ - scrollZ;
+      if(z < -1 || z > drawDist + 20){
+        oncomingCars.splice(i, 1);
+        continue;
+      }
+      if(z < 0 || z > drawDist) continue;
+
+      // 道がカーブを描いている位置では描画しない（直線の時だけ表示する）
+      const liveCurveEps = 3;
+      const liveCurveSlope = (lateralAt(c.worldZ + liveCurveEps) - lateralAt(c.worldZ - liveCurveEps)) / (2 * liveCurveEps);
+      if(Math.abs(liveCurveSlope) > 0.02) continue;
+      if(Math.abs(hillAt(c.worldZ) - hillAt(scrollZ)) > 2.5) continue; // 道の高さがカメラと大きく異なる位置では描画しない
+
+      const frontWorldZ = c.worldZ - carLength / 2;
+      const backWorldZ = c.worldZ + carLength / 2;
+      const frontZraw = frontWorldZ - scrollZ;
+      const backZraw = backWorldZ - scrollZ;
+      if(backZraw < 0 || frontZraw > drawDist) continue;
+      const fz = Math.max(0, frontZraw), bz = Math.min(drawDist, backZraw);
+
+      const widthMulC = widthMulNear + (widthMulFar - widthMulNear) * (z / drawDist);
+      const roadCenterC = lateralAt(c.worldZ) - camX;
+      const xCenterBase = roadCenterC + c.lateralFrac * (roadHalfWidth * widthMulC); // 常に道の右側＝逆車線
+
+      // 出現時に固定した道の向きを使う（走行中に向きを変えない＝常に道と平行）
+      const dirX = c.dirX, dirZ = c.dirZ;
+      const perpX = dirZ, perpZ = -dirX;              // 車の左右方向（ワールド座標）
+
+      function projLocal(dxLocal, dzLocal, dyWorld){
+        const worldX = xCenterBase + dxLocal * perpX + dzLocal * dirX;
+        const zAbs = Math.max(0.4, Math.min(drawDist, z + dxLocal * perpZ + dzLocal * dirZ)); // 特異点(z=-camDepth)を避ける安全な下限
+        const pointWorldZ = c.worldZ + dzLocal * dirZ; // その頂点が実際にある道の位置
+        const relHeight = hillAt(pointWorldZ) - camY;   // 頂点ごとに道の高さを個別に取得する
+        const base = project(zAbs, worldX, relHeight, horizonY);
+        const lift = base.scale * dyWorld * worldUnitPx * 1.15;
+        return { x: base.x, y: base.y - lift, scale: base.scale };
+      }
+
+      const centerCheck = projLocal(0, 0, carHeight * 0.3);
+      if(centerCheck.y < -50 || centerCheck.y > H + 50) continue; // 画面から大きく外れた時だけ非表示にする
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+
+      // 円弧（車輪・アーチ）を、車のローカル奥行き×高さの面に沿って描くためのヘルパー
+      function arcRing(dxLocal, dzCenter, depthR, heightR, heightBase, angStart, angEnd, steps){
+        const pts = [];
+        for(let s = 0; s <= steps; s++){
+          const ang = angStart + (angEnd - angStart) * (s / steps);
+          const dzLocal = dzCenter + Math.cos(ang) * depthR;
+          const hOff = heightBase + Math.sin(ang) * heightR;
+          pts.push(projLocal(dxLocal, dzLocal, hOff));
+        }
+        return pts;
+      }
+      function strokePts(pts){
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for(let k = 1; k < pts.length; k++) ctx.lineTo(pts[k].x, pts[k].y);
+        ctx.stroke();
+      }
+
+      const wheelR = carHeight * 0.34;
+      const wheelFrontDz = -carLength * 0.34;
+      const wheelBackDz = carLength * 0.34;
+      const leftDx = -carWidth * 0.56;
+      const rightDx = carWidth * 0.56;
+
+      // 4つの車輪（円）
+      strokePts(arcRing(leftDx, wheelFrontDz, wheelR, wheelR, wheelR, 0, Math.PI * 2, 16));
+      strokePts(arcRing(rightDx, wheelFrontDz, wheelR, wheelR, wheelR, 0, Math.PI * 2, 16));
+      strokePts(arcRing(leftDx, wheelBackDz, wheelR, wheelR, wheelR, 0, Math.PI * 2, 16));
+      strokePts(arcRing(rightDx, wheelBackDz, wheelR, wheelR, wheelR, 0, Math.PI * 2, 16));
+
+      // 左右のアーチ（半円）
+      const archDepthR = carLength * 0.46;
+      const archHeightR = carHeight * 1.25;
+      const leftArch = arcRing(leftDx, 0, archDepthR, archHeightR, 0, 0, Math.PI, 16);
+      const rightArch = arcRing(rightDx, 0, archDepthR, archHeightR, 0, 0, Math.PI, 16);
+      strokePts(leftArch);
+      strokePts(rightArch);
+
+      // アーチ上部を結ぶバーと、少し低い位置の横バー
+      const leftPeak = leftArch[8], rightPeak = rightArch[8];
+      const leftMid = leftArch[11], rightMid = rightArch[11];
+      ctx.beginPath();
+      ctx.moveTo(leftPeak.x, leftPeak.y); ctx.lineTo(rightPeak.x, rightPeak.y);
+      ctx.moveTo(leftMid.x, leftMid.y); ctx.lineTo(rightMid.x, rightMid.y);
+      ctx.stroke();
+
+      // フロントグリル（緩いカーブ＋ヘッドライト2つ）
+      const grilleDz = -carLength * 0.5;
+      const grillePts = [];
+      for(let s = 0; s <= 10; s++){
+        const t = s / 10;
+        const dxLocal = (t - 0.5) * carWidth * 0.68;
+        const dip = Math.sin(t * Math.PI) * carHeight * 0.08;
+        grillePts.push(projLocal(dxLocal, grilleDz, carHeight * 0.22 - dip));
+      }
+      strokePts(grillePts);
+      strokePts(arcRing(-carWidth * 0.3, grilleDz, carHeight * 0.16, carHeight * 0.16, carHeight * 0.32, 0, Math.PI * 2, 12));
+      strokePts(arcRing(carWidth * 0.3, grilleDz, carHeight * 0.16, carHeight * 0.16, carHeight * 0.32, 0, Math.PI * 2, 12));
+    }
+    ctx.restore();
+  }
   const beachZones = [];
   let beachZoneEnd = 0;
   function ensureBeachZones(maxZ){
@@ -1071,6 +1211,11 @@
     }
 
     drawRoadMarks(scrollZ, camX, camY, horizonY, dayFactor);
+
+    ctx.save();
+    ctx.globalAlpha = sceneAlpha;
+    updateAndDrawCars(scrollZ, camX, camY, horizonY, dt);
+    ctx.restore();
 
     for(const side of [-1, 1]){
       ctx.beginPath();
