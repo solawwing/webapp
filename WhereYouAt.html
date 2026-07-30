@@ -399,6 +399,9 @@
     vertical-align:top;
     height:40px;
   }
+  .infoRowNear .infoTd{
+    background:rgba(255,255,0,0.8);
+  }
   .infoTdName{
     color:#FF0000;
     font-weight:700;
@@ -901,7 +904,8 @@
         dirText = bearingToDirection(bearing);
       }
       const dirClass = dirText.length === 1 ? 'infoDirSingle' : '';
-      return `<tr>
+      const rowClass = s.dist <= 100 ? 'infoRowNear' : '';
+      return `<tr class="${rowClass}">
         <td class="infoTd infoTdName">${s.name}駅</td>
         <td class="infoTd infoTdLine">${lineNameJoined || '‥'}</td>
         <td class="infoTd infoTdDist"><span class="infoDistWrap">${Math.round(s.dist).toLocaleString('ja-JP')}<span class="infoUnit">m</span></span></td>
