@@ -896,7 +896,7 @@
       return `<tr>
         <td class="infoTd infoTdName">${s.name}駅</td>
         <td class="infoTd infoTdLine">${lineNameJoined || '—'}</td>
-        <td class="infoTd infoTdDist">${Math.round(s.dist)}<span class="infoUnit">m</span></td>
+        <td class="infoTd infoTdDist">${Math.round(s.dist).toLocaleString('ja-JP')}<span class="infoUnit">m</span></td>
         <td class="infoTd infoTdTime">${walkMin}<span class="infoUnit">分</span></td>
         <td class="infoTd infoTdDir ${dirClass}">${dirText}</td>
       </tr>`;
