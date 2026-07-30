@@ -815,7 +815,7 @@
   const ADDRESS_MIN_DISTANCE = 15;   // これ以上動いたら再取得 [m]
   const ADDRESS_MIN_INTERVAL = 5000; // 最短でもこの間隔は空ける [ms] (Nominatimの利用ポリシー上、あまり短くしすぎない)
   let isFetchingStations = false; // 駅取得と住所取得のネットワーク処理が重ならないようにする排他フラグ
-  let isFetchingExtended = false; // 拡張取得(5km圏)・路線名取得の重複実行を防ぐフラグ(Overpassの同時実行制限対策)
+  let isFetchingExtended = false; // 拡張取得(10km圏)・路線名取得の重複実行を防ぐフラグ(Overpassの同時実行制限対策)
   let stationFetchAttempted = false; // 一度でも駅取得を開始したか(最初の駅取得より前に住所取得が走らないようにする)
 
   async function fetchAddress(lat, lng){
@@ -861,7 +861,7 @@
 
   const STATION_RADIUS_NEAR = 1000; // 蛍光赤 [m]
   const STATION_RADIUS_FAR  = 2000; // 蛍光オレンジ [m]
-  const STATION_RADIUS_XFAR = 5000; // 蛍光ブルー(これを超えると非表示) [m]
+  const STATION_RADIUS_XFAR = 10000; // 蛍光ブルー(これを超えると非表示) [m]
   const COLOR_NEAR = '#ff3b3b'; // 蛍光赤
   const COLOR_FAR  = '#ff9d1f'; // 蛍光オレンジ
   const COLOR_XFAR = '#25A2FF'; // 蛍光ブルー(2001m〜5000m)
@@ -1154,9 +1154,9 @@
     return preferred ? [preferred, ...list] : list;
   }
 
-  // 2km〜5km圏の駅は失敗しても基本表示(1km/2km圏)に影響しないよう、別途ベストエフォートで取得
+  // 2km〜10km圏の駅は失敗しても基本表示(1km/2km圏)に影響しないよう、別途ベストエフォートで取得
   async function fetchExtendedStations(origin){
-    // サーバー側で「5km圏 - 2km圏」の差分だけを取得し、レスポンスを軽量化する
+    // サーバー側で「10km圏 - 2km圏」の差分だけを取得し、レスポンスを軽量化する
     const query = `[out:json][timeout:15];
       (
         node["railway"="station"](around:${STATION_RADIUS_XFAR},${origin.lat},${origin.lng});
@@ -1307,7 +1307,7 @@
             const dist = origin.distanceTo([el.lat, el.lon]);
             const lines = el.tags.network ? [el.tags.network] : [];
             cachedStations.push({ name, lat: el.lat, lng: el.lon, lines, id: el.id });
-            if(dist > STATION_RADIUS_XFAR) return; // 5km超は非表示
+            if(dist > STATION_RADIUS_XFAR) return; // 10km超は非表示
             const color = colorForStationDistance(dist);
             const m = L.marker([el.lat, el.lon], { icon: stationIcon(name, color, lines), interactive:false }).addTo(map);
             stationMarkers.push(m);
@@ -1340,7 +1340,7 @@
           // バックグラウンドで続けるが、住所取得をブロックし続けないようフラグはここで先に解除する。
           isFetchingStations = false;
 
-          // 2km〜5km圏の駅、路線名は、同じサーバーへの同時リクエストを避けるため順番に実行する
+          // 2km〜10km圏の駅、路線名は、同じサーバーへの同時リクエストを避けるため順番に実行する
           // (失敗しても基本の駅表示には影響しないベストエフォート処理。Overpassは同時実行数が
           //  厳しく制限されているため、既に実行中なら重複させない)
           if(!isFetchingExtended){
