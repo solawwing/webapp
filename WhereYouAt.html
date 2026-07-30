@@ -651,6 +651,7 @@
   let radiusCircleNear = null; // 半径1km
   let radiusCircleFar = null;  // 半径2km
   let currentMarkerColor = null;
+  let initialZoomLevel = null; // 初回表示時に自動計算されたズームレベル(「現在地に戻る」ボタンで再利用)
   let nearestArrowLine = null;   // 現在地→最寄り駅 中間点までの線
   let nearestArrowHead = null;   // 矢印の先端(三角形)
   let radiusLabelNear = null; // 1000mラベル
@@ -711,6 +712,8 @@
       // 初期表示: 半径3km(直径6km)が画面に収まるように表示
       const bounds = L.latLng(latlng).toBounds(6000); // 一辺6kmの正方形
       map.fitBounds(bounds);
+      // fitBoundsで実際に決まったズームレベルを記憶しておき、「現在地に戻る」ボタンで再利用する
+      initialZoomLevel = map.getZoom();
     } else {
       marker.setLatLng(latlng);
       // 色が変わった時はDOM要素を作り直さず、色だけを直接書き換える(波紋アニメーションを継続させるため)
@@ -738,7 +741,10 @@
 
   document.getElementById('recenterBtn').addEventListener('click', ()=>{
     followMe = true;
-    if(marker) map.setView(marker.getLatLng(), Math.max(map.getZoom(), 17), { animate:true });
+    if(marker){
+      const zoomToUse = (initialZoomLevel != null) ? initialZoomLevel : 17;
+      map.setView(marker.getLatLng(), zoomToUse, { animate:true });
+    }
   });
 
   // --- 情報モーダル(緯度経度エリアタップで開閉) ---
