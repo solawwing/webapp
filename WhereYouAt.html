@@ -356,6 +356,9 @@
     letter-spacing:.03em;
     margin-bottom:22px;
     line-height:1.4;
+    background:rgba(0,0,255,0.5);
+    padding:6px 8px;
+    border-radius:4px;
   }
   .infoLine2{
     font-size:14px;
@@ -378,9 +381,10 @@
     font-size:10px;
     color:#39FF14;
     letter-spacing:.05em;
-    padding:0 8px 6px 8px;
+    padding:4px 8px 6px 8px;
     white-space:nowrap;
     vertical-align:top;
+    background:rgba(0,255,0,0.5);
   }
   .infoThName{ text-align:left; width:30%; }
   .infoThLine{ text-align:left; width:26%; }
@@ -887,7 +891,7 @@
     const rowsHtml = top3.map((s, idx)=>{
       const lineNameJoined = formatLineName(s.lines);
       const walkMin = Math.round(s.dist / 80);
-      let dirText = '—';
+      let dirText = '‥';
       if(origin && s.lat != null && s.lng != null){
         const bearing = calculateBearing(origin.lat, origin.lng, s.lat, s.lng);
         dirText = bearingToDirection(bearing);
@@ -895,7 +899,7 @@
       const dirClass = dirText.length === 1 ? 'infoDirSingle' : '';
       return `<tr>
         <td class="infoTd infoTdName">${s.name}駅</td>
-        <td class="infoTd infoTdLine">${lineNameJoined || '—'}</td>
+        <td class="infoTd infoTdLine">${lineNameJoined || '‥'}</td>
         <td class="infoTd infoTdDist">${Math.round(s.dist).toLocaleString('ja-JP')}<span class="infoUnit">m</span></td>
         <td class="infoTd infoTdTime">${walkMin}<span class="infoUnit">分</span></td>
         <td class="infoTd infoTdDir ${dirClass}">${dirText}</td>
@@ -908,7 +912,7 @@
           <th class="infoTh infoThName">駅名</th>
           <th class="infoTh infoThLine">路線名</th>
           <th class="infoTh infoThDist">距離</th>
-          <th class="infoTh infoThTime">時間(徒歩)</th>
+          <th class="infoTh infoThTime">徒歩</th>
           <th class="infoTh infoThDir">方角</th>
         </tr>
       </thead>
