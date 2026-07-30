@@ -344,7 +344,7 @@
     font-family: var(--mono);
   }
   .infoLine1{
-    font-size:15px;
+    font-size:14px;
     color:var(--ink);
     letter-spacing:.05em;
     margin-bottom:6px;
@@ -382,11 +382,11 @@
     white-space:nowrap;
     vertical-align:top;
   }
-  .infoThName{ text-align:left; }
-  .infoThLine{ text-align:left; }
-  .infoThDist{ text-align:right; }
-  .infoThTime{ text-align:right; }
-  .infoThDir{ text-align:center; }
+  .infoThName{ text-align:left; width:30%; }
+  .infoThLine{ text-align:left; width:26%; }
+  .infoThDist{ text-align:right; width:16%; }
+  .infoThTime{ text-align:right; width:14%; }
+  .infoThDir{ text-align:center; width:14%; }
   .infoTd{
     padding:8px 8px;
     white-space:nowrap;
@@ -400,7 +400,7 @@
     font-weight:700;
     font-size:15px;
     text-align:left;
-    white-space:nowrap;
+    white-space:normal;
   }
   .infoTdLine{
     color:#FF9D1F;
@@ -414,6 +414,9 @@
     text-align:right;
     white-space:nowrap;
   }
+  .infoUnit{
+    font-size:6pt;
+  }
   .infoTdTime{
     color:#22e5e5;
     font-size:13px;
@@ -421,10 +424,13 @@
     white-space:nowrap;
   }
   .infoTdDir{
-    color:#84909b;
+    color:#FFFFFF;
     font-size:13px;
     text-align:center;
     white-space:nowrap;
+  }
+  .infoDirSingle{
+    font-weight:700;
   }
 
   /* leaflet dark-theme tweaks */
@@ -498,7 +504,7 @@
 
   <div class="infoModalOverlay" id="infoModalOverlay">
     <div class="infoModal" id="infoModal">
-      <div class="infoLine1">今いる場所は、</div>
+      <div class="infoLine1">今どこ？</div>
       <div class="infoAddress" id="infoAddress">--</div>
       <div class="infoLine2">最寄り駅</div>
       <div class="infoStationList" id="infoStationList"></div>
@@ -886,12 +892,13 @@
         const bearing = calculateBearing(origin.lat, origin.lng, s.lat, s.lng);
         dirText = bearingToDirection(bearing);
       }
+      const dirClass = dirText.length === 1 ? 'infoDirSingle' : '';
       return `<tr>
         <td class="infoTd infoTdName">${s.name}駅</td>
         <td class="infoTd infoTdLine">${lineNameJoined || '—'}</td>
-        <td class="infoTd infoTdDist">${Math.round(s.dist)}m</td>
-        <td class="infoTd infoTdTime">${walkMin}分</td>
-        <td class="infoTd infoTdDir">${dirText}</td>
+        <td class="infoTd infoTdDist">${Math.round(s.dist)}<span class="infoUnit">m</span></td>
+        <td class="infoTd infoTdTime">${walkMin}<span class="infoUnit">分</span></td>
+        <td class="infoTd infoTdDir ${dirClass}">${dirText}</td>
       </tr>`;
     }).join('');
 
