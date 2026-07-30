@@ -386,8 +386,8 @@
     vertical-align:top;
     background:rgba(0,255,0,0.2);
   }
-  .infoThName{ text-align:left; width:26%; }
-  .infoThLine{ text-align:left; width:24%; }
+  .infoThName{ text-align:left; width:32%; }
+  .infoThLine{ text-align:left; width:18%; }
   .infoThDist{ text-align:right; width:20%; }
   .infoThTime{ text-align:right; width:16%; }
   .infoThDir{ text-align:center; width:14%; }
@@ -880,7 +880,8 @@
     if(!infoAddressEl || !infoStationListEl) return;
     if(!marker) return;
 
-    infoAddressEl.textContent = (addressVal && addressVal.textContent) ? addressVal.textContent : '--';
+    const addrRaw = (addressVal && addressVal.textContent) ? addressVal.textContent : '';
+    infoAddressEl.textContent = (addrRaw && addrRaw !== '--') ? addrRaw : '(取得中‥)';
 
     const origin = marker.getLatLng();
     const nearby = cachedStations
