@@ -1271,14 +1271,18 @@
       if(map.getZoom() < 13){ clearStations(); mapOverlay.textContent = 'MAP VIEW'; return; }
 
       const origin = marker.getLatLng(); // 現在地(GPS)中心
+
+      // 定期実行・地図移動など、fetchStationsが呼ばれたことが分かるよう一旦「取得中」を表示する
+      const previousOverlayText = mapOverlay.textContent;
+      mapOverlay.textContent = '駅情報取得中…';
+
       if(lastStationCenter && lastStationCenter.distanceTo(origin) < 200){
+        mapOverlay.textContent = previousOverlayText; // 実際には取得しないので元の表示に戻す
         return; // 現在地がほぼ動いていなければAPI再取得は間引く(距離表示自体は別途更新される)
       }
 
       // まず駅ノードのみを軽量取得(路線リレーションは含めない: レスポンスを軽くして成功率を上げる)
       const stationQuery = `[out:json][timeout:10];node["railway"="station"](around:${STATION_RADIUS_FAR},${origin.lat},${origin.lng});out body;`;
-
-      mapOverlay.textContent = '駅情報取得中…';
 
       let succeeded = false;
       let lastError = null;
