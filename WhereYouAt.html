@@ -356,7 +356,7 @@
     letter-spacing:.03em;
     margin-bottom:22px;
     line-height:1.4;
-    background:rgba(0,0,255,0.8);
+    background:rgba(0,0,255,0.2);
     padding:6px 8px;
     border-radius:4px;
   }
@@ -384,7 +384,7 @@
     padding:4px 8px 6px 8px;
     white-space:nowrap;
     vertical-align:top;
-    background:rgba(0,255,0,0.8);
+    background:rgba(0,255,0,0.2);
   }
   .infoThName{ text-align:left; width:30%; }
   .infoThLine{ text-align:left; width:26%; }
@@ -417,6 +417,10 @@
     font-size:13px;
     text-align:right !important;
     white-space:nowrap;
+  }
+  .infoDistWrap{
+    display:block;
+    text-align:right;
   }
   .infoUnit{
     font-size:6pt;
@@ -900,7 +904,7 @@
       return `<tr>
         <td class="infoTd infoTdName">${s.name}駅</td>
         <td class="infoTd infoTdLine">${lineNameJoined || '‥'}</td>
-        <td class="infoTd infoTdDist">${Math.round(s.dist).toLocaleString('ja-JP')}<span class="infoUnit">m</span></td>
+        <td class="infoTd infoTdDist"><span class="infoDistWrap">${Math.round(s.dist).toLocaleString('ja-JP')}<span class="infoUnit">m</span></span></td>
         <td class="infoTd infoTdTime">${walkMin}<span class="infoUnit">分</span></td>
         <td class="infoTd infoTdDir ${dirClass}">${dirText}</td>
       </tr>`;
