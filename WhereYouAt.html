@@ -442,6 +442,19 @@
     text-align:center;
     white-space:nowrap;
   }
+  .dirArrow{
+    display:inline-block;
+    width:0;
+    height:0;
+    border-left:4px solid transparent;
+    border-right:4px solid transparent;
+    border-bottom:7px solid #FFFFFF;
+    margin-right:4px;
+    vertical-align:middle;
+  }
+  .dirText{
+    vertical-align:middle;
+  }
   .infoDirSingle{
     font-weight:700;
   }
@@ -874,8 +887,8 @@
     return (brng + 360) % 360;
   }
   function bearingToDirection(bearing){
-    const dirs = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
-    return dirs[Math.round(bearing / 22.5) % 16];
+    const dirs = ['北', '北東', '東', '南東', '南', '南西', '西', '北西'];
+    return dirs[Math.round(bearing / 45) % 8];
   }
 
   const infoAddressEl = document.getElementById('infoAddress');
@@ -901,18 +914,22 @@
       const lineNameJoined = formatLineName(s.lines);
       const walkMin = Math.round(s.dist / 80);
       let dirText = '‥';
+      let bearing = null;
       if(origin && s.lat != null && s.lng != null){
-        const bearing = calculateBearing(origin.lat, origin.lng, s.lat, s.lng);
+        bearing = calculateBearing(origin.lat, origin.lng, s.lat, s.lng);
         dirText = bearingToDirection(bearing);
       }
       const dirClass = dirText.length === 1 ? 'infoDirSingle' : '';
+      const dirArrowHtml = bearing != null
+        ? `<span class="dirArrow" style="transform:rotate(${bearing}deg);"></span>`
+        : '';
       const rowClass = s.dist <= 100 ? 'infoRowNear' : '';
       return `<tr class="${rowClass}">
         <td class="infoTd infoTdName">${s.name}駅</td>
         <td class="infoTd infoTdLine">${lineNameJoined || '‥'}</td>
         <td class="infoTd infoTdDist"><span class="infoDistWrap">${Math.round(s.dist).toLocaleString('ja-JP')}<span class="infoUnit">m</span></span></td>
         <td class="infoTd infoTdTime">${walkMin}<span class="infoUnit">分</span></td>
-        <td class="infoTd infoTdDir ${dirClass}">${dirText}</td>
+        <td class="infoTd infoTdDir ${dirClass}">${dirArrowHtml}<span class="dirText">${dirText}</span></td>
       </tr>`;
     }).join('');
 
