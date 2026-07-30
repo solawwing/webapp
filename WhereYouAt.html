@@ -314,6 +314,13 @@
   #coordsTapArea:active{
     opacity:.85;
   }
+  #statusFootTapArea{
+    cursor:pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #statusFootTapArea:active{
+    opacity:.85;
+  }
 
   .infoModalOverlay{
     position:absolute;
@@ -537,7 +544,7 @@
     </div>
   </div>
 
-  <div class="statusFoot">
+  <div class="statusFoot" id="statusFootTapArea">
     <span class="mapOverlay">Map View</span>
     <span class="versionLabel">v20260730080719</span>
   </div>
@@ -748,6 +755,11 @@
 
   coordsTapArea.addEventListener('click', openInfoModal);
   infoModal.addEventListener('click', closeInfoModal);
+
+  const statusFootTapArea = document.getElementById('statusFootTapArea');
+  if(statusFootTapArea){
+    statusFootTapArea.addEventListener('click', openInfoModal);
+  }
 
   // --- station labels via Overpass API ---
   let stationMarkers = [];
