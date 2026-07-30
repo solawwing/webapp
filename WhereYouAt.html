@@ -656,6 +656,8 @@
   let nearestArrowHead = null;   // 矢印の先端(三角形)
   let radiusLabelNear = null; // 1000mラベル
   let radiusLabelFar = null;  // 2000mラベル
+  let radiusCircleXFar = null; // 半径10km
+  let radiusLabelXFar = null;  // 10000mラベル
 
   // 中心点から指定方位角(度)・距離(m)先の緯度経度を計算(球面上の目的地点)
   function destinationPoint(lat, lng, bearingDeg, distanceM){
@@ -702,12 +704,19 @@
         color: COLOR_FAR, weight:2, opacity:.8,
         fill:false
       }).addTo(map);
+      radiusCircleXFar = L.circle(latlng, {
+        radius: STATION_RADIUS_XFAR,
+        color: COLOR_XFAR, weight:2, opacity:.8,
+        fill:false
+      }).addTo(map);
 
       // 右上(北東・方位角45度)の円周上にメートル数のラベルを配置(縁と重ならないよう外側にアンカー)
       const nearLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_NEAR);
       const farLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_FAR);
+      const xfarLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_XFAR);
       radiusLabelNear = L.marker(nearLabelPos, { icon: radiusLabelIcon('1000m', COLOR_NEAR), interactive:false }).addTo(map);
       radiusLabelFar = L.marker(farLabelPos, { icon: radiusLabelIcon('2000m', COLOR_FAR), interactive:false }).addTo(map);
+      radiusLabelXFar = L.marker(xfarLabelPos, { icon: radiusLabelIcon('10000m', COLOR_XFAR), interactive:false }).addTo(map);
 
       // 初期表示: 半径3km(直径6km)が画面に収まるように表示
       const bounds = L.latLng(latlng).toBounds(6000); // 一辺6kmの正方形
@@ -729,10 +738,13 @@
       accCircle.setStyle({ color: color, fillColor: color });
       radiusCircleNear.setLatLng(latlng);
       radiusCircleFar.setLatLng(latlng);
+      radiusCircleXFar.setLatLng(latlng);
       const nearLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_NEAR);
       const farLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_FAR);
+      const xfarLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_XFAR);
       if(radiusLabelNear) radiusLabelNear.setLatLng(nearLabelPos);
       if(radiusLabelFar) radiusLabelFar.setLatLng(farLabelPos);
+      if(radiusLabelXFar) radiusLabelXFar.setLatLng(xfarLabelPos);
       if(followMe) map.panTo(latlng, { animate:true });
     }
   }
@@ -1130,7 +1142,7 @@
     const origin = marker.getLatLng();
     const nearby = cachedStations
       .map(s => ({ name: s.name, dist: origin.distanceTo([s.lat, s.lng]), lines: s.lines, lat: s.lat, lng: s.lng }))
-      .filter(s => s.dist <= STATION_RADIUS_FAR);
+      .filter(s => s.dist <= STATION_RADIUS_XFAR);
     updateTicker(nearby);
     try{ updateInfoModal(); }catch(modalErr){ console.warn('updateInfoModal failed (non-critical):', modalErr); }
 
@@ -1191,6 +1203,7 @@
         });
         if(addedCount > 0){
           mapOverlay.textContent = '駅 ' + cachedStations.length + '件';
+          try{ refreshTickerDistances(); }catch(e){ console.warn('refreshTickerDistances failed (non-critical):', e); }
         }
         return; // 成功したらそこで終了(他のエンドポイントは試さない)
       }catch(e){
@@ -1268,7 +1281,7 @@
     stationFetchAttempted = true;
     try{
       if(!marker){ return; } // 現在地が未取得ならまだ実行しない
-      if(map.getZoom() < 13){ clearStations(); mapOverlay.textContent = 'MAP VIEW'; return; }
+      if(map.getZoom() < 13){ mapOverlay.textContent = 'MAP VIEW'; return; }
 
       const origin = marker.getLatLng(); // 現在地(GPS)中心
 
@@ -1276,7 +1289,7 @@
       const previousOverlayText = mapOverlay.textContent;
       mapOverlay.textContent = '駅情報取得中…';
 
-      if(lastStationCenter && lastStationCenter.distanceTo(origin) < 200){
+      if(lastStationCenter && lastStationCenter.distanceTo(origin) < 100){
         mapOverlay.textContent = previousOverlayText; // 実際には取得しないので元の表示に戻す
         return; // 現在地がほぼ動いていなければAPI再取得は間引く(距離表示自体は別途更新される)
       }
