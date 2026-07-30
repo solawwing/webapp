@@ -887,8 +887,8 @@
     return (brng + 360) % 360;
   }
   function bearingToDirection(bearing){
-    const dirs = ['北', '北東', '東', '南東', '南', '南西', '西', '北西'];
-    return dirs[Math.round(bearing / 45) % 8];
+    const dirs = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
+    return dirs[Math.round(bearing / 22.5) % 16];
   }
 
   const infoAddressEl = document.getElementById('infoAddress');
