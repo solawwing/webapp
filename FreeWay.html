@@ -263,7 +263,7 @@
         const typeRoll = hash(i * 21.7 + 233);
         const bridgeType = typeRoll < 1 / 3 ? 'truss' : (typeRoll < 2 / 3 ? 'suspension' : 'tunnel');
         const baseLen = 40 + hash(i * 17.3 + 223) * 45;
-        const bridgeLen = bridgeType === 'tunnel' ? baseLen * 4.5
+        const bridgeLen = bridgeType === 'tunnel' ? baseLen * 6.75
           : bridgeType === 'suspension' ? baseLen * 1.5
           : baseLen * (2 / 3); // トラスは2/3、吊り橋は1.5倍、トンネルは4.5倍の長さ
 
@@ -480,14 +480,13 @@
   const oncomingCars = [];
   let nextCarSpawnAt = 2 + Math.random() * 2;
   let carSpawnTimer = 0;
-  function updateAndDrawCars(scrollZ, camX, camY, horizonY, dt){
+  function updateAndDrawCars(scrollZ, camX, camY, horizonY, dt, dayFactor){
     carSpawnTimer += dt;
     if(carSpawnTimer >= nextCarSpawnAt){
       const spawnZ = scrollZ + drawDist + 10;
       const curveEps = 3;
       const curveSlope = (lateralAt(spawnZ + curveEps) - lateralAt(spawnZ - curveEps)) / (2 * curveEps);
-      const elevDiff = hillAt(spawnZ) - hillAt(scrollZ);
-      if(Math.abs(curveSlope) < 0.02 && Math.abs(elevDiff) < 2.5){ // 道が直線かつ高さもカメラとほぼ同じ区間でのみ出現させる
+      if(Math.abs(curveSlope) < 0.15){ // 道が直線に近い区間で出現させる
         carSpawnTimer = 0;
         nextCarSpawnAt = 2.5 + Math.random() * 3.5;
         const dMag0 = Math.sqrt(1 + curveSlope * curveSlope);
@@ -505,7 +504,7 @@
 
     ctx.save();
     ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = 2.4;
 
     for(let i = oncomingCars.length - 1; i >= 0; i--){
       const c = oncomingCars[i];
@@ -520,8 +519,7 @@
       // 道がカーブを描いている位置では描画しない（直線の時だけ表示する）
       const liveCurveEps = 3;
       const liveCurveSlope = (lateralAt(c.worldZ + liveCurveEps) - lateralAt(c.worldZ - liveCurveEps)) / (2 * liveCurveEps);
-      if(Math.abs(liveCurveSlope) > 0.02) continue;
-      if(Math.abs(hillAt(c.worldZ) - hillAt(scrollZ)) > 2.5) continue; // 道の高さがカメラと大きく異なる位置では描画しない
+      if(Math.abs(liveCurveSlope) > 0.15) continue;
 
       const frontWorldZ = c.worldZ - carLength / 2;
       const backWorldZ = c.worldZ + carLength / 2;
@@ -542,7 +540,7 @@
         const worldX = xCenterBase + dxLocal * perpX + dzLocal * dirX;
         const zAbs = Math.max(0.4, Math.min(drawDist, z + dxLocal * perpZ + dzLocal * dirZ)); // 特異点(z=-camDepth)を避ける安全な下限
         const pointWorldZ = c.worldZ + dzLocal * dirZ; // その頂点が実際にある道の位置
-        const relHeight = hillAt(pointWorldZ) - camY;   // 頂点ごとに道の高さを個別に取得する
+        const relHeight = hillAt(pointWorldZ) - camY; // 道と全く同じ高さの値を使い、車の上下位置を道に一致させる
         const base = project(zAbs, worldX, relHeight, horizonY);
         const lift = base.scale * dyWorld * worldUnitPx * 1.15;
         return { x: base.x, y: base.y - lift, scale: base.scale };
@@ -550,8 +548,11 @@
 
       const centerCheck = projLocal(0, 0, carHeight * 0.3);
       if(centerCheck.y < -50 || centerCheck.y > H + 50) continue; // 画面から大きく外れた時だけ非表示にする
+      if(Math.abs(hillAt(c.worldZ) - camY) > 2) continue; // 道からの高さの差が大きく、浮いて見えるときは表示しない
 
-      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      const nearFade = Math.max(0, Math.min(1, z / 10)); // 消える直前にフェードアウト
+      const bodyAlpha = (0.5 * (1 - dayFactor) + 0.8 * dayFactor) * nearFade; // 夜50%・昼80%
+      ctx.strokeStyle = 'rgba(255,255,255,' + bodyAlpha + ')';
 
       // 円弧（車輪・アーチ）を、車のローカル奥行き×高さの面に沿って描くためのヘルパー
       function arcRing(dxLocal, dzCenter, depthR, heightR, heightBase, angStart, angEnd, steps){
@@ -609,8 +610,21 @@
         grillePts.push(projLocal(dxLocal, grilleDz, carHeight * 0.22 - dip));
       }
       strokePts(grillePts);
-      strokePts(arcRing(-carWidth * 0.3, grilleDz, carHeight * 0.16, carHeight * 0.16, carHeight * 0.32, 0, Math.PI * 2, 12));
-      strokePts(arcRing(carWidth * 0.3, grilleDz, carHeight * 0.16, carHeight * 0.16, carHeight * 0.32, 0, Math.PI * 2, 12));
+      const hlR_ = Math.round(235 + (255 - 235) * dayFactor);
+      const hlG_ = 255;
+      const hlB_ = Math.round(15 + (255 - 15) * dayFactor);
+      const hlAlpha = (0.8 * (1 - dayFactor) + 0.1 * dayFactor) * nearFade; // 夜は黄色80%・昼は白10%
+      const headlightColor = 'rgba(' + hlR_ + ',' + hlG_ + ',' + hlB_ + ',' + hlAlpha + ')';
+      const hlL = projLocal(-carWidth * 0.3, grilleDz, carHeight * 0.32);
+      const hlR = projLocal(carWidth * 0.3, grilleDz, carHeight * 0.32);
+      const hlRadius = Math.max(2, hlL.scale * carHeight * 0.22 * worldUnitPx * (2 / 3));
+      ctx.fillStyle = headlightColor;
+      ctx.beginPath();
+      ctx.arc(hlL.x, hlL.y, hlRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(hlR.x, hlR.y, hlRadius, 0, Math.PI * 2);
+      ctx.fill();
     }
     ctx.restore();
   }
@@ -692,7 +706,7 @@
     const brB = Math.round(nightB + (dayB - nightB) * dayFactor);
     const brAlpha = (0.4 + (0.8 - 0.4) * dayFactor) * sceneAlpha; // トラス橋・吊り橋はトンネル内では隠す
     ctx.strokeStyle = 'rgba(' + brR + ',' + brG + ',' + brB + ',' + brAlpha + ')';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 2;
     const nodeSpacing = 2.4;
     const worldUnitPx = (W * roadScreenFrac / 2) / roadHalfWidth;
     const sideExtra = 60 / worldUnitPx; // 道から画面上で約60px離す
@@ -1212,10 +1226,8 @@
 
     drawRoadMarks(scrollZ, camX, camY, horizonY, dayFactor);
 
-    ctx.save();
-    ctx.globalAlpha = sceneAlpha;
-    updateAndDrawCars(scrollZ, camX, camY, horizonY, dt);
-    ctx.restore();
+    ctx.globalAlpha = 1; // トンネル内でも車は消さない
+    updateAndDrawCars(scrollZ, camX, camY, horizonY, dt, dayFactor);
 
     for(const side of [-1, 1]){
       ctx.beginPath();
