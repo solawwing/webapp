@@ -375,13 +375,21 @@
   .infoModal.singleMode .infoTableView{ display:none; }
   .infoModal.singleMode .infoSingleView{ display:flex; }
   .singleStationName{
-    font-size:34px;
-    font-weight:700;
+    font-size:80px;
+    font-weight:400;
     color:#FF0000;
+    white-space:normal;
+    text-align:center;
+    line-height:1.1;
+    padding:0 8px;
   }
   .singleStationLine{
-    font-size:16px;
+    font-size:32px;
     color:#FF9D1F;
+    white-space:normal;
+    text-align:center;
+    line-height:1.3;
+    padding:0 8px;
   }
   .singleStationDist{
     font-size:28px;
@@ -970,6 +978,12 @@
     return joined;
   }
 
+  // 単一駅モードでは省略せず全路線名をそのまま表示する
+  function formatLineNameFull(lines){
+    if(!lines || lines.length === 0) return '';
+    return lines.join(' / ');
+  }
+
   // 2点間の方位角(度)を計算し、8方位の文字列に変換する
   function calculateBearing(lat1, lng1, lat2, lng2){
     const toRad = d => d * Math.PI / 180;
@@ -1014,7 +1028,7 @@
     // 単一駅表示(一番近い駅)の更新
     const nearest = top3[0];
     if(nearest){
-      const nearestLineNameJoined = formatLineName(nearest.lines);
+      const nearestLineNameJoined = formatLineNameFull(nearest.lines);
       const nearestWalkMin = Math.round(nearest.dist / 80);
       let nearestDirText = '‥';
       let nearestBearing = null;
