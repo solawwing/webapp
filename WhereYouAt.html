@@ -633,7 +633,7 @@
       <div class="infoModal" id="infoModal">
         <div class="infoLine2">
           <span>最寄り駅</span>
-          <button class="gyroBtn" id="gyroBtn" type="button">方位を使う</button>
+          <button class="gyroBtn" id="gyroBtn" type="button">ジャイロOFF</button>
         </div>
         <div class="infoTableView" id="infoTableView">
           <div class="infoStationList" id="infoStationList"></div>
@@ -910,7 +910,7 @@
         gyroListenerAttached = false;
         deviceHeading = null;
         gyroBtn.classList.remove('enabled');
-        gyroBtn.textContent = '方位を使う';
+        gyroBtn.textContent = 'ジャイロOFF';
         if(infoModal) infoModal.classList.remove('gyroActive');
         try{ updateInfoModal(); }catch(e){ console.warn('updateInfoModal failed (non-critical):', e); }
         return;
@@ -931,7 +931,7 @@
         gyroListenerAttached = true;
         compassPermissionGranted = true;
         gyroBtn.classList.add('enabled');
-        gyroBtn.textContent = 'ジャイロを使う';
+        gyroBtn.textContent = 'ジャイロON';
         if(infoModal) infoModal.classList.add('gyroActive');
       }catch(e){
         console.warn('compass permission failed:', e);
