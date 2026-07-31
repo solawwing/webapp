@@ -362,6 +362,59 @@
     padding-bottom:6px;
     border-bottom:1px solid rgba(255,255,255,0.25);
   }
+  .infoTableView{ display:block; }
+  .infoSingleView{
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    height:100%;
+    text-align:center;
+    gap:14px;
+  }
+  .infoModal.singleMode .infoTableView{ display:none; }
+  .infoModal.singleMode .infoSingleView{ display:flex; }
+  .singleStationName{
+    font-size:32px;
+    font-weight:700;
+    color:#FF0000;
+  }
+  .singleStationLine{
+    font-size:16px;
+    color:#FF9D1F;
+  }
+  .singleStationDist{
+    font-size:28px;
+    font-weight:700;
+    color:#22e5e5;
+  }
+  .singleStationTime{
+    font-size:28px;
+    font-weight:700;
+    color:#22e5e5;
+  }
+  .singleUnit{
+    font-size:14px;
+    margin-left:2px;
+  }
+  .singleStationDirWrap{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:4px;
+  }
+  .singleStationDirWrap .dirArrow{
+    border-left-width:8px;
+    border-right-width:8px;
+    border-bottom-width:26px;
+  }
+  .singleStationDirText{
+    font-size:20px;
+    color:#FFFFFF;
+  }
+  .singleStationDirText.infoDirSingle{
+    font-weight:700;
+  }
   .infoStationList{
     overflow-x:auto;
   }
@@ -538,8 +591,17 @@
 
     <div class="infoModalOverlay" id="infoModalOverlay">
       <div class="infoModal" id="infoModal">
-        <div class="infoLine2">最寄り駅</div>
-        <div class="infoStationList" id="infoStationList"></div>
+        <div class="infoTableView" id="infoTableView">
+          <div class="infoLine2">最寄り駅</div>
+          <div class="infoStationList" id="infoStationList"></div>
+        </div>
+        <div class="infoSingleView" id="infoSingleView">
+          <div class="singleStationName" id="singleStationName">--</div>
+          <div class="singleStationLine" id="singleStationLine">--</div>
+          <div class="singleStationDist" id="singleStationDist">--<span class="singleUnit">m</span></div>
+          <div class="singleStationTime" id="singleStationTime">--<span class="singleUnit">分</span></div>
+          <div class="singleStationDirWrap" id="singleStationDirWrap"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -651,6 +713,7 @@
   let radiusCircleNear = null; // 半径1km
   let radiusCircleFar = null;  // 半径2km
   let currentMarkerColor = null;
+  let currentSpeedKmh = null; // 現在の速度(km/h)。GPSで取得できない場合はnull
   let initialZoomLevel = null; // 初回表示時に自動計算されたズームレベル(「現在地に戻る」ボタンで再利用)
   let nearestArrowLine = null;   // 現在地→最寄り駅 中間点までの線
   let nearestArrowHead = null;   // 矢印の先端(三角形)
@@ -770,13 +833,23 @@
   function closeInfoModal(){
     infoModalOverlay.classList.remove('open');
   }
+  function toggleInfoModalMode(){
+    infoModal.classList.toggle('singleMode');
+  }
+  function handleHeaderFooterTap(){
+    if(infoModalOverlay.classList.contains('open')){
+      toggleInfoModalMode();
+    } else {
+      openInfoModal();
+    }
+  }
 
-  coordsTapArea.addEventListener('click', openInfoModal);
+  coordsTapArea.addEventListener('click', handleHeaderFooterTap);
   infoModal.addEventListener('click', closeInfoModal);
 
   const statusFootTapArea = document.getElementById('statusFootTapArea');
   if(statusFootTapArea){
-    statusFootTapArea.addEventListener('click', openInfoModal);
+    statusFootTapArea.addEventListener('click', handleHeaderFooterTap);
   }
 
   // --- station labels via Overpass API ---
@@ -911,6 +984,11 @@
   }
 
   const infoStationListEl = document.getElementById('infoStationList');
+  const singleStationNameEl = document.getElementById('singleStationName');
+  const singleStationLineEl = document.getElementById('singleStationLine');
+  const singleStationDistEl = document.getElementById('singleStationDist');
+  const singleStationTimeEl = document.getElementById('singleStationTime');
+  const singleStationDirWrapEl = document.getElementById('singleStationDirWrap');
 
   function updateInfoModal(){
     if(!infoStationListEl) return;
@@ -922,9 +1000,38 @@
 
     if(!nearby || nearby.length === 0){
       infoStationListEl.innerHTML = '<div style="color:var(--ink-dim); font-size:13px;">周辺に駅が見つかりません</div>';
+      if(singleStationNameEl) singleStationNameEl.textContent = '‥';
+      if(singleStationLineEl) singleStationLineEl.textContent = '‥';
+      if(singleStationDistEl) singleStationDistEl.innerHTML = '‥<span class="singleUnit">m</span>';
+      if(singleStationTimeEl) singleStationTimeEl.innerHTML = '‥<span class="singleUnit">分</span>';
+      if(singleStationDirWrapEl) singleStationDirWrapEl.innerHTML = '';
       return;
     }
     const top3 = nearby.slice().sort((a,b)=> a.dist - b.dist).slice(0, 10);
+
+    // 単一駅表示(一番近い駅)の更新
+    const nearest = top3[0];
+    if(nearest){
+      const nearestLineNameJoined = formatLineName(nearest.lines);
+      const nearestWalkMin = Math.round(nearest.dist / 80);
+      let nearestDirText = '‥';
+      let nearestBearing = null;
+      if(origin && nearest.lat != null && nearest.lng != null){
+        nearestBearing = calculateBearing(origin.lat, origin.lng, nearest.lat, nearest.lng);
+        nearestDirText = bearingToDirection(nearestBearing);
+      }
+      const nearestDirClass = nearestDirText.length === 1 ? 'infoDirSingle' : '';
+      const nearestDirArrowHtml = nearestBearing != null
+        ? `<span class="dirArrow" style="transform:rotate(${nearestBearing}deg);"></span>`
+        : '';
+      if(singleStationNameEl) singleStationNameEl.textContent = nearest.name + '駅';
+      if(singleStationLineEl) singleStationLineEl.textContent = nearestLineNameJoined || '‥';
+      if(singleStationDistEl) singleStationDistEl.innerHTML = Math.round(nearest.dist).toLocaleString('ja-JP') + '<span class="singleUnit">m</span>';
+      if(singleStationTimeEl) singleStationTimeEl.innerHTML = nearestWalkMin + '<span class="singleUnit">分</span>';
+      if(singleStationDirWrapEl){
+        singleStationDirWrapEl.innerHTML = `${nearestDirArrowHtml}<span class="singleStationDirText ${nearestDirClass}">${nearestDirText}</span>`;
+      }
+    }
 
     const rowsHtml = top3.map((s, idx)=>{
       const lineNameJoined = formatLineName(s.lines);
@@ -1289,7 +1396,10 @@
       const previousOverlayText = mapOverlay.textContent;
       mapOverlay.textContent = '駅情報取得中…';
 
-      if(lastStationCenter && lastStationCenter.distanceTo(origin) < 100){
+      // 速度が速い(20km/h以上)、または速度が取得できていない場合は間引き距離を広めに(200m)、
+      // それ以外(低速で移動中)は細かく再取得できるよう狭めに(100m)する
+      const stationSkipDistance = (currentSpeedKmh == null || currentSpeedKmh >= 20) ? 200 : 100;
+      if(lastStationCenter && lastStationCenter.distanceTo(origin) < stationSkipDistance){
         mapOverlay.textContent = previousOverlayText; // 実際には取得しないので元の表示に戻す
         return; // 現在地がほぼ動いていなければAPI再取得は間引く(距離表示自体は別途更新される)
       }
@@ -1430,7 +1540,8 @@
 
     accVal.innerHTML = (c.accuracy != null ? Math.round(c.accuracy) : '--') + '<span class="unit">m</span>';
     altVal.innerHTML = (c.altitude != null ? Math.round(c.altitude) : '--') + '<span class="unit">m</span>';
-    const kmh = c.speed != null ? (c.speed * 3.6).toFixed(1) : '--';
+    currentSpeedKmh = c.speed != null ? (c.speed * 3.6) : null;
+    const kmh = currentSpeedKmh != null ? currentSpeedKmh.toFixed(1) : '--';
     spdVal.innerHTML = kmh + '<span class="unit">km/h</span>';
 
     updateMap(smoothed.lat, smoothed.lng, c.accuracy, c.altitude);
