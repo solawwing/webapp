@@ -368,14 +368,14 @@
     flex-direction:column;
     align-items:center;
     justify-content:center;
-    height:100%;
+    height:calc(100% - 30px);
     text-align:center;
     gap:14px;
   }
   .infoModal.singleMode .infoTableView{ display:none; }
   .infoModal.singleMode .infoSingleView{ display:flex; }
   .singleStationName{
-    font-size:32px;
+    font-size:34px;
     font-weight:700;
     color:#FF0000;
   }
@@ -387,6 +387,7 @@
     font-size:28px;
     font-weight:700;
     color:#22e5e5;
+    margin-top:10px;
   }
   .singleStationTime{
     font-size:28px;
@@ -402,6 +403,7 @@
     flex-direction:column;
     align-items:center;
     gap:4px;
+    margin-top:10px;
   }
   .singleStationDirWrap .dirArrow{
     border-left-width:8px;
@@ -571,7 +573,7 @@
         </div>
         <div class="addressBox">
           <span class="addressLabel">今どこ？</span>
-          <span class="addressVal" id="addressVal">(取得中‥)</span>
+          <span class="addressVal" id="addressVal">情報取得中‥</span>
         </div>
       </div>
 
@@ -591,8 +593,8 @@
 
     <div class="infoModalOverlay" id="infoModalOverlay">
       <div class="infoModal" id="infoModal">
+        <div class="infoLine2">最寄り駅</div>
         <div class="infoTableView" id="infoTableView">
-          <div class="infoLine2">最寄り駅</div>
           <div class="infoStationList" id="infoStationList"></div>
         </div>
         <div class="infoSingleView" id="infoSingleView">
