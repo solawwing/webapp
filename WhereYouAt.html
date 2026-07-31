@@ -370,21 +370,21 @@
     font-family: var(--mono);
     font-size:10px;
     letter-spacing:.05em;
-    color:#39FF14;
-    background:rgba(57,255,20,0.12);
-    border:1px solid #39FF14;
+    color:#FFFFFF;
+    background:rgba(255,255,255,0.08);
+    border:1px solid #FFFFFF;
     border-radius:999px;
     padding:4px 10px;
     -webkit-appearance:none;
     cursor:pointer;
   }
   .gyroBtn:active{
-    background:rgba(57,255,20,.25);
+    background:rgba(255,255,255,.2);
   }
   .gyroBtn.enabled{
-    color:#25A2FF;
-    border-color:#25A2FF;
-    background:rgba(37,162,255,0.15);
+    color:#39FF14;
+    border-color:#39FF14;
+    background:rgba(57,255,20,0.15);
   }
   .infoTableView{ display:block; }
   .infoSingleView{
@@ -441,6 +441,9 @@
     border-left-width:8px;
     border-right-width:8px;
     border-bottom-width:26px;
+  }
+  .gyroActive .singleStationDirWrap .dirArrow{
+    border-bottom-color:#39FF14;
   }
   .singleStationDirText{
     font-size:20px;
@@ -536,6 +539,9 @@
     border-right:4px solid transparent;
     border-bottom:13px solid #FFFFFF;
     vertical-align:middle;
+  }
+  .gyroActive .dirArrow{
+    border-bottom-color:#39FF14;
   }
   .dirText{
     vertical-align:middle;
@@ -905,6 +911,7 @@
         deviceHeading = null;
         gyroBtn.classList.remove('enabled');
         gyroBtn.textContent = 'ジャイロOFF';
+        if(infoModal) infoModal.classList.remove('gyroActive');
         try{ updateInfoModal(); }catch(e){ console.warn('updateInfoModal failed (non-critical):', e); }
         return;
       }
@@ -925,6 +932,7 @@
         compassPermissionGranted = true;
         gyroBtn.classList.add('enabled');
         gyroBtn.textContent = 'ジャイロON';
+        if(infoModal) infoModal.classList.add('gyroActive');
       }catch(e){
         console.warn('compass permission failed:', e);
         msg.textContent = '方角センサーを有効化できませんでした。';
