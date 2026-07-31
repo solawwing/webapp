@@ -426,6 +426,11 @@
     font-weight:700;
     color:#22e5e5;
   }
+  .singleStationSpeed{
+    font-size:28px;
+    font-weight:700;
+    color:#22e5e5;
+  }
   .singleUnit{
     font-size:14px;
     margin-left:2px;
@@ -643,6 +648,7 @@
           <div class="singleStationLine" id="singleStationLine">--</div>
           <div class="singleStationDist" id="singleStationDist">--<span class="singleUnit">m</span></div>
           <div class="singleStationTime" id="singleStationTime">--<span class="singleUnit">分</span></div>
+          <div class="singleStationSpeed" id="singleStationSpeed">--<span class="singleUnit">km/h</span></div>
           <div class="singleStationDirWrap" id="singleStationDirWrap"></div>
         </div>
       </div>
@@ -1120,6 +1126,7 @@
   const singleStationLineEl = document.getElementById('singleStationLine');
   const singleStationDistEl = document.getElementById('singleStationDist');
   const singleStationTimeEl = document.getElementById('singleStationTime');
+  const singleStationSpeedEl = document.getElementById('singleStationSpeed');
   const singleStationDirWrapEl = document.getElementById('singleStationDirWrap');
 
   function updateInfoModal(){
@@ -1136,6 +1143,7 @@
       if(singleStationLineEl) singleStationLineEl.textContent = '‥';
       if(singleStationDistEl) singleStationDistEl.innerHTML = '‥<span class="singleUnit">m</span>';
       if(singleStationTimeEl) singleStationTimeEl.innerHTML = '‥<span class="singleUnit">分</span>';
+      if(singleStationSpeedEl) singleStationSpeedEl.innerHTML = (currentSpeedKmh != null ? currentSpeedKmh.toFixed(1) : '‥') + '<span class="singleUnit">km/h</span>';
       if(singleStationDirWrapEl) singleStationDirWrapEl.innerHTML = '';
       return;
     }
@@ -1160,6 +1168,7 @@
       if(singleStationLineEl) singleStationLineEl.textContent = nearestLineNameJoined || '‥';
       if(singleStationDistEl) singleStationDistEl.innerHTML = Math.round(nearest.dist).toLocaleString('ja-JP') + '<span class="singleUnit">m</span>';
       if(singleStationTimeEl) singleStationTimeEl.innerHTML = nearestWalkMin + '<span class="singleUnit">分</span>';
+      if(singleStationSpeedEl) singleStationSpeedEl.innerHTML = (currentSpeedKmh != null ? currentSpeedKmh.toFixed(1) : '‥') + '<span class="singleUnit">km/h</span>';
       if(singleStationDirWrapEl){
         singleStationDirWrapEl.innerHTML = `${nearestDirArrowHtml}<span class="singleStationDirText ${nearestDirClass}">${nearestDirText}</span>`;
       }
