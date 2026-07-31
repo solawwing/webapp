@@ -189,6 +189,17 @@
     font-size:16px; -webkit-appearance:none;
   }
   .recenterBtn:active{ background:rgba(255,157,31,.15); }
+  .compassBtn{
+    position:absolute; bottom:max(14px, env(safe-area-inset-bottom)); right:58px; z-index:500;
+    width:38px; height:38px; border-radius:2px;
+    background:rgba(14,18,16,.85); border:1px solid #39FF14;
+    color:#39FF14; display:flex; align-items:center; justify-content:center;
+    font-size:16px; -webkit-appearance:none;
+  }
+  .compassBtn:active{ background:rgba(57,255,20,.15); }
+  .compassBtn.enabled{
+    border-color:#25A2FF; color:#25A2FF;
+  }
 
   /* header */
   .head{
@@ -598,6 +609,7 @@
   <div class="mapPane">
     <div id="map"></div>
     <button class="recenterBtn" id="recenterBtn" aria-label="現在地に戻る">◎</button>
+    <button class="compassBtn" id="compassBtn" aria-label="方角センサーを有効化">🧭</button>
 
     <div class="infoModalOverlay" id="infoModalOverlay">
       <div class="infoModal" id="infoModal">
@@ -724,6 +736,9 @@
   let radiusCircleFar = null;  // 半径2km
   let currentMarkerColor = null;
   let currentSpeedKmh = null; // 現在の速度(km/h)。GPSで取得できない場合はnull
+  let deviceHeading = null; // 現在推定されているデバイスの向き(真北基準、度)。取得できていなければnull
+  let compassPermissionGranted = false;
+  const HEADING_SPEED_THRESHOLD = 5; // この速度(km/h)以上ならGPSのheadingを優先する
   let initialZoomLevel = null; // 初回表示時に自動計算されたズームレベル(「現在地に戻る」ボタンで再利用)
   let nearestArrowLine = null;   // 現在地→最寄り駅 中間点までの線
   let nearestArrowHead = null;   // 矢印の先端(三角形)
@@ -831,6 +846,58 @@
       map.setView(marker.getLatLng(), zoomToUse, { animate:true });
     }
   });
+
+  // --- コンパス(デバイスの向き)対応: 静止中はDeviceOrientationのセンサー値、移動中はGPSのheadingを使う ---
+  let lastCompassUpdateTime = 0;
+  function handleDeviceOrientation(event){
+    // 一定速度以上で移動中はGPS headingを優先しているので、ここでは上書きしない
+    if(currentSpeedKmh != null && currentSpeedKmh >= HEADING_SPEED_THRESHOLD) return;
+
+    let heading = null;
+    if(typeof event.webkitCompassHeading === 'number' && !isNaN(event.webkitCompassHeading)){
+      heading = event.webkitCompassHeading; // iOS: 真北基準で直接得られる
+    } else if(event.absolute && event.alpha != null){
+      heading = 360 - event.alpha; // Android(絶対値が取れる場合): alphaは反時計回りのため変換
+    } else if(event.alpha != null){
+      heading = 360 - event.alpha; // 相対値しか取れない場合の簡易フォールバック(端末によって精度が変わる)
+    }
+    if(heading != null && !isNaN(heading)){
+      deviceHeading = ((heading % 360) + 360) % 360;
+
+      // ウィンドウが開いている間だけ、間引きながら方角三角形の表示を更新する(GPSが動かない静止中でも追従させるため)
+      if(infoModalOverlay && infoModalOverlay.classList.contains('open')){
+        const now = Date.now();
+        if(now - lastCompassUpdateTime > 150){
+          lastCompassUpdateTime = now;
+          try{ updateInfoModal(); }catch(e){ console.warn('updateInfoModal from compass failed (non-critical):', e); }
+        }
+      }
+    }
+  }
+
+  const compassBtn = document.getElementById('compassBtn');
+  if(compassBtn){
+    compassBtn.addEventListener('click', async ()=>{
+      try{
+        if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+          // iOS: 明示的な許可が必要
+          const result = await DeviceOrientationEvent.requestPermission();
+          if(result !== 'granted'){
+            msg.textContent = '方角センサーの利用が許可されませんでした。';
+            return;
+          }
+        }
+        const eventName = ('ondeviceorientationabsolute' in window) ? 'deviceorientationabsolute' : 'deviceorientation';
+        window.addEventListener(eventName, handleDeviceOrientation);
+        compassPermissionGranted = true;
+        compassBtn.classList.add('enabled');
+      }catch(e){
+        console.warn('compass permission failed:', e);
+        msg.textContent = '方角センサーを有効化できませんでした。';
+      }
+    });
+  }
+
 
   // --- 情報モーダル(緯度経度エリアタップで開閉) ---
   const coordsTapArea = document.getElementById('coordsTapArea');
@@ -999,6 +1066,13 @@
     return dirs[Math.round(bearing / 22.5) % 16];
   }
 
+  // 三角形の描画角度を計算する: デバイスの向きが分かっていれば、そのデバイスの正面を0度とした相対角度にする
+  // (実際にスマホを回すと、駅の方向を指すように動く)。分からなければ真北基準のまま。
+  function displayBearing(bearing){
+    if(deviceHeading == null) return bearing;
+    return ((bearing - deviceHeading) % 360 + 360) % 360;
+  }
+
   const infoStationListEl = document.getElementById('infoStationList');
   const singleStationNameEl = document.getElementById('singleStationName');
   const singleStationLineEl = document.getElementById('singleStationLine');
@@ -1038,7 +1112,7 @@
       }
       const nearestDirClass = nearestDirText.length === 1 ? 'infoDirSingle' : '';
       const nearestDirArrowHtml = nearestBearing != null
-        ? `<span class="dirArrow" style="transform:rotate(${nearestBearing}deg);"></span>`
+        ? `<span class="dirArrow" style="transform:rotate(${displayBearing(nearestBearing)}deg);"></span>`
         : '';
       if(singleStationNameEl) singleStationNameEl.textContent = nearest.name + '駅';
       if(singleStationLineEl) singleStationLineEl.textContent = nearestLineNameJoined || '‥';
@@ -1060,7 +1134,7 @@
       }
       const dirClass = dirText.length === 1 ? 'infoDirSingle' : '';
       const dirArrowHtml = bearing != null
-        ? `<span class="dirArrow" style="transform:rotate(${bearing}deg);"></span>`
+        ? `<span class="dirArrow" style="transform:rotate(${displayBearing(bearing)}deg);"></span>`
         : '';
       const rowClass = s.dist <= 100 ? 'infoRowNear' : '';
       return `<tr class="${rowClass}">
@@ -1559,6 +1633,11 @@
     currentSpeedKmh = c.speed != null ? (c.speed * 3.6) : null;
     const kmh = currentSpeedKmh != null ? currentSpeedKmh.toFixed(1) : '--';
     spdVal.innerHTML = kmh + '<span class="unit">km/h</span>';
+
+    // 一定速度以上で移動中はGPSの進行方向(heading)を向きとして優先する(静止中はコンパスセンサー側に任せる)
+    if(currentSpeedKmh != null && currentSpeedKmh >= HEADING_SPEED_THRESHOLD && c.heading != null && !isNaN(c.heading)){
+      deviceHeading = c.heading;
+    }
 
     updateMap(smoothed.lat, smoothed.lng, c.accuracy, c.altitude);
     refreshTickerDistances(); // 通信を伴わない軽量処理: GPS移動のたびに距離表示だけ更新
