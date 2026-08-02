@@ -795,13 +795,11 @@
   function radiusLabelIcon(text, color){
     return L.divIcon({
       className: '',
-      html: `<div style="font-size:9px; font-weight:700; font-family:var(--mono); color:#FFFFFF; white-space:nowrap; background:${color}; padding:2px 6px; border-radius:3px; display:inline-block; box-shadow:0 1px 3px rgba(0,0,0,0.6);">${text}</div>`,
-      iconSize: [56, 18],
-      iconAnchor: [0, 18] // 左下を基準にすることで、円周点から見て右上方向にテキストが伸びる(円の縁と重ならない)
+      html: `<div style="font-size:8px; font-weight:700; font-family:var(--mono); color:#FFFFFF; white-space:nowrap; background:${color}; padding:1px 5px; border-radius:3px; display:inline-block; box-shadow:0 1px 3px rgba(0,0,0,0.6);">${text}</div>`,
+      iconSize: [50, 16],
+      iconAnchor: [-8, 24] // 円周点から見て左・下方向にもオフセットすることで、ズームレベルに関わらず一定のピクセル距離だけ円の外側に離す
     });
   }
-
-  const RADIUS_LABEL_OFFSET = 1.04; // 円の縁から少し外側に離すための倍率(半径ラベル配置用)
 
   function updateMap(lat, lng, accuracy, altitude){
     const latlng = [lat, lng];
@@ -832,9 +830,9 @@
       }).addTo(map);
 
       // 右上(北東・方位角45度)の円周よりわずかに外側にメートル数のラベルを配置(円と重ならないよう離す)
-      const nearLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_NEAR * RADIUS_LABEL_OFFSET);
-      const farLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_FAR * RADIUS_LABEL_OFFSET);
-      const xfarLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_XFAR * RADIUS_LABEL_OFFSET);
+      const nearLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_NEAR);
+      const farLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_FAR);
+      const xfarLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_XFAR);
       radiusLabelNear = L.marker(nearLabelPos, { icon: radiusLabelIcon('1000m', COLOR_NEAR), interactive:false }).addTo(map);
       radiusLabelFar = L.marker(farLabelPos, { icon: radiusLabelIcon('2000m', COLOR_FAR), interactive:false }).addTo(map);
       radiusLabelXFar = L.marker(xfarLabelPos, { icon: radiusLabelIcon('10000m', COLOR_XFAR), interactive:false }).addTo(map);
@@ -860,9 +858,9 @@
       radiusCircleNear.setLatLng(latlng);
       radiusCircleFar.setLatLng(latlng);
       radiusCircleXFar.setLatLng(latlng);
-      const nearLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_NEAR * RADIUS_LABEL_OFFSET);
-      const farLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_FAR * RADIUS_LABEL_OFFSET);
-      const xfarLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_XFAR * RADIUS_LABEL_OFFSET);
+      const nearLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_NEAR);
+      const farLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_FAR);
+      const xfarLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_XFAR);
       if(radiusLabelNear) radiusLabelNear.setLatLng(nearLabelPos);
       if(radiusLabelFar) radiusLabelFar.setLatLng(farLabelPos);
       if(radiusLabelXFar) radiusLabelXFar.setLatLng(xfarLabelPos);
