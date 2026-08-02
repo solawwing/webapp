@@ -792,10 +792,10 @@
     return L.latLng(lat2 * 180 / Math.PI, lng2 * 180 / Math.PI);
   }
 
-  function radiusLabelIcon(text, color){
+  function radiusLabelIcon(text, color, tangentAngleDeg){
     return L.divIcon({
       className: '',
-      html: `<div style="font-size:11px; font-weight:700; font-family:var(--mono); color:#FFFFFF; white-space:nowrap; background:${color}; padding:3px 8px; border-radius:4px; display:inline-block; box-shadow:0 1px 4px rgba(0,0,0,0.6);">${text}</div>`,
+      html: `<div style="font-size:11px; font-weight:700; font-family:var(--mono); color:#FFFFFF; white-space:nowrap; background:${color}; padding:3px 8px; border-radius:4px; display:inline-block; box-shadow:0 1px 4px rgba(0,0,0,0.6); transform:rotate(${tangentAngleDeg}deg); transform-origin:left bottom;">${text}</div>`,
       iconSize: [70, 22],
       iconAnchor: [0, 22] // 左下を基準にすることで、円周点から見て右上方向にテキストが伸びる(円の縁と重ならない)
     });
@@ -830,12 +830,15 @@
       }).addTo(map);
 
       // 右上(北東・方位角45度)の円周上にメートル数のラベルを配置(縁と重ならないよう外側にアンカー)
-      const nearLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_NEAR);
-      const farLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_FAR);
-      const xfarLabelPos = destinationPoint(lat, lng, 45, STATION_RADIUS_XFAR);
-      radiusLabelNear = L.marker(nearLabelPos, { icon: radiusLabelIcon('1000m', COLOR_NEAR), interactive:false }).addTo(map);
-      radiusLabelFar = L.marker(farLabelPos, { icon: radiusLabelIcon('2000m', COLOR_FAR), interactive:false }).addTo(map);
-      radiusLabelXFar = L.marker(xfarLabelPos, { icon: radiusLabelIcon('10000m', COLOR_XFAR), interactive:false }).addTo(map);
+      // 方位角45度の点における円の接線角度(45-90=-45度)に合わせてラベル自体も傾け、円周に沿って見えるようにする
+      const RADIUS_LABEL_BEARING = 45;
+      const RADIUS_LABEL_TANGENT = RADIUS_LABEL_BEARING - 90;
+      const nearLabelPos = destinationPoint(lat, lng, RADIUS_LABEL_BEARING, STATION_RADIUS_NEAR);
+      const farLabelPos = destinationPoint(lat, lng, RADIUS_LABEL_BEARING, STATION_RADIUS_FAR);
+      const xfarLabelPos = destinationPoint(lat, lng, RADIUS_LABEL_BEARING, STATION_RADIUS_XFAR);
+      radiusLabelNear = L.marker(nearLabelPos, { icon: radiusLabelIcon('1000m', COLOR_NEAR, RADIUS_LABEL_TANGENT), interactive:false }).addTo(map);
+      radiusLabelFar = L.marker(farLabelPos, { icon: radiusLabelIcon('2000m', COLOR_FAR, RADIUS_LABEL_TANGENT), interactive:false }).addTo(map);
+      radiusLabelXFar = L.marker(xfarLabelPos, { icon: radiusLabelIcon('10000m', COLOR_XFAR, RADIUS_LABEL_TANGENT), interactive:false }).addTo(map);
 
       // 初期表示: 半径3km(直径6km)が画面に収まるように表示
       const bounds = L.latLng(latlng).toBounds(6000); // 一辺6kmの正方形
