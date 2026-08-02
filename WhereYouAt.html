@@ -1075,6 +1075,7 @@
   const ADDRESS_MIN_INTERVAL = 5000; // 最短でもこの間隔は空ける [ms] (Nominatimの利用ポリシー上、あまり短くしすぎない)
   let isFetchingStations = false; // 駅取得と住所取得のネットワーク処理が重ならないようにする排他フラグ
   let isFetchingExtended = false; // 拡張取得(10km圏)・路線名取得の重複実行を防ぐフラグ(Overpassの同時実行制限対策)
+  let hasFetchedLines = false; // 路線名取得(fetchStationLines)が一度でも何らかの路線名を反映できたか
   let stationFetchAttempted = false; // 一度でも駅取得を開始したか(最初の駅取得より前に住所取得が走らないようにする)
 
   async function fetchAddress(lat, lng){
@@ -1508,8 +1509,9 @@
   }
 
   // 路線名はベストエフォートで後追い取得(失敗しても駅表示自体には影響しない)
-  async function fetchStationLines(origin, stationNodes){
+  async function fetchStationLines(origin){
     try{
+      const stationNodes = cachedStations; // {name, lat, lng, lines, id} の配列(基本取得のレスポンスに依存しない)
       // まずエリア内の駅ノードを.stationsとして取得し、それらのいずれかをメンバーに含む
       // route relationだけに絞り込む(back-reference)。これにより無関係な路線を除外しつつ、
       // 大江戸線のような駅数の多い環状路線でも、対象駅を含むrelationを確実に拾いやすくする。
@@ -1545,7 +1547,7 @@
         const relText = [rel.tags.from, rel.tags.to, rel.tags.via].filter(Boolean).join(' ');
         if(relText){
           stationNodes.forEach(st=>{
-            const stName = (st.tags && (st.tags['name:ja'] || st.tags.name)) || '';
+            const stName = st.name || '';
             if(stName && relText.includes(stName)){
               if(!stationIdToLines.has(st.id)) stationIdToLines.set(st.id, new Set());
               stationIdToLines.get(st.id).add(lineName);
@@ -1563,6 +1565,7 @@
           lineSet.forEach(l => { if(!s.lines.includes(l)) s.lines.push(l); });
         }
       });
+      hasFetchedLines = true; // 路線名の反映に成功した(次回以降、移動量が少なくても再取得を控えられる)
       try{ refreshTickerDistances(); }catch(e){ console.warn('refreshTickerDistances failed (non-critical):', e); }
 
       // 地図上のラベルも路線名付きで再描画(失敗しても既存ラベルが消えたままにならないよう、新規描画が全て成功した場合のみ置き換える)
@@ -1603,8 +1606,30 @@
       // それ以外(低速で移動中)は細かく再取得できるよう狭めに(100m)する
       const stationSkipDistance = (currentSpeedKmh == null || currentSpeedKmh >= 20) ? 200 : 100;
       if(lastStationCenter && lastStationCenter.distanceTo(origin) < stationSkipDistance){
-        setFetchStatus('待機中(移動量が少ないため間引き)');
-        return; // 現在地がほぼ動いていなければAPI再取得は間引く(距離表示自体は別途更新される)
+        if(cachedStations.length === 0){
+          // 駅データが1件も無いなら、間引きせず通常通り取得を続行する
+          setFetchStatus('待機中だが駅未取得のため再試行…');
+        } else if(!hasFetchedLines){
+          // 駅はあるが路線名がまだ反映されていない場合、基本取得はやり直さず
+          // (せっかく取得済みの駅データや路線名が失われないよう)拡張・路線名取得だけ再試行する
+          setFetchStatus('待機中(移動量少)だが路線名未取得のため再試行…');
+          if(!isFetchingExtended){
+            isFetchingExtended = true;
+            fetchExtendedStations(origin).then(()=>{
+              return fetchStationLines(origin);
+            }).then(()=>{
+              setFetchStatus('取得完了(路線名を反映)');
+            }).catch(e=>{
+              console.warn('retry fetchExtendedStations/fetchStationLines failed (non-critical):', e);
+            }).finally(()=>{
+              isFetchingExtended = false;
+            });
+          }
+          return;
+        } else {
+          setFetchStatus('待機中(移動量が少ないため間引き)');
+          return; // 駅・路線名とも揃っているので、現在地がほぼ動いていなければAPI再取得は間引く
+        }
       }
 
       // まず駅ノードのみを軽量取得(路線リレーションは含めない: レスポンスを軽くして成功率を上げる)
@@ -1628,6 +1653,7 @@
           let count = 0;
           const nearby = []; // { name, dist, lines, lat, lng }
           cachedStations = [];
+          hasFetchedLines = false; // 駅データを作り直したので、路線名も改めて未取得の状態に戻す
           stationNodes.forEach(el=>{
             const name = (el.tags && (el.tags['name:ja'] || el.tags.name)) || null;
             if(!name) return;
@@ -1677,7 +1703,7 @@
             setFetchStatus('拡張駅情報(2〜10km圏)を取得中…');
             fetchExtendedStations(origin).then(()=>{
               setFetchStatus('路線名を取得中…');
-              return fetchStationLines(origin, stationNodes);
+              return fetchStationLines(origin);
             }).then(()=>{
               setFetchStatus('取得完了(全ての情報を反映済み)');
             }).catch(()=>{
