@@ -1076,6 +1076,7 @@
   let isFetchingStations = false; // 駅取得と住所取得のネットワーク処理が重ならないようにする排他フラグ
   let isFetchingExtended = false; // 拡張取得(10km圏)・路線名取得の重複実行を防ぐフラグ(Overpassの同時実行制限対策)
   let hasFetchedLines = false; // 路線名取得(fetchStationLines)が一度でも何らかの路線名を反映できたか
+  let hasFetchedExtended = false; // 拡張取得(2〜10km圏)が一度でも成功したか
   let stationFetchAttempted = false; // 一度でも駅取得を開始したか(最初の駅取得より前に住所取得が走らないようにする)
 
   async function fetchAddress(lat, lng){
@@ -1479,7 +1480,10 @@
         if(!res.ok) continue;
         const data = await res.json();
         const stationNodes = (data.elements || []).filter(el => el.type === 'node' && el.tags && el.tags.railway === 'station');
-        if(stationNodes.length === 0) return;
+        if(stationNodes.length === 0){
+          hasFetchedExtended = true; // クエリ自体は成功(該当範囲に駅が無かっただけ)
+          return;
+        }
 
         // 基本取得(cachedStations)に、まだ含まれていない駅だけ追加する
         const existingIds = new Set(cachedStations.map(s => s.id));
@@ -1501,6 +1505,7 @@
           mapOverlay.textContent = '駅 ' + cachedStations.length + '件';
           try{ refreshTickerDistances(); }catch(e){ console.warn('refreshTickerDistances failed (non-critical):', e); }
         }
+        hasFetchedExtended = true; // 拡張取得(2〜10km圏)に成功
         return; // 成功したらそこで終了(他のエンドポイントは試さない)
       }catch(e){
         console.warn('fetchExtendedStations endpoint failed (non-critical):', endpoint, e);
@@ -1609,16 +1614,17 @@
         if(cachedStations.length === 0){
           // 駅データが1件も無いなら、間引きせず通常通り取得を続行する
           setFetchStatus('待機中だが駅未取得のため再試行…');
-        } else if(!hasFetchedLines){
-          // 駅はあるが路線名がまだ反映されていない場合、基本取得はやり直さず
-          // (せっかく取得済みの駅データや路線名が失われないよう)拡張・路線名取得だけ再試行する
-          setFetchStatus('待機中(移動量少)だが路線名未取得のため再試行…');
+        } else if(!hasFetchedExtended || !hasFetchedLines){
+          // 駅(基本)はあるが、拡張(2〜10km圏)または路線名がまだ反映されていない場合、
+          // 基本取得はやり直さず(せっかく取得済みのデータが失われないよう)拡張・路線名取得だけ再試行する
+          const reason = !hasFetchedExtended ? '2〜10km圏未取得' : '路線名未取得';
+          setFetchStatus(`待機中(移動量少)だが${reason}のため再試行…`);
           if(!isFetchingExtended){
             isFetchingExtended = true;
             fetchExtendedStations(origin).then(()=>{
               return fetchStationLines(origin);
             }).then(()=>{
-              setFetchStatus('取得完了(路線名を反映)');
+              setFetchStatus('取得完了(拡張・路線名を反映)');
             }).catch(e=>{
               console.warn('retry fetchExtendedStations/fetchStationLines failed (non-critical):', e);
             }).finally(()=>{
@@ -1628,7 +1634,7 @@
           return;
         } else {
           setFetchStatus('待機中(移動量が少ないため間引き)');
-          return; // 駅・路線名とも揃っているので、現在地がほぼ動いていなければAPI再取得は間引く
+          return; // 駅・拡張・路線名とも揃っているので、現在地がほぼ動いていなければAPI再取得は間引く
         }
       }
 
@@ -1654,6 +1660,7 @@
           const nearby = []; // { name, dist, lines, lat, lng }
           cachedStations = [];
           hasFetchedLines = false; // 駅データを作り直したので、路線名も改めて未取得の状態に戻す
+          hasFetchedExtended = false; // 拡張取得(2〜10km圏)も改めて未取得の状態に戻す
           stationNodes.forEach(el=>{
             const name = (el.tags && (el.tags['name:ja'] || el.tags.name)) || null;
             if(!name) return;
