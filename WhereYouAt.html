@@ -218,9 +218,9 @@
   .head .title{ font-size:11px; font-weight:700; color:#22e5e5; text-transform:uppercase; }
   .head .status{ font-size:10px; color:var(--ink-dim); display:flex; align-items:center; gap:6px; }
   .dot{ width:6px; height:6px; border-radius:50%; background:var(--ink-dim); flex:none; }
-  .dot.live{ background:var(--ok); box-shadow:0 0 6px var(--ok); animation:pulse 2s infinite; }
-  .dot.err{ background:var(--warn); box-shadow:0 0 6px var(--warn); }
-  .dot.low{ background:var(--warn); box-shadow:0 0 6px var(--warn); animation:pulse 1s infinite; }
+  .dot.live{ background:#39FF14; box-shadow:0 0 6px #39FF14; animation:pulse 2s infinite; }
+  .dot.err{ background:#FF3B3B; box-shadow:0 0 6px #FF3B3B; }
+  .dot.low{ background:#FF3B3B; box-shadow:0 0 6px #FF3B3B; animation:pulse 1s infinite; }
   @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.35} }
   @keyframes ripple{
     0%   { transform:scale(0.2); opacity:.7; }
@@ -451,29 +451,6 @@
     border-right-width:12px;
     border-bottom-width:39px;
   }
-  .dirArrowStage{
-    position:relative;
-    width:24px;
-    height:40px;
-    display:flex;
-    align-items:flex-end;
-    justify-content:center;
-  }
-  .dirArrowStage .dirArrow{
-    transition: transform 0.18s ease-out;
-  }
-  .dirArrowTrail{
-    position:absolute;
-    left:50%; top:50%;
-    width:0; height:0;
-    border-left:12px solid transparent;
-    border-right:12px solid transparent;
-    border-bottom:39px solid #39FF14;
-    margin-left:-12px; margin-top:-39px;
-    pointer-events:none;
-    opacity:0.5;
-    transition: opacity 0.4s ease-out;
-  }
   .gyroActive .singleStationDirWrap .dirArrow{
     border-bottom-color:#39FF14;
   }
@@ -660,7 +637,7 @@
 
   <div class="ticker">
     <div class="tickerTrack" id="tickerTrack">
-      <span class="tickerEmpty">駅情報を取得中…</span>
+      <span class="tickerEmpty">電光掲示を準備中‥</span>
     </div>
   </div>
 
@@ -684,12 +661,7 @@
           <div class="singleStationDist" id="singleStationDist">--<span class="singleUnit">m</span></div>
           <div class="singleStationTime" id="singleStationTime">--<span class="singleUnit">分</span></div>
           <div class="singleStationSpeed" id="singleStationSpeed">--<span class="singleUnit">km/h</span></div>
-          <div class="singleStationDirWrap" id="singleStationDirWrap">
-            <div class="dirArrowStage" id="dirArrowStage">
-              <span class="dirArrow" id="singleDirArrow"></span>
-            </div>
-            <span class="singleStationDirText" id="singleDirText">--</span>
-          </div>
+          <div class="singleStationDirWrap" id="singleStationDirWrap"></div>
         </div>
       </div>
     </div>
@@ -1205,26 +1177,6 @@
   const singleStationTimeEl = document.getElementById('singleStationTime');
   const singleStationSpeedEl = document.getElementById('singleStationSpeed');
   const singleStationDirWrapEl = document.getElementById('singleStationDirWrap');
-  const dirArrowStageEl = document.getElementById('dirArrowStage');
-  const singleDirArrowEl = document.getElementById('singleDirArrow');
-  const singleDirTextEl = document.getElementById('singleDirText');
-  let lastSingleArrowAngle = null;
-
-  // 三角形の角度が変化した時、直前の向きのコピーを一瞬残してフェードアウトさせる(残像効果)
-  function updateSingleDirArrow(angleDeg){
-    if(!singleDirArrowEl || !dirArrowStageEl) return;
-    if(lastSingleArrowAngle != null && Math.abs(((angleDeg - lastSingleArrowAngle + 540) % 360) - 180) > 2){
-      const trail = document.createElement('div');
-      trail.className = 'dirArrowTrail';
-      trail.style.transform = `rotate(${lastSingleArrowAngle}deg)`;
-      dirArrowStageEl.appendChild(trail);
-      requestAnimationFrame(()=>{ trail.style.opacity = '0'; });
-      setTimeout(()=>{ trail.remove(); }, 420);
-    }
-    singleDirArrowEl.style.transform = `rotate(${angleDeg}deg)`;
-    lastSingleArrowAngle = angleDeg;
-  }
-
 
   function updateInfoModal(){
     if(!infoStationListEl) return;
@@ -1241,7 +1193,7 @@
       if(singleStationDistEl) singleStationDistEl.innerHTML = '‥<span class="singleUnit">m</span>';
       if(singleStationTimeEl) singleStationTimeEl.innerHTML = '‥<span class="singleUnit">分</span>';
       if(singleStationSpeedEl) singleStationSpeedEl.innerHTML = (currentSpeedKmh != null ? currentSpeedKmh.toFixed(1) : '‥') + '<span class="singleUnit">km/h</span>';
-      if(singleStationDirWrapEl) singleStationDirWrapEl.style.visibility = 'hidden';
+      if(singleStationDirWrapEl) singleStationDirWrapEl.innerHTML = '';
       return;
     }
     const top3 = nearby.slice().sort((a,b)=> a.dist - b.dist).slice(0, 10);
@@ -1258,17 +1210,16 @@
         nearestDirText = bearingToDirection(nearestBearing);
       }
       const nearestDirClass = nearestDirText.length === 1 ? 'infoDirSingle' : '';
+      const nearestDirArrowHtml = nearestBearing != null
+        ? `<span class="dirArrow" style="transform:rotate(${displayBearing(nearestBearing)}deg);"></span>`
+        : '';
       if(singleStationNameEl) singleStationNameEl.textContent = nearest.name + '駅';
       if(singleStationLineEl) singleStationLineEl.textContent = nearestLineNameJoined || '‥';
       if(singleStationDistEl) singleStationDistEl.innerHTML = Math.round(nearest.dist).toLocaleString('ja-JP') + '<span class="singleUnit">m</span>';
       if(singleStationTimeEl) singleStationTimeEl.innerHTML = nearestWalkMin + '<span class="singleUnit">分</span>';
       if(singleStationSpeedEl) singleStationSpeedEl.innerHTML = (currentSpeedKmh != null ? currentSpeedKmh.toFixed(1) : '‥') + '<span class="singleUnit">km/h</span>';
-      if(singleStationDirWrapEl) singleStationDirWrapEl.style.visibility = 'visible';
-      if(dirArrowStageEl) dirArrowStageEl.style.display = (nearestBearing != null) ? 'flex' : 'none';
-      if(nearestBearing != null) updateSingleDirArrow(displayBearing(nearestBearing));
-      if(singleDirTextEl){
-        singleDirTextEl.textContent = nearestDirText;
-        singleDirTextEl.className = 'singleStationDirText ' + nearestDirClass;
+      if(singleStationDirWrapEl){
+        singleStationDirWrapEl.innerHTML = `${nearestDirArrowHtml}<span class="singleStationDirText ${nearestDirClass}">${nearestDirText}</span>`;
       }
     }
 
@@ -1469,9 +1420,8 @@
     const dy = p2.y - p0.y;
     const dist = Math.sqrt(dx*dx + dy*dy) || 1e-9;
 
-    // 駅の方角に関わらず、放物線の頂点(制御点)は常に画面上側(北方向)に膨らませ、
-    // はっきりと山なりに見えるよう膨らみ量を強調する
-    const bulge = dist * 0.5;
+    // 駅の方角に関わらず、放物線の頂点(制御点)は常に画面上側(北方向)に膨らませる
+    const bulge = dist * 0.28 * 1.5; // 膨らみ量(距離の28%、高さは従来の1.5倍)
     const p1 = { x: (p0.x + p2.x) / 2, y: (p0.y + p2.y) / 2 + bulge };
 
     arrowControlPoints = { p0, p1, p2, cosLat };
