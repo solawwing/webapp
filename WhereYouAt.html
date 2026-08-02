@@ -1238,7 +1238,7 @@
       const dirArrowHtml = bearing != null
         ? `<span class="dirArrow" style="transform:rotate(${displayBearing(bearing)}deg);"></span>`
         : '';
-      const rowClass = s.dist <= 100 ? 'infoRowNear' : '';
+      const rowClass = s.dist <= 300 ? 'infoRowNear' : '';
       return `<tr class="${rowClass}">
         <td class="infoTd infoTdName">${s.name}駅</td>
         <td class="infoTd infoTdLine">${lineNameJoined || '‥'}</td>
