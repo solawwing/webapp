@@ -1508,12 +1508,28 @@
   }
 
   // 路線名はベストエフォートで後追い取得(失敗しても駅表示自体には影響しない)
-  async function fetchStationLines(origin, stationNodes, preferredEndpoint){
+  async function fetchStationLines(origin, stationNodes){
     try{
-      const lineQuery = `[out:json][timeout:12];rel["type"="route"]["route"~"^(train|subway|light_rail)$"](around:${STATION_RADIUS_XFAR},${origin.lat},${origin.lng});out body;`;
-      const res = await fetchWithTimeout(preferredEndpoint + '?data=' + encodeURIComponent(lineQuery), 16000);
-      if(!res.ok) return;
-      const data = await res.json();
+      // まずエリア内の駅ノードを.stationsとして取得し、それらのいずれかをメンバーに含む
+      // route relationだけに絞り込む(back-reference)。これにより無関係な路線を除外しつつ、
+      // 大江戸線のような駅数の多い環状路線でも、対象駅を含むrelationを確実に拾いやすくする。
+      const lineQuery = `[out:json][timeout:20];
+        node["railway"="station"](around:${STATION_RADIUS_XFAR},${origin.lat},${origin.lng})->.stations;
+        rel(bn.stations)["type"="route"]["route"~"^(train|subway|light_rail)$"];
+        out body;`;
+
+      let data = null;
+      for(const endpoint of orderedEndpoints()){
+        try{
+          const res = await fetchWithTimeout(endpoint + '?data=' + encodeURIComponent(lineQuery), 25000);
+          if(!res.ok) continue;
+          data = await res.json();
+          break;
+        }catch(e){
+          console.warn('fetchStationLines endpoint failed (non-critical):', endpoint, e);
+        }
+      }
+      if(!data) return;
       const routeRelations = (data.elements || []).filter(el => el.type === 'relation');
       if(routeRelations.length === 0) return;
 
@@ -1661,7 +1677,7 @@
             setFetchStatus('拡張駅情報(2〜10km圏)を取得中…');
             fetchExtendedStations(origin).then(()=>{
               setFetchStatus('路線名を取得中…');
-              return fetchStationLines(origin, stationNodes, endpoint);
+              return fetchStationLines(origin, stationNodes);
             }).then(()=>{
               setFetchStatus('取得完了(全ての情報を反映済み)');
             }).catch(()=>{
