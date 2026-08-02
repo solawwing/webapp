@@ -166,20 +166,28 @@
     min-height:34px;
     display:flex;
     align-items:center;
-    justify-content:space-between;
+    gap:10px;
     padding:0 18px;
     padding-bottom:env(safe-area-inset-bottom);
     border-top:1px solid var(--line);
     background:var(--panel);
   }
   .mapOverlay{
+    flex:0 0 auto;
     font-size:9px; letter-spacing:.15em; text-transform:uppercase;
     color:#FFFFFF;
+    white-space:nowrap;
   }
-  .versionLabel{
+  .fetchStatusLabel{
+    flex:1 1 auto;
+    min-width:0;
     font-size:9px; letter-spacing:.05em;
-    color:#FFFFFF;
+    color:#39FF14;
     font-family: var(--mono);
+    text-align:right;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
   }
   .recenterBtn{
     position:absolute; bottom:max(14px, env(safe-area-inset-bottom)); right:14px; z-index:500;
@@ -660,8 +668,8 @@
   </div>
 
   <div class="statusFoot" id="statusFootCloseArea">
-    <span class="mapOverlay">Map View</span>
-    <span class="versionLabel">v20260730080719</span>
+    <span class="mapOverlay" id="stationCountLabel">MAP VIEW</span>
+    <span class="fetchStatusLabel" id="fetchStatusLabel">待機中</span>
   </div>
 
 </div>
@@ -682,6 +690,10 @@
   const addressVal = document.getElementById('addressVal');
   const msg = document.getElementById('msg');
   const mapOverlay = document.querySelector('.mapOverlay');
+  const fetchStatusLabel = document.getElementById('fetchStatusLabel');
+  function setFetchStatus(text){
+    if(fetchStatusLabel) fetchStatusLabel.textContent = text;
+  }
 
   let watchId = null;
   let followMe = true;
@@ -1408,11 +1420,9 @@
     const dy = p2.y - p0.y;
     const dist = Math.sqrt(dx*dx + dy*dy) || 1e-9;
 
-    // 進行方向に対して垂直な向きに膨らませ、放物線の制御点を作る
-    const perpX = -dy / dist;
-    const perpY = dx / dist;
-    const bulge = dist * 0.28; // 膨らみ量(距離の28%)
-    const p1 = { x: (p0.x + p2.x) / 2 + perpX * bulge, y: (p0.y + p2.y) / 2 + perpY * bulge };
+    // 駅の方角に関わらず、放物線の頂点(制御点)は常に画面上側(北方向)に膨らませる
+    const bulge = dist * 0.28 * 1.5; // 膨らみ量(距離の28%、高さは従来の1.5倍)
+    const p1 = { x: (p0.x + p2.x) / 2, y: (p0.y + p2.y) / 2 + bulge };
 
     arrowControlPoints = { p0, p1, p2, cosLat };
 
@@ -1565,20 +1575,19 @@
     isFetchingStations = true;
     stationFetchAttempted = true;
     try{
-      if(!marker){ return; } // 現在地が未取得ならまだ実行しない
-      if(map.getZoom() < 13){ mapOverlay.textContent = 'MAP VIEW'; return; }
+      if(!marker){ setFetchStatus('現在地の取得待ち…'); return; }
+      if(map.getZoom() < 13){ mapOverlay.textContent = 'MAP VIEW'; setFetchStatus('広域表示のため停止中'); return; }
 
       const origin = marker.getLatLng(); // 現在地(GPS)中心
 
       // 定期実行・地図移動など、fetchStationsが呼ばれたことが分かるよう一旦「取得中」を表示する
-      const previousOverlayText = mapOverlay.textContent;
-      mapOverlay.textContent = '駅情報取得中…';
+      setFetchStatus('基本駅情報(1〜2km圏)を取得中…');
 
       // 速度が速い(20km/h以上)、または速度が取得できていない場合は間引き距離を広めに(200m)、
       // それ以外(低速で移動中)は細かく再取得できるよう狭めに(100m)する
       const stationSkipDistance = (currentSpeedKmh == null || currentSpeedKmh >= 20) ? 200 : 100;
       if(lastStationCenter && lastStationCenter.distanceTo(origin) < stationSkipDistance){
-        mapOverlay.textContent = previousOverlayText; // 実際には取得しないので元の表示に戻す
+        setFetchStatus('待機中(移動量が少ないため間引き)');
         return; // 現在地がほぼ動いていなければAPI再取得は間引く(距離表示自体は別途更新される)
       }
 
@@ -1591,6 +1600,7 @@
       for(let i = 0; i < endpoints.length; i++){
         const endpoint = endpoints[i];
         try{
+          if(i > 0) setFetchStatus(`基本駅情報を取得中…(サーバー切替 ${i+1}/${endpoints.length})`);
           // クライアント側の待機時間は、クエリ内のサーバー側timeout(10秒)より必ず長くする
           const res = await fetchWithTimeout(endpoint + '?data=' + encodeURIComponent(stationQuery), 14000);
           if(!res.ok) throw new Error('HTTP ' + res.status);
@@ -1616,6 +1626,7 @@
             count++;
           });
           mapOverlay.textContent = count > 0 ? ('駅 ' + count + '件') : 'MAP VIEW';
+          setFetchStatus('基本取得完了 → 拡張情報を準備中…');
           updateMapModeBtnVisibility();
           try{ updateTicker(nearby); }catch(tickerErr){ console.warn('updateTicker failed (non-critical):', tickerErr); }
           try{ updateInfoModal(); }catch(modalErr){ console.warn('updateInfoModal failed (non-critical):', modalErr); }
@@ -1647,11 +1658,19 @@
           //  厳しく制限されているため、既に実行中なら重複させない)
           if(!isFetchingExtended){
             isFetchingExtended = true;
+            setFetchStatus('拡張駅情報(2〜10km圏)を取得中…');
             fetchExtendedStations(origin).then(()=>{
+              setFetchStatus('路線名を取得中…');
               return fetchStationLines(origin, stationNodes, endpoint);
+            }).then(()=>{
+              setFetchStatus('取得完了(全ての情報を反映済み)');
+            }).catch(()=>{
+              setFetchStatus('拡張・路線名の取得は一部失敗(基本の駅名は表示済み)');
             }).finally(()=>{
               isFetchingExtended = false;
             });
+          } else {
+            setFetchStatus('取得完了(基本情報を反映済み)');
           }
           break;
         }catch(e){
@@ -1662,18 +1681,18 @@
       if(!succeeded){
         stationFailCount++;
         const reason = lastError ? (lastError.name === 'AbortError' ? 'タイムアウト' : lastError.message) : '不明';
-        mapOverlay.textContent = `駅情報取得失敗(${reason}) 再試行中…`;
+        const backoff = Math.min(30000, 3000 * Math.pow(2, stationFailCount - 1));
+        setFetchStatus(`取得失敗(${reason}) ${Math.round(backoff/1000)}秒後に再試行(${stationFailCount}回目)`);
         clearTimeout(stationRetryTimer);
         // 連続失敗するほど間隔を伸ばす(3秒→6秒→12秒...最大30秒): 過度な連打によるレート制限を避ける
-        const backoff = Math.min(30000, 3000 * Math.pow(2, stationFailCount - 1));
         stationRetryTimer = setTimeout(fetchStations, backoff);
       }
     }catch(e){
       console.error('fetchStations error:', e);
       stationFailCount++;
-      mapOverlay.textContent = '駅情報取得失敗(再試行中)';
-      clearTimeout(stationRetryTimer);
       const backoff = Math.min(30000, 3000 * Math.pow(2, stationFailCount - 1));
+      setFetchStatus(`予期しないエラー ${Math.round(backoff/1000)}秒後に再試行(${stationFailCount}回目)`);
+      clearTimeout(stationRetryTimer);
       stationRetryTimer = setTimeout(fetchStations, backoff);
     }finally{
       isFetchingStations = false;
