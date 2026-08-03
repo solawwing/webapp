@@ -446,6 +446,12 @@
     gap:4px;
     margin-top:10px;
   }
+  .singleStationAddress{
+    color:#FFFFFF;
+    font-size:14px;
+    text-align:center;
+    margin-top:14px;
+  }
   .singleStationDirWrap .dirArrow{
     border-left-width:12px;
     border-right-width:12px;
@@ -662,6 +668,7 @@
           <div class="singleStationTime" id="singleStationTime">--<span class="singleUnit">分</span></div>
           <div class="singleStationSpeed" id="singleStationSpeed">--<span class="singleUnit">km/h</span></div>
           <div class="singleStationDirWrap" id="singleStationDirWrap"></div>
+          <div class="singleStationAddress" id="singleStationAddress">--</div>
         </div>
       </div>
     </div>
@@ -1179,10 +1186,15 @@
   const singleStationTimeEl = document.getElementById('singleStationTime');
   const singleStationSpeedEl = document.getElementById('singleStationSpeed');
   const singleStationDirWrapEl = document.getElementById('singleStationDirWrap');
+  const singleStationAddressEl = document.getElementById('singleStationAddress');
 
   function updateInfoModal(){
     if(!infoStationListEl) return;
     if(!marker) return;
+
+    if(singleStationAddressEl){
+      singleStationAddressEl.textContent = (addressVal && addressVal.textContent) ? addressVal.textContent : '--';
+    }
 
     const origin = marker.getLatLng();
     const nearby = cachedStations
