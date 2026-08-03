@@ -1107,14 +1107,14 @@
   }
 
   async function fetchAddress(lat, lng){
-    // まず国土地理院API(日本政府の公式データ)を優先して試す
-    try{
-      const gsiAddress = await fetchAddressGSI(lat, lng);
-      addressVal.textContent = gsiAddress + ' 付近';
-      return;
-    }catch(e){
-      console.warn('fetchAddressGSI failed, falling back to Nominatim (non-critical):', e);
-    }
+    // [一時的に無効化: 住所取得が止まる問題の原因切り分けのため]
+    // try{
+    //   const gsiAddress = await fetchAddressGSI(lat, lng);
+    //   addressVal.textContent = gsiAddress + ' 付近';
+    //   return;
+    // }catch(e){
+    //   console.warn('fetchAddressGSI failed, falling back to Nominatim (non-critical):', e);
+    // }
 
     // 国土地理院APIが失敗した場合は、これまで通りNominatim(OpenStreetMap)にフォールバックする
     try{
