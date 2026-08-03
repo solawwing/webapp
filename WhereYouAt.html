@@ -456,7 +456,7 @@
     font-size:16px;
     text-align:center;
     margin-top:14px;
-    white-space:normal;
+    white-space:pre-line;
     overflow-wrap:break-word;
     word-break:break-all;
     padding:0 8px;
@@ -1175,27 +1175,38 @@
       if(!res.ok) return;
       const data = await res.json();
       let addressText;
+      let singleAddressText;
       if(data && data.address){
         const a = data.address;
-        // 都道府県・市区町村・町名・丁目・通り名・番地・建物名の順で組み立てる(存在するものだけ)
+        // 都道府県・市区町村・町名・丁目・番地までの基本住所と、道路名・建物名を分けて組み立てる。
         // 「丁目」に相当する情報はNominatim(OSM)側のデータ整備状況によって
         // neighbourhood/quarter以外(residential/hamlet/city_districtなど)に入っていることがあるため、
         // より多くの候補フィールドを見るようにする
-        const parts = [
+        const baseParts = [
           a.state,
           a.city || a.town || a.village || a.county,
           a.suburb || a.city_district || a.borough,
           a.neighbourhood || a.quarter || a.residential || a.hamlet,
-          a.road,
-          a.house_number,
-          a.amenity || a.building || a.shop || a.tourism || a.leisure || a.office || a.railway
+          a.house_number
         ].filter(Boolean);
-        addressText = (parts.length > 0 ? parts.join(' ') : (data.display_name || '住所不明')) + ' 付近';
+        const roadBuildingParts = [
+          a.road,
+          a.amenity || a.building || a.tourism || a.leisure || a.office || a.railway
+        ].filter(Boolean);
+
+        const baseAddress = baseParts.length > 0 ? baseParts.join(' ') : (data.display_name || '住所不明');
+        const roadBuilding = roadBuildingParts.join(' ');
+
+        // 電光表示エリア: 従来通り1行で全て繋げる
+        addressText = baseAddress + ' 付近' + (roadBuilding ? ' ' + roadBuilding : '');
+        // ウィンドウ(単一駅): 1行目「住所 付近」、2行目「道路 建物施設」の2行形式
+        singleAddressText = roadBuilding ? (baseAddress + ' 付近\n' + roadBuilding) : (baseAddress + ' 付近');
       } else {
         addressText = '住所不明';
+        singleAddressText = '住所不明';
       }
       addressVal.textContent = addressText;
-      if(singleStationAddressEl) singleStationAddressEl.textContent = addressText;
+      if(singleStationAddressEl) singleStationAddressEl.textContent = singleAddressText;
     }catch(e){
       console.warn('fetchAddress (Nominatim fallback) failed:', e);
       addressVal.textContent = '取得失敗';
