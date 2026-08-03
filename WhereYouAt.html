@@ -448,7 +448,7 @@
   }
   .singleStationAddress{
     color:#FFFFFF;
-    font-size:14px;
+    font-size:16px;
     text-align:center;
     margin-top:14px;
   }
@@ -1192,9 +1192,10 @@
     if(!infoStationListEl) return;
     if(!marker) return;
 
-    if(singleStationAddressEl){
-      singleStationAddressEl.textContent = (addressVal && addressVal.textContent) ? addressVal.textContent : '--';
-    }
+    // [一時的に無効化: 住所取得が止まる問題の原因切り分けのため]
+    // if(singleStationAddressEl){
+    //   singleStationAddressEl.textContent = (addressVal && addressVal.textContent) ? addressVal.textContent : '--';
+    // }
 
     const origin = marker.getLatLng();
     const nearby = cachedStations
