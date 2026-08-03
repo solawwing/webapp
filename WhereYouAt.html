@@ -216,6 +216,16 @@
     letter-spacing:.12em;
   }
   .head .title{ font-size:11px; font-weight:700; color:#22e5e5; text-transform:uppercase; }
+  .title .waveChar{
+    display:inline-block;
+  }
+  .title.waving .waveChar{
+    animation: titleWave 2.2s ease-in-out;
+  }
+  @keyframes titleWave{
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
   .head .status{ font-size:10px; color:var(--ink-dim); display:flex; align-items:center; gap:6px; }
   .dot{ width:6px; height:6px; border-radius:50%; background:var(--ink-dim); flex:none; }
   .dot.live{ background:#39FF14; box-shadow:0 0 6px #39FF14; animation:pulse 2s infinite; }
@@ -607,7 +617,7 @@
 
   <div class="top">
     <div class="head">
-      <div class="title">WHERE YOU AT?</div>
+      <div class="title" id="titleText">WHERE YOU AT?</div>
       <div class="status"><span class="dot" id="dot"></span><span id="statusText">待機中</span></div>
     </div>
 
@@ -688,6 +698,41 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
   const dot = document.getElementById('dot');
+
+  // --- タイトルの波打ちアニメーション: 文字ごとにspan分割し、たまにランダムな間隔で波打たせる ---
+  (function setupTitleWave(){
+    const titleEl = document.getElementById('titleText');
+    if(!titleEl) return;
+    const text = titleEl.textContent;
+    titleEl.innerHTML = '';
+    const chars = [];
+    for(const ch of text){
+      const span = document.createElement('span');
+      span.className = 'waveChar';
+      span.textContent = ch === ' ' ? '\u00A0' : ch; // 半角スペースはノーブレークスペースにして折り返し崩れを防ぐ
+      titleEl.appendChild(span);
+      chars.push(span);
+    }
+    chars.forEach((span, i)=>{
+      span.style.animationDelay = (i * 0.08) + 's';
+    });
+
+    function playWave(){
+      titleEl.classList.remove('waving');
+      void titleEl.offsetWidth; // 強制リフローで再生を確実にリセットする
+      titleEl.classList.add('waving');
+    }
+
+    function scheduleNextWave(){
+      const delay = 12000 + Math.random() * 18000; // 12〜30秒に一度、たまに波打たせる
+      setTimeout(()=>{
+        playWave();
+        scheduleNextWave();
+      }, delay);
+    }
+    scheduleNextWave();
+  })();
+
   const statusText = document.getElementById('statusText');
   const latVal = document.getElementById('latVal');
   const lngVal = document.getElementById('lngVal');
