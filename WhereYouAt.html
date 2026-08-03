@@ -511,6 +511,10 @@
   .infoRowNear .infoTd{
     background:rgba(255,255,0,0.1);
   }
+  .infoSingleView.singleNear{
+    background:rgba(255,255,0,0.1);
+    border-radius:8px;
+  }
   .infoTdName{
     color:#FF0000;
     font-weight:700;
@@ -1268,6 +1272,7 @@
   }
 
   const infoStationListEl = document.getElementById('infoStationList');
+  const infoSingleViewEl = document.getElementById('infoSingleView');
   const singleStationNameEl = document.getElementById('singleStationName');
   const singleStationLineEl = document.getElementById('singleStationLine');
   const singleStationDistEl = document.getElementById('singleStationDist');
@@ -1286,6 +1291,7 @@
 
     if(!nearby || nearby.length === 0){
       infoStationListEl.innerHTML = '<div style="color:var(--ink-dim); font-size:13px;">周辺に駅が見つかりません</div>';
+      if(infoSingleViewEl) infoSingleViewEl.classList.remove('singleNear');
       if(singleStationNameEl) singleStationNameEl.textContent = '‥';
       if(singleStationLineEl) singleStationLineEl.textContent = '‥';
       if(singleStationDistEl) singleStationDistEl.innerHTML = '‥<span class="singleUnit">m</span>';
@@ -1311,6 +1317,7 @@
       const nearestDirArrowHtml = nearestBearing != null
         ? `<span class="dirArrow" style="transform:rotate(${displayBearing(nearestBearing)}deg);"></span>`
         : '';
+      if(infoSingleViewEl) infoSingleViewEl.classList.toggle('singleNear', nearest.dist <= 300);
       if(singleStationNameEl) singleStationNameEl.textContent = nearest.name + '駅';
       if(singleStationLineEl) singleStationLineEl.textContent = nearestLineNameJoined || '‥';
       if(singleStationDistEl) singleStationDistEl.innerHTML = Math.round(nearest.dist).toLocaleString('ja-JP') + '<span class="singleUnit">m</span>';
