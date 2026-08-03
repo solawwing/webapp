@@ -1173,12 +1173,16 @@
       let addressText;
       if(data && data.address){
         const a = data.address;
-        // 都道府県・市区町村・町名・丁目・番地の順で組み立てる(存在するものだけ)
+        // 都道府県・市区町村・町名・丁目・通り名・番地の順で組み立てる(存在するものだけ)
+        // 「丁目」に相当する情報はNominatim(OSM)側のデータ整備状況によって
+        // neighbourhood/quarter以外(residential/hamlet/city_districtなど)に入っていることがあるため、
+        // より多くの候補フィールドを見るようにする
         const parts = [
           a.state,
           a.city || a.town || a.village || a.county,
-          a.suburb || a.city_district,
-          a.neighbourhood || a.quarter,
+          a.suburb || a.city_district || a.borough,
+          a.neighbourhood || a.quarter || a.residential || a.hamlet,
+          a.road,
           a.house_number
         ].filter(Boolean);
         addressText = (parts.length > 0 ? parts.join(' ') : (data.display_name || '住所不明')) + ' 付近';
