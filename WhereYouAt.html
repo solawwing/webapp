@@ -675,6 +675,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://maps.gsi.go.jp/js/muni.js"></script>
 <script>
   const dot = document.getElementById('dot');
   const statusText = document.getElementById('statusText');
@@ -1079,7 +1080,43 @@
   let hasFetchedExtended = false; // 拡張取得(2〜10km圏)が一度でも成功したか
   let stationFetchAttempted = false; // 一度でも駅取得を開始したか(最初の駅取得より前に住所取得が走らないようにする)
 
+  // 国土地理院(GSI)の逆ジオコーディングAPIを試す。日本政府の公式データで、CORS許可・APIキー不要。
+  // muniCd(市区町村コード)から都道府県・市区町村名を得るには、別途読み込んだmuni.js(GSI.MUNI_ARRAY)を使う。
+  async function fetchAddressGSI(lat, lng){
+    const url = `https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress?lat=${lat}&lon=${lng}`;
+    const res = await fetchWithTimeout(url, 8000);
+    if(!res.ok) throw new Error('GSI reverse geocoder returned ' + res.status);
+    const data = await res.json();
+    if(!data || !data.results || !data.results.muniCd) throw new Error('GSI reverse geocoder: no muniCd');
+
+    const { muniCd, lv01Nm } = data.results;
+    // muniCdは5桁(先頭ゼロ埋め)だが、変換表のキーは都道府県コードが1桁の場合、先頭ゼロが1つ除去された4桁になっている
+    const muniKey = muniCd.replace(/^0/, '');
+    const muniData = (typeof GSI !== 'undefined' && GSI.MUNI_ARRAY) ? GSI.MUNI_ARRAY[muniKey] : null;
+
+    let prefName = '', cityName = '';
+    if(muniData){
+      const fields = muniData.split(',');
+      prefName = fields[1] || '';
+      cityName = fields[3] || '';
+    }
+
+    const addressParts = [prefName, cityName, lv01Nm].filter(Boolean);
+    if(addressParts.length === 0) throw new Error('GSI reverse geocoder: could not build address');
+    return addressParts.join(' ');
+  }
+
   async function fetchAddress(lat, lng){
+    // まず国土地理院API(日本政府の公式データ)を優先して試す
+    try{
+      const gsiAddress = await fetchAddressGSI(lat, lng);
+      addressVal.textContent = gsiAddress + ' 付近';
+      return;
+    }catch(e){
+      console.warn('fetchAddressGSI failed, falling back to Nominatim (non-critical):', e);
+    }
+
+    // 国土地理院APIが失敗した場合は、これまで通りNominatim(OpenStreetMap)にフォールバックする
     try{
       const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&accept-language=ja`;
       const res = await fetchWithTimeout(url, 12000);
@@ -1100,7 +1137,7 @@
         addressVal.textContent = '住所不明';
       }
     }catch(e){
-      console.warn('fetchAddress failed (non-critical):', e);
+      console.warn('fetchAddress (Nominatim fallback) failed:', e);
       addressVal.textContent = '取得失敗';
     }
   }
