@@ -221,7 +221,7 @@
     display:inline-block;
   }
   .title.waving .waveChar{
-    animation: titleWave 3s linear 3;
+    animation: titleWave 3s linear 1;
   }
   @keyframes titleWave{
     0%, 100% { transform: translateY(0); }
@@ -721,23 +721,36 @@
     const STRETCH_MS = 3000;   // 伸びる/縮む時間(CSSのtransitionと合わせる)
     const WAVE_DURATION_MS = 3000; // titleWave 1回分の時間
     const WAVE_ITERATIONS = 3;     // 波の繰り返し回数
+    const WAVE_GAP_MS = 2000;      // 波と波の間に空ける休止時間
     const maxCharDelayMs = (chars.length - 1) * 0.12 * 1000; // 最後の文字が動き始めるまでの遅延
-    const totalWaveMs = WAVE_DURATION_MS * WAVE_ITERATIONS + maxCharDelayMs; // 全文字が波打ち終わるまでの時間
+    const singleWaveTotalMs = WAVE_DURATION_MS + maxCharDelayMs; // 1回の波が全文字分完了するまでの時間
+
+    function triggerSingleWave(){
+      titleEl.classList.remove('waving');
+      void titleEl.offsetWidth; // 強制リフローで再生を確実にリセットする
+      titleEl.classList.add('waving');
+    }
 
     function playWave(){
       // 1. 文字間隔を広げる(右に伸びる)
       titleEl.classList.add('stretching');
 
-      // 2. 伸びきったタイミングで波アニメーションを開始
+      // 2. 伸びきったタイミングで波アニメーションを開始。以降、休止を挟みながらWAVE_ITERATIONS回繰り返す
       setTimeout(()=>{
-        titleEl.classList.remove('waving');
-        void titleEl.offsetWidth; // 強制リフローで再生を確実にリセットする
-        titleEl.classList.add('waving');
-
-        // 3. 全ての文字が波打ち終わる頃に、文字間隔を元に戻す(左に縮む)
-        setTimeout(()=>{
-          titleEl.classList.remove('stretching');
-        }, totalWaveMs);
+        let waveCount = 0;
+        function runNextWave(){
+          triggerSingleWave();
+          waveCount++;
+          if(waveCount < WAVE_ITERATIONS){
+            setTimeout(runNextWave, singleWaveTotalMs + WAVE_GAP_MS);
+          } else {
+            // 3. 最後の波が全文字分終わったら、文字間隔を元に戻す(左に縮む)
+            setTimeout(()=>{
+              titleEl.classList.remove('stretching');
+            }, singleWaveTotalMs);
+          }
+        }
+        runNextWave();
       }, STRETCH_MS);
     }
 
