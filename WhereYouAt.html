@@ -753,9 +753,9 @@
     }
 
     function scheduleNextWave(){
-      const delay = 12000 + Math.random() * 18000; // 12〜30秒に一度、たまに波打たせる
-      setTimeout(()=>{
-        playWave();
+      const delay = 10000 + Math.random() * 20000; // アニメーション終了後、10〜30秒空けてから次を再生
+      setTimeout(async ()=>{
+        await playWave();
         scheduleNextWave();
       }, delay);
     }
