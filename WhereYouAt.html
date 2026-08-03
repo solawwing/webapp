@@ -1069,6 +1069,15 @@
     }).finally(()=> clearTimeout(timer));
   }
 
+  // AbortControllerによるタイムアウトが何らかの理由で機能しない(サーバー・ブラウザ・回線都合)場合に備え、
+  // Promise.raceで別系統のタイムアウトを重ねて掛け、確実にリクエストを打ち切れるようにする。
+  function fetchWithHardTimeout(url, ms){
+    const hardTimeoutPromise = new Promise((_, reject)=>{
+      setTimeout(()=> reject(new Error('fetchWithHardTimeout: timed out')), ms);
+    });
+    return Promise.race([fetchWithTimeout(url, ms), hardTimeoutPromise]);
+  }
+
   // --- 住所表示(逆ジオコーディング / Nominatim) ---
   let lastAddressCenter = null;
   let lastAddressFetchTime = 0;
@@ -1084,7 +1093,7 @@
   // muniCd(市区町村コード)から都道府県・市区町村名を得るには、別途読み込んだmuni.js(GSI.MUNI_ARRAY)を使う。
   async function fetchAddressGSI(lat, lng){
     const url = `https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress?lat=${lat}&lon=${lng}`;
-    const res = await fetchWithTimeout(url, 8000);
+    const res = await fetchWithHardTimeout(url, 6000);
     if(!res.ok) throw new Error('GSI reverse geocoder returned ' + res.status);
     const data = await res.json();
     if(!data || !data.results || !data.results.muniCd) throw new Error('GSI reverse geocoder: no muniCd');
@@ -1107,14 +1116,15 @@
   }
 
   async function fetchAddress(lat, lng){
-    // [一時的に無効化: 住所取得が止まる問題の原因切り分けのため]
-    // try{
-    //   const gsiAddress = await fetchAddressGSI(lat, lng);
-    //   addressVal.textContent = gsiAddress + ' 付近';
-    //   return;
-    // }catch(e){
-    //   console.warn('fetchAddressGSI failed, falling back to Nominatim (non-critical):', e);
-    // }
+    // まず国土地理院API(日本政府の公式データ)を優先して試す。
+    // Promise.raceによる二重タイムアウト(fetchWithHardTimeout)で、確実に一定時間で打ち切る。
+    try{
+      const gsiAddress = await fetchAddressGSI(lat, lng);
+      addressVal.textContent = gsiAddress + ' 付近';
+      return;
+    }catch(e){
+      console.warn('fetchAddressGSI failed, falling back to Nominatim (non-critical):', e);
+    }
 
     // 国土地理院APIが失敗した場合は、これまで通りNominatim(OpenStreetMap)にフォールバックする
     try{
