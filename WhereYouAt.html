@@ -1092,6 +1092,7 @@
       const res = await fetchWithTimeout(url, 12000);
       if(!res.ok) return;
       const data = await res.json();
+      let addressText;
       if(data && data.address){
         const a = data.address;
         // 都道府県・市区町村・町名・丁目・番地の順で組み立てる(存在するものだけ)
@@ -1102,13 +1103,16 @@
           a.neighbourhood || a.quarter,
           a.house_number
         ].filter(Boolean);
-        addressVal.textContent = (parts.length > 0 ? parts.join(' ') : (data.display_name || '住所不明')) + ' 付近';
+        addressText = (parts.length > 0 ? parts.join(' ') : (data.display_name || '住所不明')) + ' 付近';
       } else {
-        addressVal.textContent = '住所不明';
+        addressText = '住所不明';
       }
+      addressVal.textContent = addressText;
+      if(singleStationAddressEl) singleStationAddressEl.textContent = addressText;
     }catch(e){
       console.warn('fetchAddress (Nominatim fallback) failed:', e);
       addressVal.textContent = '取得失敗';
+      if(singleStationAddressEl) singleStationAddressEl.textContent = '取得失敗';
     }
   }
 
@@ -1191,11 +1195,6 @@
   function updateInfoModal(){
     if(!infoStationListEl) return;
     if(!marker) return;
-
-    // [一時的に無効化: 住所取得が止まる問題の原因切り分けのため]
-    // if(singleStationAddressEl){
-    //   singleStationAddressEl.textContent = (addressVal && addressVal.textContent) ? addressVal.textContent : '--';
-    // }
 
     const origin = marker.getLatLng();
     const nearby = cachedStations
