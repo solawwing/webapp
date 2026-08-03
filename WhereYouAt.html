@@ -1117,7 +1117,9 @@
   }
 
   function refreshAddressIfNeeded(lat, lng){
-    if(isFetchingStations || isFetchingExtended || !stationFetchAttempted) return; // 駅関連の通信中、または駅取得が一度も開始されていなければスキップ(駅名を優先)
+    // 拡張取得(2〜10km圏)・路線名取得は数十秒かかることもあり、これでブロックし続けると住所取得が
+    // 事実上止まってしまうため、基本の駅取得(通常は数秒で完了)中のみ住所取得を待たせる
+    if(isFetchingStations || !stationFetchAttempted) return;
     const now = Date.now();
     const current = L.latLng(lat, lng);
     if(lastAddressCenter){
