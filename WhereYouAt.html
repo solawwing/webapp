@@ -973,6 +973,11 @@
     // 一度クリアしてから始める
     clearStations();
     try{ updateNearestArrow(null, null); }catch(e){ console.warn('updateNearestArrow clear failed (non-critical):', e); }
+    // 予約済みの再試行・間引きタイマーが残っていると、再取得と二重に走ってしまうことがあるため、
+    // 一度クリアしてタイマー・失敗カウントをリセットしてから即座に取得をやり直す
+    clearTimeout(stationFetchTimer);
+    clearTimeout(stationRetryTimer);
+    stationFailCount = 0;
     cachedStations = [];
     lastStationCenter = null;
     hasFetchedLines = false;
