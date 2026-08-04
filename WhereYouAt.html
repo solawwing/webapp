@@ -1708,7 +1708,7 @@
       const nearestDirArrowHtml = nearestBearing != null
         ? `<span class="dirArrow" style="transform:rotate(${displayBearing(nearestBearing)}deg);"></span>`
         : '';
-      if(infoSingleViewEl) infoSingleViewEl.classList.toggle('singleNear', nearest.dist <= 300);
+      if(infoSingleViewEl) infoSingleViewEl.classList.toggle('singleNear', nearest.dist <= 200);
       if(singleStationNameEl) singleStationNameEl.innerHTML = nearest.name + '<span class="stationSuffixSmall">' + t('stationSuffix') + '</span>';
       if(singleStationLineEl) singleStationLineEl.textContent = nearestLineNameJoined || '‥';
       if(singleStationDistEl) singleStationDistEl.innerHTML = Math.round(nearest.dist).toLocaleString('ja-JP') + '<span class="singleUnit">m</span>';
@@ -1732,7 +1732,7 @@
       const dirArrowHtml = bearing != null
         ? `<span class="dirArrow" style="transform:rotate(${displayBearing(bearing)}deg);"></span>`
         : '';
-      const rowClass = s.dist <= 300 ? 'infoRowNear' : '';
+      const rowClass = s.dist <= 200 ? 'infoRowNear' : '';
       return `<tr class="${rowClass}">
         <td class="infoTd infoTdName">
           <div class="infoNameMain">${s.name}<span class="stationSuffixSmall">${t('stationSuffix')}</span></div>
@@ -1779,7 +1779,7 @@
       });
       itemEls.forEach((el, i)=>{
         const s = top3[i % total];
-        el.classList.toggle('near-blink', s.dist <= 300);
+        el.classList.toggle('near-blink', s.dist <= 200);
 
         // 路線名は後から非同期で届くことがあるため、既存要素の有無に関わらず反映する
         const lineNameJoined = formatLineName(s.lines);
@@ -1806,7 +1806,7 @@
       const lineText = lineNameJoined ? '<span class="tLine">' + lineNameJoined + '</span>' : '';
       const walkMin = Math.round(s.dist / 80); // 徒歩1分=80mとして換算(整数)
       const nearestTag = idx === 0 ? `<span class="tNearest">${t('nearestTag')}</span>` : '';
-      const blinkClass = s.dist <= 300 ? ' near-blink' : '';
+      const blinkClass = s.dist <= 200 ? ' near-blink' : '';
       const distText = formatDistWalk(s.dist, walkMin);
       const num = '<span class="tSep">' + circledNumbers[idx % circledNumbers.length] + '</span>';
       return `<span class="tickerItem${blinkClass}">${num}${nearestTag}<span class="tName">${s.name}<span class="stationSuffixSmall">${t('stationSuffix')}</span></span>${lineText}<span class="tDist">${distText}</span></span>`;
