@@ -502,12 +502,10 @@
     background:rgba(0,255,0,0.2);
     border-bottom:2px solid #39FF14;
   }
-  .infoThName{ text-align:left; width:38%; }
-  .infoThLine{ text-align:left; width:16%; }
+  .infoThName{ text-align:left; width:54%; }
   .infoThDist{ text-align:right; width:19%; }
   .infoThTime{ text-align:right; width:14%; }
   .infoThDir{ text-align:center; width:13%; }
-  body.lang-en .infoThName{ width:54%; }
   .infoTd{
     padding:8px 3px;
     white-space:nowrap;
@@ -524,17 +522,22 @@
     border-radius:8px;
   }
   .infoTdName{
+    text-align:left;
+    white-space:normal;
+  }
+  .infoNameMain{
     color:#FF0000;
     font-weight:400;
     font-size:16px;
-    text-align:left;
-    white-space:normal;
+    line-height:1.15;
   }
   .infoTdLine{
     color:#FF9D1F;
     font-size:11px;
     text-align:left;
     white-space:normal;
+    line-height:1.1;
+    margin-top:1px;
   }
   .infoTdDist{
     color:#22e5e5;
@@ -1003,6 +1006,16 @@
     if(marker){
       const p = marker.getLatLng();
       try{ fetchAddress(p.lat, p.lng); }catch(e){ console.warn('fetchAddress on language switch failed (non-critical):', e); }
+    }
+
+    // GPSエラーメッセージが表示中であれば、新しい言語で再表示する
+    if(lastErrorCode != null && msg){
+      const errMessages = {
+        1: t('geoErrPermission'),
+        2: t('geoErrPosition'),
+        3: t('geoErrTimeout')
+      };
+      msg.textContent = errMessages[lastErrorCode] || t('geoErrUnknown');
     }
   }
 
@@ -1684,22 +1697,21 @@
         ? `<span class="dirArrow" style="transform:rotate(${displayBearing(bearing)}deg);"></span>`
         : '';
       const rowClass = s.dist <= 300 ? 'infoRowNear' : '';
-      const lineTd = currentLang === 'en' ? '' : `<td class="infoTd infoTdLine">${lineNameJoined || '‥'}</td>`;
       return `<tr class="${rowClass}">
-        <td class="infoTd infoTdName">${s.name}<span class="stationSuffixSmall">${t('stationSuffix')}</span></td>
-        ${lineTd}
+        <td class="infoTd infoTdName">
+          <div class="infoNameMain">${s.name}<span class="stationSuffixSmall">${t('stationSuffix')}</span></div>
+          <div class="infoTdLine">${lineNameJoined || '‥'}</div>
+        </td>
         <td class="infoTd infoTdDist"><span class="infoDistWrap">${Math.round(s.dist).toLocaleString('ja-JP')}<span class="infoUnit">m</span></span></td>
         <td class="infoTd infoTdTime">${walkMin}<span class="infoUnit">${t('minUnit')}</span></td>
         <td class="infoTd infoTdDir ${dirClass}"><span class="dirWrap">${dirArrowHtml}<span class="dirText">${dirText}</span></span></td>
       </tr>`;
     }).join('');
 
-    const lineTh = currentLang === 'en' ? '' : `<th class="infoTh infoThLine">路線名</th>`;
     infoStationListEl.innerHTML = `<table class="infoStationTable">
       <thead>
         <tr>
           <th class="infoTh infoThName">${currentLang === 'en' ? 'Station' : '駅名'}</th>
-          ${lineTh}
           <th class="infoTh infoThDist">${currentLang === 'en' ? 'Dist.' : '距離'}</th>
           <th class="infoTh infoThTime">${t('walk')}</th>
           <th class="infoTh infoThDir">${t('direction')}</th>
@@ -2210,6 +2222,7 @@
 
   function onPosition(pos){
     const c = pos.coords;
+    lastErrorCode = null; // GPSが正常に受信できたので、直近のエラー状態を解除する
 
     // 精度の悪い測位は原則棄却するが、一定回数連続したら強制的に採用する(GPSが止まって見える問題の対策)
     if(c.accuracy != null && c.accuracy > MAX_ACCEPT_ACCURACY && rejectStreak < FORCE_ACCEPT_AFTER){
@@ -2253,9 +2266,12 @@
     }, 50);
   }
 
+  let lastErrorCode = null; // 直近のGeolocationエラーコード(言語切替時にメッセージを再表示するため)
+
   function onError(err){
     dot.className = 'dot err';
     statusText.textContent = t('statusError');
+    lastErrorCode = err.code;
     const messages = {
       1: t('geoErrPermission'),
       2: t('geoErrPosition'),
