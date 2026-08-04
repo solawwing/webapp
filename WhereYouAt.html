@@ -609,6 +609,32 @@
     color:var(--line);
     font-size:10px;
   }
+
+  /* 言語切替演出: 画面中央にテキストを表示し、左右に広がりながらフェードアウトする */
+  .langGimmick{
+    position:fixed;
+    top:50%; left:50%;
+    transform:translate(-50%, -50%);
+    font-family: var(--mono);
+    font-size:34px;
+    font-weight:700;
+    color:#39FF14;
+    text-shadow:0 0 12px rgba(57,255,20,0.6);
+    letter-spacing:.15em;
+    opacity:0;
+    pointer-events:none;
+    z-index:9999;
+    white-space:nowrap;
+  }
+  .langGimmick.playing{
+    animation: langGimmickAnim 2.5s ease-out forwards;
+  }
+  @keyframes langGimmickAnim{
+    0%   { opacity:0; letter-spacing:.15em; }
+    8%   { opacity:1; letter-spacing:.15em; }
+    48%  { opacity:1; letter-spacing:.15em; }
+    100% { opacity:0; letter-spacing:.9em; }
+  }
 </style>
 </head>
 <body>
@@ -693,6 +719,8 @@
   </div>
 
 </div>
+
+<div class="langGimmick" id="langGimmick"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
@@ -839,6 +867,16 @@
     return tags['name:ja'] || tags.name || null;
   }
 
+  // 路線名は、英語名が無い場合に日本語へフォールバックすると読めない駅名以上に分かりにくいため、
+  // 英語モードでは英語名(name:en)が無ければ取得しない(呼び出し側で「－」等の代替表示をする)
+  function getLocalizedLineName(tags){
+    if(!tags) return null;
+    if(currentLang === 'en'){
+      return tags['name:en'] || null;
+    }
+    return tags['name:ja'] || tags.name || null;
+  }
+
   // 電光掲示板用の「距離+徒歩時間」表記(言語によって語順・単語が異なるため専用関数にする)
   function formatDistWalk(dist, walkMin){
     if(currentLang === 'en'){
@@ -857,6 +895,16 @@
   const tickerInitialMsgEl = document.getElementById('tickerInitialMsg');
   const recenterBtnEl = document.getElementById('recenterBtn');
   const mapModeBtnEl = document.getElementById('mapModeBtn');
+  const langGimmickEl = document.getElementById('langGimmick');
+
+  // 言語切替演出: 切替前の言語(fromLang)に応じて挨拶を表示し、左右に広がりながらフェードアウトさせる
+  function playLangGimmick(fromLang){
+    if(!langGimmickEl) return;
+    langGimmickEl.textContent = (fromLang === 'ja') ? 'HELLO' : 'こんにちは';
+    langGimmickEl.classList.remove('playing');
+    void langGimmickEl.offsetWidth; // 強制リフローで再生を確実にリセットする
+    langGimmickEl.classList.add('playing');
+  }
 
   // 言語切り替え時、静的なラベル・ボタン類の表示をまとめて更新する
   function applyStaticLabels(){
@@ -878,7 +926,9 @@
 
   // 言語切り替え本体: 静的ラベルを即座に更新し、駅データ・住所は言語が異なるため再取得する
   function switchLanguage(){
+    const fromLang = currentLang;
     currentLang = (currentLang === 'ja') ? 'en' : 'ja';
+    playLangGimmick(fromLang);
     applyStaticLabels();
 
     // 駅データ(駅名・路線名)は取得時の言語でキャッシュされているため、切り替え時は再取得する
@@ -1472,15 +1522,15 @@
   let lastTickerKey = null; // 直近表示した駅の並び順(名前ベース)を記録し、変化がなければアニメーションを再スタートさせない
 
   function formatLineName(lines){
-    if(!lines || lines.length === 0) return '';
-    let joined = lines.slice(0,2).join('/') + (lines.length > 2 ? '他' : '');
+    if(!lines || lines.length === 0) return currentLang === 'en' ? '－' : '';
+    let joined = lines.slice(0,2).join('/') + (lines.length > 2 ? (currentLang === 'en' ? ' etc.' : '他') : '');
     if(joined.length > 10) joined = joined.slice(0, 9) + '‥';
     return joined;
   }
 
   // 単一駅モードでは省略せず全路線名をそのまま表示する
   function formatLineNameFull(lines){
-    if(!lines || lines.length === 0) return '';
+    if(!lines || lines.length === 0) return currentLang === 'en' ? '－' : '';
     return lines.join(' / ');
   }
 
@@ -1832,7 +1882,9 @@
           if(!name) return;
           const dist = origin.distanceTo([el.lat, el.lon]);
           if(dist > STATION_RADIUS_XFAR) return; // 念のための保険(サーバー側で既に絞り込み済み)
-          const lines = el.tags.network ? [el.tags.network] : [];
+          // networkタグは日本語の事業者名(例:"都営地下鉄")であることが多く、英語モードでフォールバック
+          // 表示すると分かりにくいため、日本語モードのときだけ暫定の路線名として使う
+          const lines = (currentLang === 'ja' && el.tags.network) ? [el.tags.network] : [];
           cachedStations.push({ name, lat: el.lat, lng: el.lon, lines, id: el.id });
           const color = colorForStationDistance(dist);
           const m = L.marker([el.lat, el.lon], { icon: stationIcon(name, color, lines), interactive:false }).addTo(map);
@@ -1880,7 +1932,7 @@
 
       const stationIdToLines = new Map();
       routeRelations.forEach(rel=>{
-        const lineName = getLocalizedName(rel.tags) || (rel.tags && rel.tags.ref) || null;
+        const lineName = getLocalizedLineName(rel.tags) || (rel.tags && rel.tags.ref) || null;
         if(!lineName) return;
         (rel.members || []).forEach(mem=>{
           if(mem.type !== 'node') return;
@@ -2003,7 +2055,7 @@
             const name = getLocalizedName(el.tags);
             if(!name) return;
             const dist = origin.distanceTo([el.lat, el.lon]);
-            const lines = el.tags.network ? [el.tags.network] : [];
+            const lines = (currentLang === 'ja' && el.tags.network) ? [el.tags.network] : [];
             cachedStations.push({ name, lat: el.lat, lng: el.lon, lines, id: el.id });
             if(dist > STATION_RADIUS_XFAR) return; // 10km超は非表示
             const color = colorForStationDistance(dist);
