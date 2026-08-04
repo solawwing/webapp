@@ -507,6 +507,7 @@
   .infoThDist{ text-align:right; width:19%; }
   .infoThTime{ text-align:right; width:14%; }
   .infoThDir{ text-align:center; width:13%; }
+  body.lang-en .infoThName{ width:54%; }
   .infoTd{
     padding:8px 3px;
     white-space:nowrap;
@@ -981,7 +982,10 @@
     hasFetchedExtended = false;
     stationFetchAttempted = false;
     lastTickerKey = null;
-    if(tickerTrack) tickerTrack.innerHTML = `<span class="tickerEmpty">${t('tickerPreparing')}</span>`;
+    if(tickerTrack){
+      tickerTrack.innerHTML = `<span class="tickerEmpty">${t('tickerPreparing')}</span>`;
+      tickerTrack.style.animation = 'none';
+    }
     if(infoStationListEl) infoStationListEl.innerHTML = '';
     if(mapOverlay) mapOverlay.textContent = '';
     if(singleStationNameEl) singleStationNameEl.textContent = '--';
@@ -1525,8 +1529,8 @@
 
         // 電光表示エリア: 従来通り1行で全て繋げる
         addressText = baseAddress + ' ' + t('near') + (roadBuilding ? ' ' + roadBuilding : '');
-        // ウィンドウ(単一駅): 1行目「住所 付近」、2行目「道路 建物施設」の2行形式
-        singleAddressText = roadBuilding ? (baseAddress + ' ' + t('near') + '\n' + roadBuilding) : (baseAddress + ' ' + t('near'));
+        // ウィンドウ(単一駅): 1行目「住所 付近」、2行目「道路 建物施設」の2行形式(英語モードでは2行目を省略)
+        singleAddressText = (roadBuilding && currentLang === 'ja') ? (baseAddress + ' ' + t('near') + '\n' + roadBuilding) : (baseAddress + ' ' + t('near'));
       } else {
         addressText = t('addressUnknown');
         singleAddressText = t('addressUnknown');
@@ -1680,20 +1684,22 @@
         ? `<span class="dirArrow" style="transform:rotate(${displayBearing(bearing)}deg);"></span>`
         : '';
       const rowClass = s.dist <= 300 ? 'infoRowNear' : '';
+      const lineTd = currentLang === 'en' ? '' : `<td class="infoTd infoTdLine">${lineNameJoined || '‥'}</td>`;
       return `<tr class="${rowClass}">
         <td class="infoTd infoTdName">${s.name}<span class="stationSuffixSmall">${t('stationSuffix')}</span></td>
-        <td class="infoTd infoTdLine">${lineNameJoined || '‥'}</td>
+        ${lineTd}
         <td class="infoTd infoTdDist"><span class="infoDistWrap">${Math.round(s.dist).toLocaleString('ja-JP')}<span class="infoUnit">m</span></span></td>
         <td class="infoTd infoTdTime">${walkMin}<span class="infoUnit">${t('minUnit')}</span></td>
         <td class="infoTd infoTdDir ${dirClass}"><span class="dirWrap">${dirArrowHtml}<span class="dirText">${dirText}</span></span></td>
       </tr>`;
     }).join('');
 
+    const lineTh = currentLang === 'en' ? '' : `<th class="infoTh infoThLine">路線名</th>`;
     infoStationListEl.innerHTML = `<table class="infoStationTable">
       <thead>
         <tr>
           <th class="infoTh infoThName">${currentLang === 'en' ? 'Station' : '駅名'}</th>
-          <th class="infoTh infoThLine">${currentLang === 'en' ? 'Line' : '路線名'}</th>
+          ${lineTh}
           <th class="infoTh infoThDist">${currentLang === 'en' ? 'Dist.' : '距離'}</th>
           <th class="infoTh infoThTime">${t('walk')}</th>
           <th class="infoTh infoThDir">${t('direction')}</th>
