@@ -931,12 +931,27 @@
     playLangGimmick(fromLang);
     applyStaticLabels();
 
-    // 駅データ(駅名・路線名)は取得時の言語でキャッシュされているため、切り替え時は再取得する
+    // ウィンドウ(一覧・単一駅)が開いていれば閉じる
+    if(infoModalOverlay && infoModalOverlay.classList.contains('open')){
+      closeInfoModal();
+    }
+
+    // 駅データ(駅名・路線名)は取得時の言語でキャッシュされているため、切り替え時は再取得する。
+    // 表示中の一覧・電光掲示・単一駅欄も、古い言語のまま残らないよう一度クリアしてから始める
     cachedStations = [];
     lastStationCenter = null;
     hasFetchedLines = false;
     hasFetchedExtended = false;
     stationFetchAttempted = false;
+    lastTickerKey = null;
+    if(tickerTrack) tickerTrack.innerHTML = `<span class="tickerEmpty">${t('tickerPreparing')}</span>`;
+    if(infoStationListEl) infoStationListEl.innerHTML = '';
+    if(mapOverlay) mapOverlay.textContent = '';
+    if(singleStationNameEl) singleStationNameEl.textContent = '--';
+    if(singleStationLineEl) singleStationLineEl.textContent = '--';
+    if(singleStationDistEl) singleStationDistEl.innerHTML = '--<span class="singleUnit">m</span>';
+    if(singleStationTimeEl) singleStationTimeEl.innerHTML = '--<span class="singleUnit">' + t('minUnit') + '</span>';
+    if(singleStationDirWrapEl) singleStationDirWrapEl.innerHTML = '';
     try{ fetchStations(); }catch(e){ console.warn('fetchStations on language switch failed (non-critical):', e); }
 
     // 住所も同様に再取得する
