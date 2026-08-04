@@ -66,12 +66,28 @@
     user-select: none;
     -webkit-user-select: none;
   }
+  .speedDisplay {
+    position: fixed;
+    top: max(8px, env(safe-area-inset-top, 8px));
+    left: max(6px, env(safe-area-inset-left, 6px));
+    pointer-events: none;
+    font-family: 'BIZ UDPGothic', sans-serif;
+    font-size: 6pt;
+    letter-spacing: 0.06em;
+    color: #eafcff;
+    text-shadow:
+      0 0 4px rgba(255,255,255,0.85),
+      0 0 12px rgba(0,255,242,0.7);
+    user-select: none;
+    -webkit-user-select: none;
+  }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div class="title" id="title">ROLLING FREE WAY</div>
 <div class="clock" id="clock"></div>
+<div class="speedDisplay" id="speedDisplay">0</div>
 <script>
   setTimeout(function(){
     document.getElementById('title').classList.add('title-exit');
@@ -143,26 +159,49 @@
     lastToggleAt = performance.now();
   }
 
-  // ---- 速度切り替え：ダブルタップで通常速度⇔半分の速度を約2秒かけて切り替える ----
-  let speedModeTarget = 0.5; // 1=通常速度, 0.5=半分の速度（スタート時は遅い方）
-  let speedModeCur = 0.5;    // 実際の描画・移動に使う、なめらかに追従する値
-  function toggleSpeedMode(){
-    speedModeTarget = speedModeTarget === 1 ? 0.5 : 1;
+  // ---- 速度切り替え：画面上半分タップでスピードアップ（10段階）、下半分タップでスピードダウン（5段階） ----
+  const speedLevels = [];
+  for(let L = -5; L <= 10; L++) speedLevels.push(0.5 + L * (L > 0 ? 0.09 * 2 : 0.09));
+  let speedLevelIndex = 5; // 0（中央・スタート時の速度）
+  let speedModeTarget = speedLevels[speedLevelIndex];
+  let speedModeCur = speedLevels[speedLevelIndex];    // 実際の描画・移動に使う、なめらかに追従する値
+  function updateSpeedDisplay(){
+    const level = speedLevelIndex - 5;
+    const label = level > 0 ? ('+' + level) : String(level);
+    const el = document.getElementById('speedDisplay');
+    if(el) el.textContent = label;
   }
+  function speedUp(){
+    speedLevelIndex = Math.min(speedLevels.length - 1, speedLevelIndex + 1);
+    speedModeTarget = speedLevels[speedLevelIndex];
+    updateSpeedDisplay();
+  }
+  function speedDown(){
+    speedLevelIndex = Math.max(0, speedLevelIndex - 1);
+    speedModeTarget = speedLevels[speedLevelIndex];
+    updateSpeedDisplay();
+  }
+  updateSpeedDisplay();
 
   // ---- シングルタップとダブルタップを判定して振り分ける ----
   let lastTapAt = 0;
+  let lastTapY = 0;
   let singleTapTimer = null;
   const DOUBLE_TAP_MS = 300;
-  window.addEventListener('pointerdown', function(){
+  window.addEventListener('pointerdown', function(e){
     const now = performance.now();
+    const y = e && typeof e.clientY === 'number' ? e.clientY : lastTapY;
     if(now - lastTapAt < DOUBLE_TAP_MS){
       clearTimeout(singleTapTimer);
       lastTapAt = 0;
       toggleDayNight();
     } else {
       lastTapAt = now;
-      singleTapTimer = setTimeout(toggleSpeedMode, DOUBLE_TAP_MS);
+      lastTapY = y;
+      singleTapTimer = setTimeout(function(){
+        if(lastTapY < H / 2) speedUp();
+        else speedDown();
+      }, DOUBLE_TAP_MS);
     }
   });
 
