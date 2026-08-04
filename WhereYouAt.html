@@ -1189,9 +1189,13 @@
           a.neighbourhood || a.quarter || a.residential || a.hamlet,
           a.house_number
         ].filter(Boolean);
+        // amenityタグには「カフェ」「レストラン」等の店舗・飲食店も分類されるため(OSMではshopではなくamenityになることが多い)、
+        // Nominatimが返すその地点の分類(data.type)を見て、店舗・飲食店系なら建物名の候補から除外する
+        const SHOP_LIKE_TYPES = ['cafe','restaurant','fast_food','bar','pub','bakery','ice_cream','food_court','biergarten','nightclub'];
+        const isShopLikePOI = SHOP_LIKE_TYPES.includes(data.type);
         const roadBuildingParts = [
           a.road,
-          a.amenity || a.building || a.tourism || a.leisure || a.office || a.railway
+          (a.amenity && !isShopLikePOI) ? a.amenity : (a.building || a.tourism || a.leisure || a.office || a.railway)
         ].filter(Boolean);
 
         const baseAddress = baseParts.length > 0 ? baseParts.join(' ') : (data.display_name || '住所不明');
