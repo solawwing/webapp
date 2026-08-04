@@ -615,25 +615,42 @@
     position:fixed;
     top:50%; left:50%;
     transform:translate(-50%, -50%);
-    font-family: var(--mono);
-    font-size:34px;
-    font-weight:700;
-    color:#39FF14;
-    text-shadow:0 0 12px rgba(57,255,20,0.6);
-    letter-spacing:.15em;
+    text-align:center;
     opacity:0;
     pointer-events:none;
     z-index:9999;
     white-space:nowrap;
   }
   .langGimmick.playing{
-    animation: langGimmickAnim 2.5s ease-out forwards;
+    animation: langGimmickFade 2.5s ease-out forwards;
   }
-  @keyframes langGimmickAnim{
-    0%   { opacity:0; letter-spacing:.15em; }
-    8%   { opacity:1; letter-spacing:.15em; }
-    48%  { opacity:1; letter-spacing:.15em; }
-    100% { opacity:0; letter-spacing:.9em; }
+  @keyframes langGimmickFade{
+    0%   { opacity:0; }
+    8%   { opacity:1; }
+    48%  { opacity:1; }
+    100% { opacity:0; }
+  }
+  .langGimmickMain{
+    font-family: var(--mono);
+    font-size:34px;
+    font-weight:700;
+    color:#39FF14;
+    text-shadow:0 0 12px rgba(57,255,20,0.6);
+    letter-spacing:.15em;
+  }
+  .langGimmick.playing .langGimmickMain{
+    animation: langGimmickSpread 2.5s ease-out forwards;
+  }
+  @keyframes langGimmickSpread{
+    0%   { letter-spacing:.15em; }
+    48%  { letter-spacing:.15em; }
+    100% { letter-spacing:.9em; }
+  }
+  .langGimmickFace{
+    font-family: var(--mono);
+    font-size:16px;
+    color:#39FF14;
+    margin-top:10px;
   }
 </style>
 </head>
@@ -720,7 +737,10 @@
 
 </div>
 
-<div class="langGimmick" id="langGimmick"></div>
+<div class="langGimmick" id="langGimmick">
+  <div class="langGimmickMain" id="langGimmickMain"></div>
+  <div class="langGimmickFace">Ｕ(｡╹ ꒳ ╹｡)Ｕ</div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
@@ -896,11 +916,12 @@
   const recenterBtnEl = document.getElementById('recenterBtn');
   const mapModeBtnEl = document.getElementById('mapModeBtn');
   const langGimmickEl = document.getElementById('langGimmick');
+  const langGimmickMainEl = document.getElementById('langGimmickMain');
 
   // 言語切替演出: 切替前の言語(fromLang)に応じて挨拶を表示し、左右に広がりながらフェードアウトさせる
   function playLangGimmick(fromLang){
     if(!langGimmickEl) return;
-    langGimmickEl.textContent = (fromLang === 'ja') ? 'HELLO' : 'こんにちは';
+    if(langGimmickMainEl) langGimmickMainEl.textContent = (fromLang === 'ja') ? 'HELLO' : 'こんにちは';
     langGimmickEl.classList.remove('playing');
     void langGimmickEl.offsetWidth; // 強制リフローで再生を確実にリセットする
     langGimmickEl.classList.add('playing');
