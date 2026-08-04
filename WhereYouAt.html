@@ -137,10 +137,10 @@
     width:fit-content;
     margin:0 auto;
     text-shadow:
-      1px 0 0 #fff, -1px 0 0 #fff,
-      0 1px 0 #fff, 0 -1px 0 #fff,
-      1px 1px 0 #fff, -1px 1px 0 #fff,
-      1px -1px 0 #fff, -1px -1px 0 #fff;
+      1px 0 0 var(--label-color,#fff), -1px 0 0 var(--label-color,#fff),
+      0 1px 0 var(--label-color,#fff), 0 -1px 0 var(--label-color,#fff),
+      1px 1px 0 var(--label-color,#fff), -1px 1px 0 var(--label-color,#fff),
+      1px -1px 0 var(--label-color,#fff), -1px -1px 0 var(--label-color,#fff);
   }
   .station-label .lineName{
     font-family: var(--mono);
@@ -156,10 +156,10 @@
     width:fit-content;
     margin:0 auto;
     text-shadow:
-      1px 0 0 #fff, -1px 0 0 #fff,
-      0 1px 0 #fff, 0 -1px 0 #fff,
-      1px 1px 0 #fff, -1px 1px 0 #fff,
-      1px -1px 0 #fff, -1px -1px 0 #fff;
+      1px 0 0 var(--label-color,#fff), -1px 0 0 var(--label-color,#fff),
+      0 1px 0 var(--label-color,#fff), 0 -1px 0 var(--label-color,#fff),
+      1px 1px 0 var(--label-color,#fff), -1px 1px 0 var(--label-color,#fff),
+      1px -1px 0 var(--label-color,#fff), -1px -1px 0 var(--label-color,#fff);
   }
   .statusFoot{
     flex:0 0 auto;
@@ -305,6 +305,9 @@
   }
   .cell .clabel{ font-size:8px; letter-spacing:.15em; color:var(--ink-dim); text-transform:uppercase; margin-bottom:3px; }
   .cell .cval{ font-size:14px; color:var(--ink); font-variant-numeric: tabular-nums; }
+  body.lang-en .cell .cval{
+    text-align:right;
+  }
   .cell .cval .unit{ font-size:10px; color:var(--ink-dim); margin-left:2px; }
   .addressBox{
     display:flex;
@@ -820,7 +823,7 @@
       accuracy: 'Accuracy',
       altitude: 'Altitude',
       speed: 'Speed',
-      whereAmI: 'Where am I?',
+      whereAmI: 'Where?',
       acquiringInfo: 'Loading…',
       tickerPreparing: 'Preparing display…',
       tickerNoStations: 'No stations found within 2km',
@@ -829,7 +832,7 @@
       gyroOff: 'GYRO OFF',
       gyroOn: 'GYRO ON',
       nearestStation: 'Nearest Stations',
-      nearestTag: 'Nearest',
+      nearestTag: 'Prox:',
       walk: 'Walk',
       direction: 'Dir.',
       minUnit: 'min',
@@ -930,6 +933,7 @@
   // 言語切り替え時、静的なラベル・ボタン類の表示をまとめて更新する
   function applyStaticLabels(){
     document.title = t('pageTitle');
+    document.body.classList.toggle('lang-en', currentLang === 'en');
     if(labelAccuracyEl) labelAccuracyEl.textContent = t('accuracy');
     if(labelAltitudeEl) labelAltitudeEl.textContent = t('altitude');
     if(labelSpeedEl) labelSpeedEl.textContent = t('speed');
@@ -1441,11 +1445,11 @@
       ? lines.slice(0, 2).join(' / ') + (lines.length > 2 ? ' 他' : '')
       : '';
     const lineHtml = lineText
-      ? `<div class="lineName" style="color:${color};">${lineText}</div>`
+      ? `<div class="lineName" style="color:#fff; --label-color:${color};">${lineText}</div>`
       : '';
     return L.divIcon({
       className: 'station-label',
-      html: '<div class="pin" style="background:'+color+'"></div><div class="name" style="color:'+color+';">'+name+'</div>' + lineHtml,
+      html: '<div class="pin" style="background:'+color+'"></div><div class="name" style="color:#fff; --label-color:'+color+';">'+name+'</div>' + lineHtml,
       iconSize: [140, 48],
       iconAnchor: [70, 4]
     });
