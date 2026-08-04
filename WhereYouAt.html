@@ -669,6 +669,7 @@
   body.lang-en .singleStationSpeed,
   body.lang-en .singleStationDirText.infoDirSingle,
   body.lang-en .infoDirSingle,
+  body.lang-en .coordItem .value,
   body.lang-en .langGimmickMain{
     font-weight:400;
   }
@@ -970,8 +971,8 @@
   function switchLanguage(){
     const fromLang = currentLang;
     currentLang = (currentLang === 'ja') ? 'en' : 'ja';
-    playLangGimmick(fromLang);
     applyStaticLabels();
+    playLangGimmick(fromLang);
 
     // ウィンドウ(一覧・単一駅)が開いていれば閉じる
     if(infoModalOverlay && infoModalOverlay.classList.contains('open')){
