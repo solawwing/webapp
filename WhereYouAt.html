@@ -81,6 +81,7 @@
     text-shadow:0 0 4px currentColor;
   }
   .tickerItem .tName{ font-weight:400; font-size:14px; color:#FF0000; margin-right:6px; }
+  .stationSuffixSmall{ font-size:0.5em; vertical-align:bottom; }
   .tickerItem .tDist{ color:#22e5e5; font-size:14px; margin-left:6px; }
   .tickerItem .tDist .tUnit{ font-size:9px; }
   .tickerItem.near-blink{
@@ -656,7 +657,7 @@
   @keyframes langGimmickSpread{
     0%   { letter-spacing:.15em; }
     48%  { letter-spacing:.15em; }
-    100% { letter-spacing:.9em; }
+    100% { letter-spacing:1.8em; }
   }
   .langGimmickFace{
     font-family: var(--mono);
@@ -799,6 +800,7 @@
       addressFailed: '取得失敗',
       addressUnknown: '住所不明',
       stationCount: (n) => `駅 ${n}件`,
+      stationSuffix: '駅',
       dirs: ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'],
       fsWaitingPosition: '現在地の取得待ち…',
       fsBroadView: '広域表示のため停止中',
@@ -858,6 +860,7 @@
       addressFailed: 'Failed to load',
       addressUnknown: 'Unknown address',
       stationCount: (n) => `${n} stations`,
+      stationSuffix: ' Sta.',
       dirs: ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'],
       fsWaitingPosition: 'Waiting for GPS position…',
       fsBroadView: 'Stopped (map zoomed out)',
@@ -1659,7 +1662,7 @@
         ? `<span class="dirArrow" style="transform:rotate(${displayBearing(nearestBearing)}deg);"></span>`
         : '';
       if(infoSingleViewEl) infoSingleViewEl.classList.toggle('singleNear', nearest.dist <= 300);
-      if(singleStationNameEl) singleStationNameEl.textContent = nearest.name;
+      if(singleStationNameEl) singleStationNameEl.innerHTML = nearest.name + '<span class="stationSuffixSmall">' + t('stationSuffix') + '</span>';
       if(singleStationLineEl) singleStationLineEl.textContent = nearestLineNameJoined || '‥';
       if(singleStationDistEl) singleStationDistEl.innerHTML = Math.round(nearest.dist).toLocaleString('ja-JP') + '<span class="singleUnit">m</span>';
       if(singleStationTimeEl) singleStationTimeEl.innerHTML = nearestWalkMin + '<span class="singleUnit">' + t('minUnit') + '</span>';
@@ -1684,7 +1687,7 @@
         : '';
       const rowClass = s.dist <= 300 ? 'infoRowNear' : '';
       return `<tr class="${rowClass}">
-        <td class="infoTd infoTdName">${s.name}</td>
+        <td class="infoTd infoTdName">${s.name}<span class="stationSuffixSmall">${t('stationSuffix')}</span></td>
         <td class="infoTd infoTdLine">${lineNameJoined || '‥'}</td>
         <td class="infoTd infoTdDist"><span class="infoDistWrap">${Math.round(s.dist).toLocaleString('ja-JP')}<span class="infoUnit">m</span></span></td>
         <td class="infoTd infoTdTime">${walkMin}<span class="infoUnit">${t('minUnit')}</span></td>
@@ -1758,7 +1761,7 @@
       const blinkClass = s.dist <= 300 ? ' near-blink' : '';
       const distText = formatDistWalk(s.dist, walkMin);
       const num = '<span class="tSep">' + circledNumbers[idx % circledNumbers.length] + '</span>';
-      return `<span class="tickerItem${blinkClass}">${num}${nearestTag}<span class="tName">${s.name}</span>${lineText}<span class="tDist">${distText}</span></span>`;
+      return `<span class="tickerItem${blinkClass}">${num}${nearestTag}<span class="tName">${s.name}<span class="stationSuffixSmall">${t('stationSuffix')}</span></span>${lineText}<span class="tDist">${distText}</span></span>`;
     }).join('');
 
     // シームレスループのため2回連結
