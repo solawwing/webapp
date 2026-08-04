@@ -1655,7 +1655,7 @@
       if(singleStationDirWrapEl) singleStationDirWrapEl.innerHTML = '';
       return;
     }
-    const top3 = nearby.slice().sort((a,b)=> a.dist - b.dist).slice(0, 10);
+    const top3 = nearby.slice().sort((a,b)=> a.dist - b.dist).slice(0, 9);
 
     // 単一駅表示(一番近い駅)の更新
     const nearest = top3[0];
