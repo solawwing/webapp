@@ -644,7 +644,7 @@
   }
   .langGimmickMain{
     font-family: var(--mono);
-    font-size:34px;
+    font-size:32px;
     font-weight:700;
     color:#39FF14;
     text-shadow:0 0 12px rgba(57,255,20,0.6);
@@ -781,7 +781,7 @@
       gyroOff: 'ジャイロOFF',
       gyroOn: 'ジャイロON',
       nearestStation: '最寄り駅',
-      nearestTag: '最寄り駅',
+      nearestTag: '最寄り駅:',
       walk: '徒歩',
       direction: '方角',
       minUnit: '分',
@@ -799,7 +799,6 @@
       addressFailed: '取得失敗',
       addressUnknown: '住所不明',
       stationCount: (n) => `駅 ${n}件`,
-      stationSuffix: '駅',
       dirs: ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'],
       fsWaitingPosition: '現在地の取得待ち…',
       fsBroadView: '広域表示のため停止中',
@@ -841,7 +840,7 @@
       gyroOff: 'GYRO OFF',
       gyroOn: 'GYRO ON',
       nearestStation: 'Nearest Stations',
-      nearestTag: 'Prox:',
+      nearestTag: 'Prox.:',
       walk: 'Walk',
       direction: 'Dir.',
       minUnit: 'min',
@@ -859,7 +858,6 @@
       addressFailed: 'Failed to load',
       addressUnknown: 'Unknown address',
       stationCount: (n) => `${n} stations`,
-      stationSuffix: ' Sta.',
       dirs: ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'],
       fsWaitingPosition: 'Waiting for GPS position…',
       fsBroadView: 'Stopped (map zoomed out)',
@@ -1656,7 +1654,7 @@
         ? `<span class="dirArrow" style="transform:rotate(${displayBearing(nearestBearing)}deg);"></span>`
         : '';
       if(infoSingleViewEl) infoSingleViewEl.classList.toggle('singleNear', nearest.dist <= 300);
-      if(singleStationNameEl) singleStationNameEl.textContent = nearest.name + t('stationSuffix');
+      if(singleStationNameEl) singleStationNameEl.textContent = nearest.name;
       if(singleStationLineEl) singleStationLineEl.textContent = nearestLineNameJoined || '‥';
       if(singleStationDistEl) singleStationDistEl.innerHTML = Math.round(nearest.dist).toLocaleString('ja-JP') + '<span class="singleUnit">m</span>';
       if(singleStationTimeEl) singleStationTimeEl.innerHTML = nearestWalkMin + '<span class="singleUnit">' + t('minUnit') + '</span>';
@@ -1681,7 +1679,7 @@
         : '';
       const rowClass = s.dist <= 300 ? 'infoRowNear' : '';
       return `<tr class="${rowClass}">
-        <td class="infoTd infoTdName">${s.name}${t('stationSuffix')}</td>
+        <td class="infoTd infoTdName">${s.name}</td>
         <td class="infoTd infoTdLine">${lineNameJoined || '‥'}</td>
         <td class="infoTd infoTdDist"><span class="infoDistWrap">${Math.round(s.dist).toLocaleString('ja-JP')}<span class="infoUnit">m</span></span></td>
         <td class="infoTd infoTdTime">${walkMin}<span class="infoUnit">${t('minUnit')}</span></td>
@@ -1751,11 +1749,11 @@
       const lineNameJoined = formatLineName(s.lines);
       const lineText = lineNameJoined ? '<span class="tLine">' + lineNameJoined + '</span>' : '';
       const walkMin = Math.round(s.dist / 80); // 徒歩1分=80mとして換算(整数)
-      const nearestTag = idx === 0 ? `<span class="tNearest">(${t('nearestTag')})</span>` : '';
+      const nearestTag = idx === 0 ? `<span class="tNearest">${t('nearestTag')}</span>` : '';
       const blinkClass = s.dist <= 300 ? ' near-blink' : '';
       const distText = formatDistWalk(s.dist, walkMin);
       const num = '<span class="tSep">' + circledNumbers[idx % circledNumbers.length] + '</span>';
-      return `<span class="tickerItem${blinkClass}">${num}${nearestTag}<span class="tName">${s.name}${t('stationSuffix')}</span>${lineText}<span class="tDist">${distText}</span></span>`;
+      return `<span class="tickerItem${blinkClass}">${num}${nearestTag}<span class="tName">${s.name}</span>${lineText}<span class="tDist">${distText}</span></span>`;
     }).join('');
 
     // シームレスループのため2回連結
