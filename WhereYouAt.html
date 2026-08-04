@@ -628,15 +628,15 @@
         </div>
         <div class="grid">
           <div class="cell">
-            <div class="clabel">精度</div>
+            <div class="clabel" id="labelAccuracy">精度</div>
             <div class="cval" id="accVal">--<span class="unit">m</span></div>
           </div>
           <div class="cell">
-            <div class="clabel">高度</div>
+            <div class="clabel" id="labelAltitude">高度</div>
             <div class="cval" id="altVal">--<span class="unit">m</span></div>
           </div>
           <div class="cell">
-            <div class="clabel">速度</div>
+            <div class="clabel" id="labelSpeed">速度</div>
             <div class="cval" id="spdVal">--<span class="unit">km/h</span></div>
           </div>
         </div>
@@ -645,7 +645,7 @@
           <span class="value" id="lngVal">--.------°</span>
         </div>
         <div class="addressBox">
-          <span class="addressLabel">今どこ？</span>
+          <span class="addressLabel" id="labelWhereAmI">今どこ？</span>
           <span class="addressVal" id="addressVal">情報取得中‥</span>
         </div>
       </div>
@@ -656,7 +656,7 @@
 
   <div class="ticker">
     <div class="tickerTrack" id="tickerTrack">
-      <span class="tickerEmpty">電光掲示を準備中‥</span>
+      <span class="tickerEmpty" id="tickerInitialMsg">電光掲示を準備中‥</span>
     </div>
   </div>
 
@@ -668,7 +668,7 @@
     <div class="infoModalOverlay" id="infoModalOverlay">
       <div class="infoModal" id="infoModal">
         <div class="infoLine2">
-          <span>最寄り駅</span>
+          <span id="labelNearestStation">最寄り駅</span>
           <button class="gyroBtn" id="gyroBtn" type="button">ジャイロOFF</button>
         </div>
         <div class="infoTableView" id="infoTableView">
@@ -696,7 +696,229 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
+  // ============================================================
+  // 多言語対応(インバウンド向け英語モード)
+  // ============================================================
+  let currentLang = 'ja'; // 'ja' | 'en' — 地図エリア以外のダブルタップで切り替える
+
+  const I18N = {
+    ja: {
+      statusWaiting: '待機中',
+      statusReceiving: '受信中',
+      statusError: 'エラー',
+      statusAcquiring: '取得中…',
+      statusStopped: '停止中',
+      statusLowAccuracy: (m) => `精度低(除外 ${m}m)`,
+      accuracy: '精度',
+      altitude: '高度',
+      speed: '速度',
+      whereAmI: '今どこ？',
+      acquiringInfo: '情報取得中‥',
+      tickerPreparing: '電光掲示を準備中‥',
+      tickerNoStations: '周辺2km以内に駅が見つかりません',
+      noStationsNearby: '周辺に駅が見つかりません',
+      near: '付近',
+      gyroOff: 'ジャイロOFF',
+      gyroOn: 'ジャイロON',
+      nearestStation: '最寄り駅',
+      nearestTag: '最寄り駅',
+      walk: '徒歩',
+      direction: '方角',
+      minUnit: '分',
+      recenterLabel: '現在地に戻る',
+      mapModeAriaLabel: '最寄り駅一覧を表示',
+      mapModeLabel: '文字<br>表示',
+      orientationDenied: '方角センサーの利用が許可されませんでした。',
+      orientationFailed: '方角センサーを有効化できませんでした。',
+      geoNotSupported: 'このブラウザは位置情報に対応していません。',
+      pageTitle: '座標計測',
+      geoErrPermission: '位置情報の利用が許可されていません。設定から許可してください。',
+      geoErrPosition: '位置情報を取得できませんでした。電波状況を確認してください。',
+      geoErrTimeout: 'タイムアウトしました。再試行してください。',
+      geoErrUnknown: '不明なエラーが発生しました。',
+      addressFailed: '取得失敗',
+      addressUnknown: '住所不明',
+      stationCount: (n) => `駅 ${n}件`,
+      stationSuffix: '駅',
+      dirs: ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'],
+      fsWaitingPosition: '現在地の取得待ち…',
+      fsBroadView: '広域表示のため停止中',
+      fsFetchingBasic: '基本駅情報(1〜2km圏)を取得中…',
+      fsWaitingNoStation: '待機中だが駅未取得のため再試行…',
+      fsWaitingExtLines: (reason) => `待機中(移動量少)だが${reason}のため再試行…`,
+      fsExtLinesReflected: '取得完了(拡張・路線名を反映)',
+      fsWaitingThinned: '待機中(移動量が少ないため間引き)',
+      fsServerSwitch: (i, total) => `基本駅情報を取得中…(サーバー切替 ${i}/${total})`,
+      fsBasicToExtended: '基本取得完了 → 拡張情報を準備中…',
+      fsFetchingExtended: '拡張駅情報(2〜10km圏)を取得中…',
+      fsFetchingLines: '路線名を取得中…',
+      fsAllDone: '取得完了(全ての情報を反映済み)',
+      fsExtLinesPartialFail: '拡張・路線名の取得は一部失敗(基本の駅名は表示済み)',
+      fsBasicDone: '取得完了(基本情報を反映済み)',
+      fsFailedRetry: (reason, sec, count) => `取得失敗(${reason}) ${sec}秒後に再試行(${count}回目)`,
+      fsUnexpectedError: (sec, count) => `予期しないエラー ${sec}秒後に再試行(${count}回目)`,
+      reasonExtNotFetched: '2〜10km圏未取得',
+      reasonLinesNotFetched: '路線名未取得',
+      reasonTimeout: 'タイムアウト',
+      reasonUnknown: '不明',
+    },
+    en: {
+      statusWaiting: 'Waiting',
+      statusReceiving: 'Receiving',
+      statusError: 'Error',
+      statusAcquiring: 'Acquiring…',
+      statusStopped: 'Stopped',
+      statusLowAccuracy: (m) => `Low accuracy (skipped ${m}m)`,
+      accuracy: 'Accuracy',
+      altitude: 'Altitude',
+      speed: 'Speed',
+      whereAmI: 'Where am I?',
+      acquiringInfo: 'Loading…',
+      tickerPreparing: 'Preparing display…',
+      tickerNoStations: 'No stations found within 2km',
+      noStationsNearby: 'No stations found nearby',
+      near: 'near',
+      gyroOff: 'GYRO OFF',
+      gyroOn: 'GYRO ON',
+      nearestStation: 'Nearest Stations',
+      nearestTag: 'Nearest',
+      walk: 'Walk',
+      direction: 'Dir.',
+      minUnit: 'min',
+      recenterLabel: 'Return to current location',
+      mapModeAriaLabel: 'Show nearest station list',
+      mapModeLabel: 'List<br>View',
+      orientationDenied: 'Permission to use the orientation sensor was denied.',
+      orientationFailed: 'Could not enable the orientation sensor.',
+      geoNotSupported: 'This browser does not support geolocation.',
+      pageTitle: 'Coordinate Tracker',
+      geoErrPermission: 'Location access was not granted. Please allow it in your settings.',
+      geoErrPosition: 'Could not get your location. Please check your signal.',
+      geoErrTimeout: 'Request timed out. Please try again.',
+      geoErrUnknown: 'An unknown error occurred.',
+      addressFailed: 'Failed to load',
+      addressUnknown: 'Unknown address',
+      stationCount: (n) => `${n} stations`,
+      stationSuffix: ' Sta.',
+      dirs: ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'],
+      fsWaitingPosition: 'Waiting for GPS position…',
+      fsBroadView: 'Stopped (map zoomed out)',
+      fsFetchingBasic: 'Fetching nearby stations (1-2km)…',
+      fsWaitingNoStation: 'Waiting, retrying (no stations yet)…',
+      fsWaitingExtLines: (reason) => `Waiting (moved little), retrying — ${reason}…`,
+      fsExtLinesReflected: 'Done (extended range & lines updated)',
+      fsWaitingThinned: 'Waiting (moved very little)',
+      fsServerSwitch: (i, total) => `Fetching stations… (switching server ${i}/${total})`,
+      fsBasicToExtended: 'Basic fetch done → preparing extended range…',
+      fsFetchingExtended: 'Fetching extended stations (2-10km)…',
+      fsFetchingLines: 'Fetching line names…',
+      fsAllDone: 'Done (all data reflected)',
+      fsExtLinesPartialFail: 'Extended/line fetch partly failed (basic names shown)',
+      fsBasicDone: 'Done (basic data reflected)',
+      fsFailedRetry: (reason, sec, count) => `Failed (${reason}), retrying in ${sec}s (attempt ${count})`,
+      fsUnexpectedError: (sec, count) => `Unexpected error, retrying in ${sec}s (attempt ${count})`,
+      reasonExtNotFetched: 'extended range not fetched',
+      reasonLinesNotFetched: 'line names not fetched',
+      reasonTimeout: 'timeout',
+      reasonUnknown: 'unknown',
+    }
+  };
+
+  function t(key, ...args){
+    const entry = I18N[currentLang][key];
+    if(typeof entry === 'function') return entry(...args);
+    return entry !== undefined ? entry : key;
+  }
+
+  // OSMのタグから、現在の言語に応じた名称を取得する(英語名が無い駅もあるため、日本語名にフォールバックする)
+  function getLocalizedName(tags){
+    if(!tags) return null;
+    if(currentLang === 'en'){
+      return tags['name:en'] || tags['name:ja'] || tags.name || null;
+    }
+    return tags['name:ja'] || tags.name || null;
+  }
+
+  // 電光掲示板用の「距離+徒歩時間」表記(言語によって語順・単語が異なるため専用関数にする)
+  function formatDistWalk(dist, walkMin){
+    if(currentLang === 'en'){
+      return `${Math.round(dist)}<span class="tUnit">m (</span>${walkMin}<span class="tUnit">min walk)</span>`;
+    }
+    return `${Math.round(dist)}<span class="tUnit">m(徒歩</span>${walkMin}<span class="tUnit">分)</span>`;
+  }
+
   const dot = document.getElementById('dot');
+  const titleTextEl = document.getElementById('titleText');
+  const labelAccuracyEl = document.getElementById('labelAccuracy');
+  const labelAltitudeEl = document.getElementById('labelAltitude');
+  const labelSpeedEl = document.getElementById('labelSpeed');
+  const labelWhereAmIEl = document.getElementById('labelWhereAmI');
+  const labelNearestStationEl = document.getElementById('labelNearestStation');
+  const tickerInitialMsgEl = document.getElementById('tickerInitialMsg');
+  const recenterBtnEl = document.getElementById('recenterBtn');
+  const mapModeBtnEl = document.getElementById('mapModeBtn');
+
+  // 言語切り替え時、静的なラベル・ボタン類の表示をまとめて更新する
+  function applyStaticLabels(){
+    document.title = t('pageTitle');
+    if(labelAccuracyEl) labelAccuracyEl.textContent = t('accuracy');
+    if(labelAltitudeEl) labelAltitudeEl.textContent = t('altitude');
+    if(labelSpeedEl) labelSpeedEl.textContent = t('speed');
+    if(labelWhereAmIEl) labelWhereAmIEl.textContent = t('whereAmI');
+    if(labelNearestStationEl) labelNearestStationEl.textContent = t('nearestStation');
+    if(tickerInitialMsgEl) tickerInitialMsgEl.textContent = t('tickerPreparing');
+    if(recenterBtnEl) recenterBtnEl.setAttribute('aria-label', t('recenterLabel'));
+    if(mapModeBtnEl){
+      mapModeBtnEl.setAttribute('aria-label', t('mapModeAriaLabel'));
+      mapModeBtnEl.innerHTML = t('mapModeLabel');
+    }
+    if(gyroBtn) gyroBtn.textContent = gyroListenerAttached ? t('gyroOn') : t('gyroOff');
+    if(typeof fetchStatusLabel !== 'undefined' && fetchStatusLabel) fetchStatusLabel.textContent = t('statusWaiting');
+  }
+
+  // 言語切り替え本体: 静的ラベルを即座に更新し、駅データ・住所は言語が異なるため再取得する
+  function switchLanguage(){
+    currentLang = (currentLang === 'ja') ? 'en' : 'ja';
+    applyStaticLabels();
+
+    // 駅データ(駅名・路線名)は取得時の言語でキャッシュされているため、切り替え時は再取得する
+    cachedStations = [];
+    lastStationCenter = null;
+    hasFetchedLines = false;
+    hasFetchedExtended = false;
+    stationFetchAttempted = false;
+    try{ fetchStations(); }catch(e){ console.warn('fetchStations on language switch failed (non-critical):', e); }
+
+    // 住所も同様に再取得する
+    lastAddressCenter = null;
+    if(addressVal) addressVal.textContent = t('acquiringInfo');
+    if(singleStationAddressEl) singleStationAddressEl.textContent = t('acquiringInfo');
+    if(marker){
+      const p = marker.getLatLng();
+      try{ fetchAddress(p.lat, p.lng); }catch(e){ console.warn('fetchAddress on language switch failed (non-critical):', e); }
+    }
+  }
+
+  // 地図エリア以外でのダブルタップで言語を切り替える
+  (function setupLanguageDoubleTap(){
+    let lastTapTime = 0;
+    const DOUBLE_TAP_MS = 400;
+    document.addEventListener('touchend', (e)=>{
+      if(e.target.closest('#map') || e.target.closest('.mapPane')) return; // 地図エリアは対象外
+      const now = Date.now();
+      if(now - lastTapTime < DOUBLE_TAP_MS){
+        switchLanguage();
+        lastTapTime = 0;
+      } else {
+        lastTapTime = now;
+      }
+    });
+    // PC等タッチ非対応環境向けに、ダブルクリックでも同様に切り替えられるようにする
+    document.addEventListener('dblclick', (e)=>{
+      if(e.target.closest('#map') || e.target.closest('.mapPane')) return;
+      switchLanguage();
+    });
+  })();
 
   // --- タイトルの波打ちアニメーション: 文字ごとにspan分割し、たまにランダムな間隔で波打たせる ---
   (function setupTitleWave(){
@@ -1021,7 +1243,7 @@
         gyroListenerAttached = false;
         deviceHeading = null;
         gyroBtn.classList.remove('enabled');
-        gyroBtn.textContent = 'ジャイロOFF';
+        gyroBtn.textContent = t('gyroOff');
         if(infoModal) infoModal.classList.remove('gyroActive');
         try{ updateInfoModal(); }catch(e){ console.warn('updateInfoModal failed (non-critical):', e); }
         return;
@@ -1033,7 +1255,7 @@
           // iOS: 明示的な許可が必要
           const result = await DeviceOrientationEvent.requestPermission();
           if(result !== 'granted'){
-            msg.textContent = '方角センサーの利用が許可されませんでした。';
+            msg.textContent = t('orientationDenied');
             return;
           }
         }
@@ -1042,11 +1264,11 @@
         gyroListenerAttached = true;
         compassPermissionGranted = true;
         gyroBtn.classList.add('enabled');
-        gyroBtn.textContent = 'ジャイロON';
+        gyroBtn.textContent = t('gyroOn');
         if(infoModal) infoModal.classList.add('gyroActive');
       }catch(e){
         console.warn('compass permission failed:', e);
-        msg.textContent = '方角センサーを有効化できませんでした。';
+        msg.textContent = t('orientationFailed');
       }
     });
   }
@@ -1170,7 +1392,7 @@
 
   async function fetchAddress(lat, lng){
     try{
-      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&accept-language=ja`;
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&accept-language=${currentLang}`;
       const res = await fetchWithTimeout(url, 12000);
       if(!res.ok) return;
       const data = await res.json();
@@ -1198,23 +1420,23 @@
           (a.amenity && !isShopLikePOI) ? a.amenity : (a.building || a.tourism || a.leisure)
         ].filter(Boolean);
 
-        const baseAddress = baseParts.length > 0 ? baseParts.join(' ') : (data.display_name || '住所不明');
+        const baseAddress = baseParts.length > 0 ? baseParts.join(' ') : (data.display_name || t('addressUnknown'));
         const roadBuilding = roadBuildingParts.join(' ');
 
         // 電光表示エリア: 従来通り1行で全て繋げる
-        addressText = baseAddress + ' 付近' + (roadBuilding ? ' ' + roadBuilding : '');
+        addressText = baseAddress + ' ' + t('near') + (roadBuilding ? ' ' + roadBuilding : '');
         // ウィンドウ(単一駅): 1行目「住所 付近」、2行目「道路 建物施設」の2行形式
-        singleAddressText = roadBuilding ? (baseAddress + ' 付近\n' + roadBuilding) : (baseAddress + ' 付近');
+        singleAddressText = roadBuilding ? (baseAddress + ' ' + t('near') + '\n' + roadBuilding) : (baseAddress + ' ' + t('near'));
       } else {
-        addressText = '住所不明';
-        singleAddressText = '住所不明';
+        addressText = t('addressUnknown');
+        singleAddressText = t('addressUnknown');
       }
       addressVal.textContent = addressText;
       if(singleStationAddressEl) singleStationAddressEl.textContent = singleAddressText;
     }catch(e){
       console.warn('fetchAddress (Nominatim fallback) failed:', e);
-      addressVal.textContent = '取得失敗';
-      if(singleStationAddressEl) singleStationAddressEl.textContent = '取得失敗';
+      addressVal.textContent = t('addressFailed');
+      if(singleStationAddressEl) singleStationAddressEl.textContent = t('addressFailed');
     }
   }
 
@@ -1276,7 +1498,7 @@
     return (brng + 360) % 360;
   }
   function bearingToDirection(bearing){
-    const dirs = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
+    const dirs = t('dirs');
     return dirs[Math.round(bearing / 22.5) % 16];
   }
 
@@ -1306,12 +1528,12 @@
       .map(s => ({ name: s.name, dist: origin.distanceTo([s.lat, s.lng]), lines: s.lines, lat: s.lat, lng: s.lng }));
 
     if(!nearby || nearby.length === 0){
-      infoStationListEl.innerHTML = '<div style="color:var(--ink-dim); font-size:13px;">周辺に駅が見つかりません</div>';
+      infoStationListEl.innerHTML = `<div style="color:var(--ink-dim); font-size:13px;">${t('noStationsNearby')}</div>`;
       if(infoSingleViewEl) infoSingleViewEl.classList.remove('singleNear');
       if(singleStationNameEl) singleStationNameEl.textContent = '‥';
       if(singleStationLineEl) singleStationLineEl.textContent = '‥';
       if(singleStationDistEl) singleStationDistEl.innerHTML = '‥<span class="singleUnit">m</span>';
-      if(singleStationTimeEl) singleStationTimeEl.innerHTML = '‥<span class="singleUnit">分</span>';
+      if(singleStationTimeEl) singleStationTimeEl.innerHTML = '‥<span class="singleUnit">' + t('minUnit') + '</span>';
       if(singleStationSpeedEl) singleStationSpeedEl.innerHTML = (currentSpeedKmh != null ? currentSpeedKmh.toFixed(1) : '‥') + '<span class="singleUnit">km/h</span>';
       if(singleStationDirWrapEl) singleStationDirWrapEl.innerHTML = '';
       return;
@@ -1334,10 +1556,10 @@
         ? `<span class="dirArrow" style="transform:rotate(${displayBearing(nearestBearing)}deg);"></span>`
         : '';
       if(infoSingleViewEl) infoSingleViewEl.classList.toggle('singleNear', nearest.dist <= 300);
-      if(singleStationNameEl) singleStationNameEl.textContent = nearest.name + '駅';
+      if(singleStationNameEl) singleStationNameEl.textContent = nearest.name + t('stationSuffix');
       if(singleStationLineEl) singleStationLineEl.textContent = nearestLineNameJoined || '‥';
       if(singleStationDistEl) singleStationDistEl.innerHTML = Math.round(nearest.dist).toLocaleString('ja-JP') + '<span class="singleUnit">m</span>';
-      if(singleStationTimeEl) singleStationTimeEl.innerHTML = nearestWalkMin + '<span class="singleUnit">分</span>';
+      if(singleStationTimeEl) singleStationTimeEl.innerHTML = nearestWalkMin + '<span class="singleUnit">' + t('minUnit') + '</span>';
       if(singleStationSpeedEl) singleStationSpeedEl.innerHTML = (currentSpeedKmh != null ? currentSpeedKmh.toFixed(1) : '‥') + '<span class="singleUnit">km/h</span>';
       if(singleStationDirWrapEl){
         singleStationDirWrapEl.innerHTML = `${nearestDirArrowHtml}<span class="singleStationDirText ${nearestDirClass}">${nearestDirText}</span>`;
@@ -1359,10 +1581,10 @@
         : '';
       const rowClass = s.dist <= 300 ? 'infoRowNear' : '';
       return `<tr class="${rowClass}">
-        <td class="infoTd infoTdName">${s.name}駅</td>
+        <td class="infoTd infoTdName">${s.name}${t('stationSuffix')}</td>
         <td class="infoTd infoTdLine">${lineNameJoined || '‥'}</td>
         <td class="infoTd infoTdDist"><span class="infoDistWrap">${Math.round(s.dist).toLocaleString('ja-JP')}<span class="infoUnit">m</span></span></td>
-        <td class="infoTd infoTdTime">${walkMin}<span class="infoUnit">分</span></td>
+        <td class="infoTd infoTdTime">${walkMin}<span class="infoUnit">${t('minUnit')}</span></td>
         <td class="infoTd infoTdDir ${dirClass}"><span class="dirWrap">${dirArrowHtml}<span class="dirText">${dirText}</span></span></td>
       </tr>`;
     }).join('');
@@ -1370,11 +1592,11 @@
     infoStationListEl.innerHTML = `<table class="infoStationTable">
       <thead>
         <tr>
-          <th class="infoTh infoThName">駅名</th>
-          <th class="infoTh infoThLine">路線名</th>
-          <th class="infoTh infoThDist">距離</th>
-          <th class="infoTh infoThTime">徒歩</th>
-          <th class="infoTh infoThDir">方角</th>
+          <th class="infoTh infoThName">${currentLang === 'en' ? 'Station' : '駅名'}</th>
+          <th class="infoTh infoThLine">${currentLang === 'en' ? 'Line' : '路線名'}</th>
+          <th class="infoTh infoThDist">${currentLang === 'en' ? 'Dist.' : '距離'}</th>
+          <th class="infoTh infoThTime">${t('walk')}</th>
+          <th class="infoTh infoThDir">${t('direction')}</th>
         </tr>
       </thead>
       <tbody>${rowsHtml}</tbody>
@@ -1384,7 +1606,7 @@
   function updateTicker(nearby){
     if(!nearby || nearby.length === 0){
       lastTickerKey = null;
-      tickerTrack.innerHTML = '<span class="tickerEmpty">周辺2km以内に駅が見つかりません</span>';
+      tickerTrack.innerHTML = `<span class="tickerEmpty">${t('tickerNoStations')}</span>`;
       tickerTrack.style.animation = 'none';
       return;
     }
@@ -1399,7 +1621,7 @@
       distEls.forEach((el, i)=>{
         const s = top3[i % total];
         const walkMin = Math.round(s.dist / 80);
-        el.innerHTML = `${Math.round(s.dist)}<span class="tUnit">m(徒歩</span>${walkMin}<span class="tUnit">分)</span>`;
+        el.innerHTML = formatDistWalk(s.dist, walkMin);
       });
       itemEls.forEach((el, i)=>{
         const s = top3[i % total];
@@ -1429,11 +1651,11 @@
       const lineNameJoined = formatLineName(s.lines);
       const lineText = lineNameJoined ? '<span class="tLine">' + lineNameJoined + '</span>' : '';
       const walkMin = Math.round(s.dist / 80); // 徒歩1分=80mとして換算(整数)
-      const nearestTag = idx === 0 ? '<span class="tNearest">(最寄り駅)</span>' : '';
+      const nearestTag = idx === 0 ? `<span class="tNearest">(${t('nearestTag')})</span>` : '';
       const blinkClass = s.dist <= 300 ? ' near-blink' : '';
-      const distText = `${Math.round(s.dist)}<span class="tUnit">m(徒歩</span>${walkMin}<span class="tUnit">分)</span>`;
+      const distText = formatDistWalk(s.dist, walkMin);
       const num = '<span class="tSep">' + circledNumbers[idx % circledNumbers.length] + '</span>';
-      return `<span class="tickerItem${blinkClass}">${num}${nearestTag}<span class="tName">${s.name}駅</span>${lineText}<span class="tDist">${distText}</span></span>`;
+      return `<span class="tickerItem${blinkClass}">${num}${nearestTag}<span class="tName">${s.name}${t('stationSuffix')}</span>${lineText}<span class="tDist">${distText}</span></span>`;
     }).join('');
 
     // シームレスループのため2回連結
@@ -1609,7 +1831,7 @@
         let addedCount = 0;
         stationNodes.forEach(el=>{
           if(existingIds.has(el.id)) return; // 既に基本取得(2km圏)で描画済み
-          const name = (el.tags && (el.tags['name:ja'] || el.tags.name)) || null;
+          const name = getLocalizedName(el.tags);
           if(!name) return;
           const dist = origin.distanceTo([el.lat, el.lon]);
           if(dist > STATION_RADIUS_XFAR) return; // 念のための保険(サーバー側で既に絞り込み済み)
@@ -1621,7 +1843,7 @@
           addedCount++;
         });
         if(addedCount > 0){
-          mapOverlay.textContent = '駅 ' + cachedStations.length + '件';
+          mapOverlay.textContent = t('stationCount', cachedStations.length);
           try{ refreshTickerDistances(); }catch(e){ console.warn('refreshTickerDistances failed (non-critical):', e); }
         }
         hasFetchedExtended = true; // 拡張取得(2〜10km圏)に成功
@@ -1661,7 +1883,7 @@
 
       const stationIdToLines = new Map();
       routeRelations.forEach(rel=>{
-        const lineName = (rel.tags && (rel.tags['name:ja'] || rel.tags.name)) || (rel.tags && rel.tags.ref) || null;
+        const lineName = getLocalizedName(rel.tags) || (rel.tags && rel.tags.ref) || null;
         if(!lineName) return;
         (rel.members || []).forEach(mem=>{
           if(mem.type !== 'node') return;
@@ -1718,13 +1940,13 @@
     isFetchingStations = true;
     stationFetchAttempted = true;
     try{
-      if(!marker){ setFetchStatus('現在地の取得待ち…'); return; }
-      if(map.getZoom() < 13){ mapOverlay.textContent = 'MAP VIEW'; setFetchStatus('広域表示のため停止中'); return; }
+      if(!marker){ setFetchStatus(t('fsWaitingPosition')); return; }
+      if(map.getZoom() < 13){ mapOverlay.textContent = 'MAP VIEW'; setFetchStatus(t('fsBroadView')); return; }
 
       const origin = marker.getLatLng(); // 現在地(GPS)中心
 
       // 定期実行・地図移動など、fetchStationsが呼ばれたことが分かるよう一旦「取得中」を表示する
-      setFetchStatus('基本駅情報(1〜2km圏)を取得中…');
+      setFetchStatus(t('fsFetchingBasic'));
 
       // 速度が速い(20km/h以上)、または速度が取得できていない場合は間引き距離を広めに(200m)、
       // それ以外(低速で移動中)は細かく再取得できるよう狭めに(100m)する
@@ -1732,18 +1954,18 @@
       if(lastStationCenter && lastStationCenter.distanceTo(origin) < stationSkipDistance){
         if(cachedStations.length === 0){
           // 駅データが1件も無いなら、間引きせず通常通り取得を続行する
-          setFetchStatus('待機中だが駅未取得のため再試行…');
+          setFetchStatus(t('fsWaitingNoStation'));
         } else if(!hasFetchedExtended || !hasFetchedLines){
           // 駅(基本)はあるが、拡張(2〜10km圏)または路線名がまだ反映されていない場合、
           // 基本取得はやり直さず(せっかく取得済みのデータが失われないよう)拡張・路線名取得だけ再試行する
-          const reason = !hasFetchedExtended ? '2〜10km圏未取得' : '路線名未取得';
-          setFetchStatus(`待機中(移動量少)だが${reason}のため再試行…`);
+          const reason = !hasFetchedExtended ? t('reasonExtNotFetched') : t('reasonLinesNotFetched');
+          setFetchStatus(t('fsWaitingExtLines', reason));
           if(!isFetchingExtended){
             isFetchingExtended = true;
             fetchExtendedStations(origin).then(()=>{
               return fetchStationLines(origin);
             }).then(()=>{
-              setFetchStatus('取得完了(拡張・路線名を反映)');
+              setFetchStatus(t('fsExtLinesReflected'));
             }).catch(e=>{
               console.warn('retry fetchExtendedStations/fetchStationLines failed (non-critical):', e);
             }).finally(()=>{
@@ -1752,7 +1974,7 @@
           }
           return;
         } else {
-          setFetchStatus('待機中(移動量が少ないため間引き)');
+          setFetchStatus(t('fsWaitingThinned'));
           return; // 駅・拡張・路線名とも揃っているので、現在地がほぼ動いていなければAPI再取得は間引く
         }
       }
@@ -1766,7 +1988,7 @@
       for(let i = 0; i < endpoints.length; i++){
         const endpoint = endpoints[i];
         try{
-          if(i > 0) setFetchStatus(`基本駅情報を取得中…(サーバー切替 ${i+1}/${endpoints.length})`);
+          if(i > 0) setFetchStatus(t('fsServerSwitch', i+1, endpoints.length));
           // クライアント側の待機時間は、クエリ内のサーバー側timeout(10秒)より必ず長くする
           const res = await fetchWithTimeout(endpoint + '?data=' + encodeURIComponent(stationQuery), 14000);
           if(!res.ok) throw new Error('HTTP ' + res.status);
@@ -1781,7 +2003,7 @@
           hasFetchedLines = false; // 駅データを作り直したので、路線名も改めて未取得の状態に戻す
           hasFetchedExtended = false; // 拡張取得(2〜10km圏)も改めて未取得の状態に戻す
           stationNodes.forEach(el=>{
-            const name = (el.tags && (el.tags['name:ja'] || el.tags.name)) || null;
+            const name = getLocalizedName(el.tags);
             if(!name) return;
             const dist = origin.distanceTo([el.lat, el.lon]);
             const lines = el.tags.network ? [el.tags.network] : [];
@@ -1793,8 +2015,8 @@
             nearby.push({ name, dist, lines, lat: el.lat, lng: el.lon });
             count++;
           });
-          mapOverlay.textContent = count > 0 ? ('駅 ' + count + '件') : 'MAP VIEW';
-          setFetchStatus('基本取得完了 → 拡張情報を準備中…');
+          mapOverlay.textContent = count > 0 ? t('stationCount', count) : 'MAP VIEW';
+          setFetchStatus(t('fsBasicToExtended'));
           updateMapModeBtnVisibility();
           try{ updateTicker(nearby); }catch(tickerErr){ console.warn('updateTicker failed (non-critical):', tickerErr); }
           try{ updateInfoModal(); }catch(modalErr){ console.warn('updateInfoModal failed (non-critical):', modalErr); }
@@ -1826,19 +2048,19 @@
           //  厳しく制限されているため、既に実行中なら重複させない)
           if(!isFetchingExtended){
             isFetchingExtended = true;
-            setFetchStatus('拡張駅情報(2〜10km圏)を取得中…');
+            setFetchStatus(t('fsFetchingExtended'));
             fetchExtendedStations(origin).then(()=>{
-              setFetchStatus('路線名を取得中…');
+              setFetchStatus(t('fsFetchingLines'));
               return fetchStationLines(origin);
             }).then(()=>{
-              setFetchStatus('取得完了(全ての情報を反映済み)');
+              setFetchStatus(t('fsAllDone'));
             }).catch(()=>{
-              setFetchStatus('拡張・路線名の取得は一部失敗(基本の駅名は表示済み)');
+              setFetchStatus(t('fsExtLinesPartialFail'));
             }).finally(()=>{
               isFetchingExtended = false;
             });
           } else {
-            setFetchStatus('取得完了(基本情報を反映済み)');
+            setFetchStatus(t('fsBasicDone'));
           }
           break;
         }catch(e){
@@ -1848,9 +2070,9 @@
       }
       if(!succeeded){
         stationFailCount++;
-        const reason = lastError ? (lastError.name === 'AbortError' ? 'タイムアウト' : lastError.message) : '不明';
+        const reason = lastError ? (lastError.name === 'AbortError' ? t('reasonTimeout') : lastError.message) : t('reasonUnknown');
         const backoff = Math.min(30000, 3000 * Math.pow(2, stationFailCount - 1));
-        setFetchStatus(`取得失敗(${reason}) ${Math.round(backoff/1000)}秒後に再試行(${stationFailCount}回目)`);
+        setFetchStatus(t('fsFailedRetry', reason, Math.round(backoff/1000), stationFailCount));
         clearTimeout(stationRetryTimer);
         // 連続失敗するほど間隔を伸ばす(3秒→6秒→12秒...最大30秒): 過度な連打によるレート制限を避ける
         stationRetryTimer = setTimeout(fetchStations, backoff);
@@ -1859,7 +2081,7 @@
       console.error('fetchStations error:', e);
       stationFailCount++;
       const backoff = Math.min(30000, 3000 * Math.pow(2, stationFailCount - 1));
-      setFetchStatus(`予期しないエラー ${Math.round(backoff/1000)}秒後に再試行(${stationFailCount}回目)`);
+      setFetchStatus(t('fsUnexpectedError', Math.round(backoff/1000), stationFailCount));
       clearTimeout(stationRetryTimer);
       stationRetryTimer = setTimeout(fetchStations, backoff);
     }finally{
@@ -1885,14 +2107,14 @@
     if(c.accuracy != null && c.accuracy > MAX_ACCEPT_ACCURACY && rejectStreak < FORCE_ACCEPT_AFTER){
       rejectStreak++;
       dot.className = 'dot low';
-      statusText.textContent = '精度低(除外 ' + Math.round(c.accuracy) + 'm)';
+      statusText.textContent = t('statusLowAccuracy', Math.round(c.accuracy));
       accVal.innerHTML = Math.round(c.accuracy) + '<span class="unit">m</span>';
       return;
     }
     rejectStreak = 0;
 
     dot.className = 'dot live';
-    statusText.textContent = '受信中';
+    statusText.textContent = t('statusReceiving');
     msg.textContent = '';
 
     const smoothed = smoothedPosition(c.latitude, c.longitude, c.accuracy || 30);
@@ -1900,9 +2122,9 @@
     latVal.textContent = fmtCoord(smoothed.lat);
     lngVal.textContent = fmtCoord(smoothed.lng);
     latHemi.textContent = smoothed.lat >= 0 ? 'N' : 'S';
-    latHemiJa.textContent = smoothed.lat >= 0 ? '北緯' : '南緯';
+    latHemiJa.textContent = currentLang === 'en' ? '' : (smoothed.lat >= 0 ? '北緯' : '南緯');
     lngHemi.textContent = smoothed.lng >= 0 ? 'E' : 'W';
-    lngHemiJa.textContent = smoothed.lng >= 0 ? '東経' : '西経';
+    lngHemiJa.textContent = currentLang === 'en' ? '' : (smoothed.lng >= 0 ? '東経' : '西経');
 
     accVal.innerHTML = (c.accuracy != null ? Math.round(c.accuracy) : '--') + '<span class="unit">m</span>';
     altVal.innerHTML = (c.altitude != null ? Math.round(c.altitude) : '--') + '<span class="unit">m</span>';
@@ -1925,25 +2147,25 @@
 
   function onError(err){
     dot.className = 'dot err';
-    statusText.textContent = 'エラー';
+    statusText.textContent = t('statusError');
     const messages = {
-      1: '位置情報の利用が許可されていません。設定から許可してください。',
-      2: '位置情報を取得できませんでした。電波状況を確認してください。',
-      3: 'タイムアウトしました。再試行してください。'
+      1: t('geoErrPermission'),
+      2: t('geoErrPosition'),
+      3: t('geoErrTimeout')
     };
-    msg.textContent = messages[err.code] || '不明なエラーが発生しました。';
+    msg.textContent = messages[err.code] || t('geoErrUnknown');
     stop();
   }
 
   function start(){
     if(!('geolocation' in navigator)){
-      msg.textContent = 'このブラウザは位置情報に対応していません。';
+      msg.textContent = t('geoNotSupported');
       return;
     }
     recentFixes = [];
     rejectStreak = 0;
     dot.className = 'dot';
-    statusText.textContent = '取得中…';
+    statusText.textContent = t('statusAcquiring');
     watchId = navigator.geolocation.watchPosition(onPosition, onError, {
       enableHighAccuracy: true,
       maximumAge: 500,
@@ -1958,7 +2180,7 @@
     }
     if(dot.className !== 'dot err'){
       dot.className = 'dot';
-      statusText.textContent = '停止中';
+      statusText.textContent = t('statusStopped');
     }
   }
 
