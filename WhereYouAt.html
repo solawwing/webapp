@@ -1002,6 +1002,10 @@
     clearTimeout(stationFetchTimer);
     clearTimeout(stationRetryTimer);
     stationFailCount = 0;
+    // 切替タイミングで前回の取得が進行中だった場合、実行中フラグが立ったままだと
+    // fetchStations()が「既に実行中」として即座に弾かれてしまうため、明示的に解除する
+    isFetchingStations = false;
+    isFetchingExtended = false;
     cachedStations = [];
     lastStationCenter = null;
     hasFetchedLines = false;
