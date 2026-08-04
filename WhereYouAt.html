@@ -1284,7 +1284,7 @@
       currentMarkerColor = color;
       marker = L.marker(latlng, { icon: makePosIcon(color), interactive:false }).addTo(map);
       accCircle = L.circle(latlng, {
-        radius: accuracy || 0,
+        radius: 200,
         color: color, weight:1, opacity:.4,
         fillColor: color, fillOpacity:.08
       }).addTo(map);
@@ -1329,7 +1329,7 @@
         }
       }
       accCircle.setLatLng(latlng);
-      accCircle.setRadius(accuracy || 0);
+      accCircle.setRadius(200);
       accCircle.setStyle({ color: color, fillColor: color });
       radiusCircleNear.setLatLng(latlng);
       radiusCircleFar.setLatLng(latlng);
