@@ -902,8 +902,10 @@
   // 地図エリア以外でのダブルタップで言語を切り替える
   (function setupLanguageDoubleTap(){
     let lastTapTime = 0;
-    const DOUBLE_TAP_MS = 400;
-    document.addEventListener('touchend', (e)=>{
+    const DOUBLE_TAP_MS = 500;
+    // touchend/dblclickではなくclickに統一する: モバイルブラウザではtouchendが確実に発火しない
+    // 場合があるが、clickはタップ操作でもマウス操作でも共通して発火するため信頼性が高い
+    document.addEventListener('click', (e)=>{
       if(e.target.closest('#map') || e.target.closest('.mapPane')) return; // 地図エリアは対象外
       const now = Date.now();
       if(now - lastTapTime < DOUBLE_TAP_MS){
@@ -912,11 +914,6 @@
       } else {
         lastTapTime = now;
       }
-    });
-    // PC等タッチ非対応環境向けに、ダブルクリックでも同様に切り替えられるようにする
-    document.addEventListener('dblclick', (e)=>{
-      if(e.target.closest('#map') || e.target.closest('.mapPane')) return;
-      switchLanguage();
     });
   })();
 
