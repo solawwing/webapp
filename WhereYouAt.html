@@ -695,6 +695,39 @@
   body.lang-en .singleStationSpeed{
     margin-top:-6px;
   }
+
+  /* 地図上の駅取得待ちオーバーレイ: 初回・言語切替時、駅名取得が終わるまで中央に表示する */
+  .mapWaitOverlay{
+    position:absolute;
+    inset:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    pointer-events:none;
+    z-index:600;
+    text-align:center;
+  }
+  .mapWaitOverlay.active{
+    display:flex;
+  }
+  .mapWaitText{
+    font-family: var(--mono);
+    font-size:14px;
+    font-weight:700;
+    color:#39FF14;
+    text-shadow:0 0 10px rgba(57,255,20,0.6);
+    letter-spacing:.15em;
+    white-space:nowrap;
+    animation: mapWaitPulse 2.5s ease-out infinite;
+  }
+  body.lang-en .mapWaitText{
+    font-weight:400;
+  }
+  @keyframes mapWaitPulse{
+    0%   { opacity:0; letter-spacing:.15em; }
+    20%  { opacity:1; letter-spacing:.15em; }
+    100% { opacity:0; letter-spacing:1em; }
+  }
 </style>
 </head>
 <body>
@@ -751,6 +784,10 @@
     <button class="recenterBtn" id="recenterBtn" aria-label="現在地に戻る">◎</button>
     <button class="mapModeBtn" id="mapModeBtn" aria-label="最寄り駅一覧を表示">文字<br>表示</button>
 
+    <div class="mapWaitOverlay" id="mapWaitOverlay">
+      <span class="mapWaitText" id="mapWaitText">・・・　しばらくお待ち下さい　・・・</span>
+    </div>
+
     <div class="infoModalOverlay" id="infoModalOverlay">
       <div class="infoModal" id="infoModal">
         <div class="infoLine2">
@@ -805,6 +842,7 @@
       speed: '速度',
       whereAmI: '今どこ？',
       acquiringInfo: '情報取得中‥',
+      pleaseWait: '・・・　しばらくお待ち下さい　・・・',
       tickerPreparing: '電光掲示を準備中‥',
       tickerNoStations: '周辺2km以内に駅が見つかりません',
       noStationsNearby: '周辺に駅が見つかりません',
@@ -865,6 +903,7 @@
       speed: 'Speed',
       whereAmI: 'Where?',
       acquiringInfo: 'Loading…',
+      pleaseWait: '・・・　PLEASE WAIT　・・・',
       tickerPreparing: 'Preparing display…',
       tickerNoStations: 'No stations found within 2km',
       noStationsNearby: 'No stations found nearby',
@@ -959,6 +998,19 @@
   const recenterBtnEl = document.getElementById('recenterBtn');
   const mapModeBtnEl = document.getElementById('mapModeBtn');
   const langGimmickEl = document.getElementById('langGimmick');
+  const mapWaitOverlayEl = document.getElementById('mapWaitOverlay');
+  const mapWaitTextEl = document.getElementById('mapWaitText');
+
+  // 地図上の駅取得待ちオーバーレイ: 初回・言語切替時、駅名取得が終わるまで中央に表示する
+  function showMapWaitOverlay(){
+    if(!mapWaitOverlayEl) return;
+    if(mapWaitTextEl) mapWaitTextEl.textContent = t('pleaseWait');
+    mapWaitOverlayEl.classList.add('active');
+  }
+  function hideMapWaitOverlay(){
+    if(!mapWaitOverlayEl) return;
+    mapWaitOverlayEl.classList.remove('active');
+  }
   const langGimmickMainEl = document.getElementById('langGimmickMain');
 
   // 言語切替演出: 切替前の言語(fromLang)に応じて挨拶を表示し、左右に広がりながらフェードアウトさせる
@@ -1005,6 +1057,7 @@
     // 表示中の一覧・電光掲示・単一駅欄・地図上のマーカー/矢印も、古い言語のまま残らないよう
     // 一度クリアしてから始める
     clearStations();
+    showMapWaitOverlay(); // 駅名取得が終わるまで地図上に待機表示を出す
     try{ updateNearestArrow(null, null); }catch(e){ console.warn('updateNearestArrow clear failed (non-critical):', e); }
     // 予約済みの再試行・間引きタイマーが残っていると、再取得と二重に走ってしまうことがあるため、
     // 一度クリアしてタイマー・失敗カウントをリセットしてから即座に取得をやり直す
@@ -1283,6 +1336,7 @@
     if(!marker){
       currentMarkerColor = color;
       marker = L.marker(latlng, { icon: makePosIcon(color), interactive:false }).addTo(map);
+      showMapWaitOverlay(); // 初回、駅名取得が終わるまで地図上に待機表示を出す
       accCircle = L.circle(latlng, {
         radius: 200,
         color: color, weight:1, opacity:.4,
@@ -2097,7 +2151,7 @@
     stationFetchAttempted = true;
     try{
       if(!marker){ setFetchStatus(t('fsWaitingPosition')); return; }
-      if(map.getZoom() < 13){ mapOverlay.textContent = 'MAP VIEW'; setFetchStatus(t('fsBroadView')); return; }
+      if(map.getZoom() < 13){ mapOverlay.textContent = 'MAP VIEW'; hideMapWaitOverlay(); setFetchStatus(t('fsBroadView')); return; }
 
       const origin = marker.getLatLng(); // 現在地(GPS)中心
 
@@ -2172,6 +2226,7 @@
             count++;
           });
           mapOverlay.textContent = count > 0 ? t('stationCount', count) : 'MAP VIEW';
+          hideMapWaitOverlay(); // 駅名取得(基本)が完了したので待機表示を消す
           setFetchStatus(t('fsBasicToExtended'));
           updateMapModeBtnVisibility();
           try{ updateTicker(nearby); }catch(tickerErr){ console.warn('updateTicker failed (non-critical):', tickerErr); }
