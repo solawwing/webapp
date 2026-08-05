@@ -719,15 +719,16 @@
     letter-spacing:.15em;
     white-space:nowrap;
     margin-top:100px;
-    animation: mapWaitPulse 2.5s ease-out infinite;
+    animation: mapWaitPulse 3.5s ease-out infinite;
   }
   body.lang-en .mapWaitText{
     font-weight:400;
   }
   @keyframes mapWaitPulse{
-    0%   { opacity:0; letter-spacing:.15em; }
-    20%  { opacity:1; letter-spacing:.15em; }
-    100% { opacity:0; letter-spacing:1em; }
+    0%      { opacity:0; letter-spacing:.15em; }
+    14.29%  { opacity:1; letter-spacing:.15em; }
+    71.43%  { opacity:0; letter-spacing:1em; }
+    100%    { opacity:0; letter-spacing:1em; }
   }
 </style>
 </head>
