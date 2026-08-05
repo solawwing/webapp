@@ -712,12 +712,13 @@
   }
   .mapWaitText{
     font-family: var(--mono);
-    font-size:14px;
+    font-size:12px;
     font-weight:700;
     color:#39FF14;
     text-shadow:0 0 10px rgba(57,255,20,0.6);
     letter-spacing:.15em;
     white-space:nowrap;
+    margin-top:100px;
     animation: mapWaitPulse 2.5s ease-out infinite;
   }
   body.lang-en .mapWaitText{
@@ -1006,6 +1007,13 @@
     if(!mapWaitOverlayEl) return;
     if(mapWaitTextEl) mapWaitTextEl.textContent = t('pleaseWait');
     mapWaitOverlayEl.classList.add('active');
+    // display:noneから表示に切り替わった直後は、ブラウザによってはCSSアニメーションの
+    // 開始が正しくトリガーされないことがあるため、強制リフローで確実にリスタートさせる
+    if(mapWaitTextEl){
+      mapWaitTextEl.style.animation = 'none';
+      void mapWaitTextEl.offsetWidth;
+      mapWaitTextEl.style.animation = '';
+    }
   }
   function hideMapWaitOverlay(){
     if(!mapWaitOverlayEl) return;
