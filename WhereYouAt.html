@@ -1065,7 +1065,11 @@
     // 表示中の一覧・電光掲示・単一駅欄・地図上のマーカー/矢印も、古い言語のまま残らないよう
     // 一度クリアしてから始める
     clearStations();
-    showMapWaitOverlay(); // 駅名取得が終わるまで地図上に待機表示を出す
+    // 「HELLO/こんにちは」の演出(2.5秒)と表示が重ならないよう、待機表示は演出が終わってから出す。
+    // ただし演出の間に取得が終わっていれば(cachedStationsが埋まっていれば)不要なので出さない
+    setTimeout(()=>{
+      if(cachedStations.length === 0) showMapWaitOverlay();
+    }, 2500);
     try{ updateNearestArrow(null, null); }catch(e){ console.warn('updateNearestArrow clear failed (non-critical):', e); }
     // 予約済みの再試行・間引きタイマーが残っていると、再取得と二重に走ってしまうことがあるため、
     // 一度クリアしてタイマー・失敗カウントをリセットしてから即座に取得をやり直す
