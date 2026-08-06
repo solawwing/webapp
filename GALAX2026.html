@@ -216,9 +216,9 @@ function drawItems() {
     ctx.save();
     ctx.translate(it.x, it.y);
     ctx.rotate(it.angle);
-    ctx.strokeStyle = ITEM_COLORS[it.type];
+    ctx.strokeStyle = '#ffffff';
     ctx.strokeRect(-8, -8, 16, 16);
-    ctx.fillStyle = ITEM_COLORS[it.type];
+    ctx.fillStyle = '#ffffff';
     ctx.font = '300 10px "Montserrat", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -292,13 +292,13 @@ function fireWeapon() {
   if (player.weapon === 'DOUBLE') {
     const n = DOUBLE_COUNTS[lvl];
     xOffsets(n, 25).forEach(ox => {
-      playerBullets.push({ x: bx + ox, y: by, vx: 0, vy: -540, r: 3 });
+      playerBullets.push({ x: bx + ox, y: by, vx: 0, vy: -540, r: 3, power: 2 });
     });
   } else if (player.weapon === 'WIDE') {
     const n = WIDE_COUNTS[lvl];
     fanAngles(n, 20).forEach(a => {
       const rad = a * Math.PI / 180;
-      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3 });
+      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 2 });
     });
   } else if (player.weapon === 'HOMING') {
     const n = HOMING_COUNTS[lvl];
@@ -307,13 +307,13 @@ function fireWeapon() {
       const rad = a * Math.PI / 180;
       const target = findNearestEnemyExcluding(bx, by, usedTargets) || findNearestEnemy(bx, by);
       if (target) usedTargets.add(target);
-      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, homing: true, target });
+      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, homing: true, target, power: 1 });
     });
   } else if (player.weapon === 'LASER') {
     const spec = LASER_SPECS[lvl];
-    playerBullets.push({ x: bx, y: by, vx: 0, vy: -700, r: 3, laser: true, length: spec.length, pierceLeft: spec.pierce, hitSet: new Set() });
+    playerBullets.push({ x: bx, y: by, vx: 0, vy: -700, r: 3, laser: true, length: spec.length, pierceLeft: spec.pierce, hitSet: new Set(), power: 5 });
   } else {
-    playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3 });
+    playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, power: 3 });
   }
 }
 
@@ -345,7 +345,9 @@ function pickEnemyType(rowFrac) {
   if (wave >= 100) return 'A'; // wave 100: every enemy is 'A'
   if (wave <= 1) return 'E';   // wave 1: every enemy is 'E'
   const waveFrac = clamp((wave - 1) / 99, 0, 1);
-  const posBias = (1 - rowFrac) * (1 - waveFrac) * 0.5; // top-of-formation bonus, fades out as wave approaches 100
+  // row-based bonus peaks mid-game and fades out at both wave extremes, so early
+  // waves stay E-dominant across the whole formation (not just the bottom rows)
+  const posBias = (1 - rowFrac) * waveFrac * (1 - waveFrac) * 2;
   const strength = clamp(waveFrac + posBias, 0, 1); // 0..1
   const centerIdx = strength * 4; // 0 (E) .. 4 (A), continuous
   const weights = TIER_ORDER.map((_, i) => Math.max(0, 1 - Math.abs(i - centerIdx) / 2));
@@ -358,7 +360,7 @@ function pickEnemyType(rowFrac) {
   return TIER_ORDER[TIER_ORDER.length - 1];
 }
 
-function layoutFormation(count) {
+function layoutFormation(count, forceType) {
   formationSlots = [];
   if (!count || count <= 0) return;
   const perRow = 8;
@@ -378,7 +380,7 @@ function layoutFormation(count) {
       formationSlots.push({
         x: startX + gap * (i + 0.5),
         y: topMargin + r * rowGap,
-        type: pickEnemyType(rowFrac),
+        type: forceType || pickEnemyType(rowFrac),
         filled: false,
         slotId: idx,
       });
@@ -423,7 +425,7 @@ function makeBossEnemy() {
   const bossHp = wave * 5;
   const key = choice(['X', 'Y', 'Z']);
   const bossType = BOSS_TYPES[key];
-  const t = { hp: bossHp, score: 100, color: bossType.color, r: 36, sides: bossType.sides };
+  const t = { hp: bossHp, score: 100, color: bossType.color, r: 54, sides: bossType.sides };
   const startX = W / 2, startY = -100;
   const target = { x: W / 2, y: H * 0.2 };
   return {
@@ -441,10 +443,10 @@ let starReverse = false;
 
 function waveEnemyCount(w) {
   const m = ((w - 1) % 5) + 1;
-  if (m === 1) return 30;
-  if (m === 2) return 30;
-  if (m === 3) return 50;
-  if (m === 4) return 50;
+  if (m === 1) return 20;
+  if (m === 2) return 20;
+  if (m === 3) return 25;
+  if (m === 4) return 30;
   return 0; // boss wave (escorts handled separately)
 }
 
@@ -457,10 +459,10 @@ function startWave() {
     starReverse = true;
     specialStars = [];
     enemies.push(makeBossEnemy());
-    // escort enemies: 20 total, half entering from the top, half from left/right
-    const escortCount = 20;
+    // escort enemies: 10 total, all tier A, half entering from the top, half from left/right
+    const escortCount = 10;
     lastLayoutCount = escortCount;
-    layoutFormation(escortCount);
+    layoutFormation(escortCount, 'A');
     formationSlots.forEach(s => s.filled = false);
     spawnQueue = formationSlots.map((s, i) => ({
       slot: s, delay: i * 0.08,
@@ -593,7 +595,7 @@ function updateEnemies(dt) {
       e.fireTimer -= dt;
       if (e.fireTimer <= 0) {
         fireBossBarrage(e);
-        e.fireTimer = e.bossKey === 'Y' ? 0.25 : 1.2;
+        e.fireTimer = 2.0;
       }
     } else if (e.state === 'formation') {
       e.x = e.slot.x + formationOffsetX;
@@ -768,10 +770,12 @@ function handleCollisions() {
         const rr = (e.def.r + b.r) * (e.def.r + b.r);
         if (dist2(e.x, e.y, b.x, closestY) < rr) {
           b.hitSet.add(e);
-          e.hp -= 1;
+          e.hp -= (b.power || 1);
           if (e.hp <= 0) {
             handleEnemyDeath(e);
             enemies.splice(i, 1);
+          } else if (e.type !== 'GIANTBOSS') {
+            spawnDeathParticles(e.x, e.y, e.def.color, 3);
           }
           b.pierceLeft -= 1;
           if (b.pierceLeft <= 0) break;
@@ -784,10 +788,12 @@ function handleCollisions() {
         const rr = (e.def.r + b.r) * (e.def.r + b.r);
         if (dist2(e.x, e.y, b.x, b.y) < rr) {
           playerBullets.splice(j, 1);
-          e.hp -= 1;
+          e.hp -= (b.power || 1);
           if (e.hp <= 0) {
             handleEnemyDeath(e);
             enemies.splice(i, 1);
+          } else if (e.type !== 'GIANTBOSS') {
+            spawnDeathParticles(e.x, e.y, e.def.color, 3);
           }
           break;
         }
@@ -881,20 +887,36 @@ function drawPolygonDown(cx, cy, r, sides) {
   ctx.closePath();
 }
 
+function hexToRgba(hex, alpha) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 function drawEnemy(e) {
   const x = e.x, y = e.y, r = e.def.r;
-  ctx.strokeStyle = e.def.color;
   ctx.lineWidth = 1;
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(e.angle);
-  ctx.beginPath();
   if (e.type === 'GIANTBOSS') {
+    ctx.strokeStyle = e.def.color;
+    ctx.beginPath();
     drawPolygonDown(0, 0, r, e.def.sides);
+    ctx.stroke();
   } else {
-    drawDownTriangle(0, 0, r);
+    // outer triangle (HP=1 size) is fully opaque; each additional HP point adds
+    // a nested triangle 3px smaller (drawn inward), at 30% opacity
+    const n = Math.max(1, e.hp);
+    for (let k = 0; k < n; k++) {
+      ctx.strokeStyle = k === 0 ? e.def.color : hexToRgba(e.def.color, 0.5);
+      ctx.beginPath();
+      drawDownTriangle(0, 0, Math.max(1, r - k * 3));
+      ctx.stroke();
+    }
   }
-  ctx.stroke();
   ctx.restore();
   if (e.type === 'GIANTBOSS') drawBossHpBar(e);
 }
