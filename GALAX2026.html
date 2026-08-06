@@ -179,8 +179,19 @@ function drawParticles() {
     ctx.globalAlpha = 1;
   });
 }
+function pickItemType() {
+  // the weapon type currently equipped is half as likely to drop again
+  const weights = ITEM_TYPES.map(t => t === player.weapon ? 0.5 : 1);
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < ITEM_TYPES.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return ITEM_TYPES[i];
+  }
+  return ITEM_TYPES[ITEM_TYPES.length - 1];
+}
 function spawnItem(x, y) {
-  items.push({ x, y, vy: 90, type: choice(ITEM_TYPES), r: 8, angle: 0, spin: rand(1.5, 3) * (Math.random() < 0.5 ? -1 : 1) });
+  items.push({ x, y, vy: 90, type: pickItemType(), r: 8, angle: 0, spin: rand(1.5, 3) * (Math.random() < 0.5 ? -1 : 1) });
 }
 function spawnRapidItem(x, y) {
   items.push({ x, y, vy: 90, type: 'RAPID', r: 8, angle: 0, spin: rand(1.5, 3) * (Math.random() < 0.5 ? -1 : 1) });
@@ -232,18 +243,32 @@ function updatePickupTexts(dt) {
   for (let i = pickupTexts.length - 1; i >= 0; i--) {
     const p = pickupTexts[i];
     p.t += dt;
-    if (p.t >= p.duration) pickupTexts.splice(i, 1);
+    const fade = p.fadeDuration || 0.6;
+    if (p.t >= p.duration + fade) pickupTexts.splice(i, 1);
   }
 }
 function drawPickupTexts() {
   pickupTexts.forEach(p => {
-    const frac = p.t / p.duration;
-    const size = 6 * (1 + frac * 1.8);
-    ctx.globalAlpha = 1 - frac;
+    const fade = p.fadeDuration || 0.6;
+    let alpha, size, rise;
+    if (p.t < p.duration) {
+      // hold phase: grow quickly, then stay fully visible
+      const growFrac = Math.min(1, p.t / 0.3);
+      size = 6 * (1 + growFrac * 1.8);
+      rise = growFrac * 18;
+      alpha = 1;
+    } else {
+      // fade phase: stay large, drift up slightly, fade to transparent
+      const fadeFrac = (p.t - p.duration) / fade;
+      size = 6 * 2.8;
+      rise = 18 + fadeFrac * 10;
+      alpha = 1 - fadeFrac;
+    }
+    ctx.globalAlpha = Math.max(0, alpha);
     ctx.fillStyle = '#7CFFF0';
     ctx.font = `300 ${size}px "Montserrat", sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText(p.text, p.x, p.y - frac * 18);
+    ctx.fillText(p.text, p.x, p.y - rise);
     ctx.textAlign = 'left';
     ctx.globalAlpha = 1;
   });
