@@ -520,6 +520,20 @@ function updateWaveAnnounce(dt) {
   waveAnnounce.t += dt;
   if (waveAnnounce.t >= waveAnnounce.hold + waveAnnounce.fade) waveAnnounce = null;
 }
+function drawSpacedText(text, cx, cy, fontPx, spacing) {
+  ctx.font = `300 ${fontPx}px "Montserrat", sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  const chars = text.split('');
+  const widths = chars.map(c => ctx.measureText(c).width);
+  const totalWidth = widths.reduce((s, w) => s + w, 0) + spacing * (chars.length - 1);
+  let x = cx - totalWidth / 2;
+  chars.forEach((c, i) => {
+    ctx.fillText(c, x, cy);
+    x += widths[i] + spacing;
+  });
+}
+
 function drawWaveAnnounce() {
   if (!waveAnnounce) return;
   const a = waveAnnounce;
@@ -531,10 +545,9 @@ function drawWaveAnnounce() {
   }
   ctx.globalAlpha = Math.max(0, alpha);
   ctx.fillStyle = '#7CFFF0';
-  ctx.font = '300 14px "Montserrat", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(a.text, W / 2, H / 2);
+  // match the title screen's style: same font-size clamp and 20px letter-spacing
+  const fontPx = clamp(W * 0.035, 8, 18);
+  drawSpacedText(a.text, W / 2, H / 2, fontPx, 20);
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.globalAlpha = 1;
@@ -737,7 +750,7 @@ function updatePlayer(dt) {
     player.warpTrail.push({ x: player.x, y: player.y });
     if (player.warpTrail.length > 16) player.warpTrail.shift();
     player.warpT += dt;
-    const speed = 150 + player.warpT * player.warpT * 1200; // accelerating warp
+    const speed = 90 + player.warpT * player.warpT * 700; // accelerating warp
     player.y -= speed * dt;
     if (player.invT > 0) player.invT -= dt;
     if (player.y < -60 || player.warpT > 2.5) {
