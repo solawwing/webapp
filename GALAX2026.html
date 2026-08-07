@@ -128,7 +128,7 @@ function resetPlayer() {
 
 // ---------- items ----------
 const ITEM_TYPES = ['DOUBLE', 'WIDE', 'HOMING', 'LASER', 'GRAVITY'];
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', WIDE: '#ffd23f', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#c77dff' };
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', WIDE: '#ffd23f', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -175,7 +175,7 @@ function drawShockwaves() {
     const r = Math.max(2, s.maxR * frac);
     const alpha = Math.max(0, 1 - frac);
     ctx.globalAlpha = alpha;
-    ctx.strokeStyle = '#c77dff';
+    ctx.strokeStyle = '#1f6bff';
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
