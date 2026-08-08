@@ -26,6 +26,27 @@
     margin-bottom: 12px; margin-right: -20px;
   }
   #overlay .sub { font-size: clamp(12px, 3.2vw, 16px); letter-spacing: 2px; opacity: 0.85; margin: 4px 0; margin-right: -2px; }
+  #overlay .item-list { margin-top: 14px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; width: 100%; max-width: 260px; }
+  #overlay .item-entry { display: flex; flex-direction: column; align-items: flex-start; width: 100%; }
+  #overlay .item-header { display: flex; align-items: center; gap: 10px; }
+  #overlay .item-name { font-size: clamp(10px, 2.8vw, 14px); letter-spacing: 1px; }
+  #overlay .item-desc {
+    font-size: clamp(8px, 2.2vw, 11px); opacity: 0.75; text-align: left;
+    line-height: 1.45; margin-top: 3px; margin-left: 28px; max-width: 220px;
+  }
+  #overlay .item-icon {
+    position: relative;
+    width: 18px; height: 18px; flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 300; color: #fff;
+  }
+  #overlay .item-icon::before {
+    content: '';
+    position: absolute; inset: 0;
+    border: 1px solid rgba(255,255,255,0.5);
+    animation: spinIcon 4s linear infinite;
+  }
+  @keyframes spinIcon { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   #overlay .blink { animation: blink 1s step-start infinite; }
   @keyframes blink { 50% { opacity: 0; } }
   #overlay .hidden { display: none; }
@@ -37,6 +58,39 @@
   <div id="titleScreen">
     <div class="title" style="font-size:clamp(8px,3.5vw,18px);">GALAX2026</div>
     <div class="sub blink" style="margin-top:24px;">TAP TO START</div>
+  </div>
+  <div id="itemsScreen" class="hidden">
+    <div class="title" style="font-size:clamp(8px,3.5vw,18px);">ITEMS</div>
+    <div class="item-list">
+      <div class="item-entry">
+        <div class="item-header"><span class="item-icon">D</span><span class="item-name">DOUBLE</span></div>
+        <div class="item-desc">Fires twin parallel shots side by side. Stacking increases the shot count, up to 7-way fire.</div>
+      </div>
+      <div class="item-entry">
+        <div class="item-header"><span class="item-icon">W</span><span class="item-name">WIDE</span></div>
+        <div class="item-desc">Fires a fan-shaped spread of shots. Stacking widens the spread, up to 7 directions.</div>
+      </div>
+      <div class="item-entry">
+        <div class="item-header"><span class="item-icon">H</span><span class="item-name">HOMING</span></div>
+        <div class="item-desc">Each shot locks onto a different enemy and tracks it automatically until impact.</div>
+      </div>
+      <div class="item-entry">
+        <div class="item-header"><span class="item-icon">L</span><span class="item-name">LASER</span></div>
+        <div class="item-desc">A piercing beam that cuts straight through several enemies in a single pass.</div>
+      </div>
+      <div class="item-entry">
+        <div class="item-header"><span class="item-icon">G</span><span class="item-name">GRAVITY</span></div>
+        <div class="item-desc">Destroying an enemy triggers a shockwave that also damages nearby enemies.</div>
+      </div>
+      <div class="item-entry">
+        <div class="item-header"><span class="item-icon">B</span><span class="item-name">BUBBLE</span></div>
+        <div class="item-desc">Slow drifting orbs fired in a wide forward cone. Every hit splashes nearby enemies too.</div>
+      </div>
+      <div class="item-entry">
+        <div class="item-header"><span class="item-icon">^</span><span class="item-name">RAPID</span></div>
+        <div class="item-desc">Fires several extra shots in a quick burst before waiting for the next volley.</div>
+      </div>
+    </div>
   </div>
   <div id="overScreen" class="hidden">
     <div class="title" style="font-size:clamp(8px,3.5vw,18px);">GAME OVER</div>
@@ -54,6 +108,7 @@ const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 const overlay = document.getElementById('overlay');
 const titleScreen = document.getElementById('titleScreen');
+const itemsScreen = document.getElementById('itemsScreen');
 const overScreen = document.getElementById('overScreen');
 const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
@@ -100,6 +155,12 @@ function bezier(p0, p1, p2, p3, t) {
   const y = u*u*u*p0.y + 3*u*u*t*p1.y + 3*u*t*t*p2.y + t*t*t*p3.y;
   return { x, y };
 }
+function qbezier(p0, p1, p2, t) {
+  const u = 1 - t;
+  const x = u*u*p0.x + 2*u*t*p1.x + t*t*p2.x;
+  const y = u*u*p0.y + 2*u*t*p1.y + t*t*p2.y;
+  return { x, y };
+}
 function dist2(ax, ay, bx, by) { const dx = ax-bx, dy = ay-by; return dx*dx + dy*dy; }
 function rand(a, b) { return a + Math.random() * (b - a); }
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
@@ -127,8 +188,8 @@ function resetPlayer() {
 }
 
 // ---------- items ----------
-const ITEM_TYPES = ['DOUBLE', 'WIDE', 'HOMING', 'LASER', 'GRAVITY'];
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', WIDE: '#ffd23f', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff' };
+const ITEM_TYPES = ['DOUBLE', 'WIDE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE'];
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', WIDE: '#ffd23f', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#ff9de2' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -258,7 +319,7 @@ function updateItems(dt) {
     it.angle += it.spin * dt;
     if (it.y > H + 20) { items.splice(i, 1); continue; }
     const rr = (player.r + it.r) * (player.r + it.r);
-    if (player.alive && dist2(player.x, player.y, it.x, it.y) < rr) {
+    if (player.alive && !player.warping && dist2(player.x, player.y, it.x, it.y) < rr) {
       if (it.type === 'RAPID') {
         player.rapidLevel = Math.min(3, player.rapidLevel + 1);
         pickupTexts.push({ text: 'RAPID Lv' + player.rapidLevel, x: player.x, y: player.y - player.r - 6, t: 0, duration: 2.0 });
@@ -275,7 +336,7 @@ function updateItems(dt) {
     }
   }
 }
-const ITEM_GLYPHS = { DOUBLE: 'D', WIDE: 'W', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G' };
+const ITEM_GLYPHS = { DOUBLE: 'D', WIDE: 'W', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B' };
 function drawItems() {
   ctx.lineWidth = 1;
   items.forEach(it => {
@@ -310,13 +371,13 @@ function drawPickupTexts() {
     if (p.t < p.duration) {
       // hold phase: grow quickly, then stay fully visible
       const growFrac = Math.min(1, p.t / 0.3);
-      size = 6 * (1 + growFrac * 1.8);
+      size = 5 * (1 + growFrac * 1.8);
       rise = growFrac * 18;
       alpha = 1;
     } else {
       // fade phase: stay large, drift up slightly, fade to transparent
       const fadeFrac = (p.t - p.duration) / fade;
-      size = 6 * 2.8;
+      size = 5 * 2.8;
       rise = 18 + fadeFrac * 10;
       alpha = 1 - fadeFrac;
     }
@@ -357,9 +418,10 @@ function xOffsets(n, spacing) {
   for (let i = 0; i < n; i++) arr.push((i - (n - 1) / 2) * spacing);
   return arr;
 }
-const DOUBLE_COUNTS = [0, 2, 3, 4, 5, 7];
-const WIDE_COUNTS = [0, 3, 4, 5, 6, 7];
+const DOUBLE_COUNTS = [0, 2, 4, 6, 8, 10];
+const WIDE_COUNTS = [0, 3, 4, 5, 7, 10];
 const HOMING_COUNTS = [0, 1, 2, 3, 4, 5];
+const BUBBLE_COUNTS = [0, 8, 16, 24, 32, 40]; // linear, +8 per level
 const LASER_SPECS = [null,
   { length: 50, pierce: 2 },
   { length: 75, pierce: 2 },
@@ -372,7 +434,7 @@ function fireWeapon() {
   const lvl = player.weaponLevel;
   if (player.weapon === 'DOUBLE') {
     const n = DOUBLE_COUNTS[lvl];
-    xOffsets(n, 25).forEach(ox => {
+    xOffsets(n, 20).forEach(ox => {
       playerBullets.push({ x: bx + ox, y: by, vx: 0, vy: -540, r: 3, power: 2 });
     });
   } else if (player.weapon === 'WIDE') {
@@ -395,6 +457,16 @@ function fireWeapon() {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -700, r: 3, laser: true, length: spec.length, pierceLeft: spec.pierce, hitSet: new Set(), power: 5 });
   } else if (player.weapon === 'GRAVITY') {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, power: 3, gravity: true, gravityRadius: lvl * 50 });
+  } else if (player.weapon === 'BUBBLE') {
+    const n = BUBBLE_COUNTS[lvl];
+    const spd = 200; // slow-moving
+    for (let k = 0; k < n; k++) {
+      const rad = rand(-60, 60) * Math.PI / 180; // random angle within a 120-degree forward cone
+      playerBullets.push({
+        x: bx, y: by, vx: Math.sin(rad) * spd, vy: -Math.cos(rad) * spd,
+        r: 5, power: 1, bubble: true, bubbleRadius: 50,
+      });
+    }
   } else {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, power: 3 });
   }
@@ -406,11 +478,11 @@ let enemyBullets = [];
 
 // ---------- enemy types ----------
 const TYPES = {
-  A: { hp: 5, score: 25, color: '#ff2e2e', r: 9, speedMul: 1.5 },
-  B: { hp: 4, score: 15, color: '#ff8c1a', r: 9, speedMul: 1.2 },
-  C: { hp: 3, score: 10, color: '#fff01a', r: 9, speedMul: 1.0 },
-  D: { hp: 2, score: 5,  color: '#39FF14', r: 9, speedMul: 0.8 },
-  E: { hp: 1, score: 2,  color: '#39fff3', r: 9, speedMul: 0.5 },
+  A: { hp: 5, score: 25, color: '#ff1744', r: 12, speedMul: 1.2 },
+  B: { hp: 4, score: 15, color: '#ff6d00', r: 12, speedMul: 1.0 },
+  C: { hp: 3, score: 10, color: '#eeff00', r: 12, speedMul: 0.8 },
+  D: { hp: 2, score: 5,  color: '#39ff14', r: 12, speedMul: 0.6 },
+  E: { hp: 1, score: 2,  color: '#ffffff', r: 12, speedMul: 0.4 },
 };
 let globalSpeedBonus = 0; // +0.2 per boss destroyed, applied on top of each type's speedMul
 
@@ -499,6 +571,100 @@ function makeEnemy(slot, fromLeft, entryMode) {
   };
 }
 
+// ---------- formation entry patterns (PT1-PT9) ----------
+// Each pattern is made of 1-2 sub-groups (side + curve family); a sub-group's
+// members fly single-file along the same quadratic curve before peeling off
+// to their own row slot. Patterns run one at a time per wave: the next only
+// starts once every member of the current pattern has finished entering.
+const FAMILY_CURVE = {
+  SWOOP:  { L: () => ({ p0: { x: -80,    y: H * 0.15 }, p1: { x: W * 0.15, y: H * 0.75 } }),
+            R: () => ({ p0: { x: W + 80, y: H * 0.15 }, p1: { x: W * 0.85, y: H * 0.75 } }) },
+  ARC:    { L: () => ({ p0: { x: -80,    y: H * 0.4 },  p1: { x: W * 0.08, y: -H * 0.2 } }),
+            R: () => ({ p0: { x: W + 80, y: H * 0.4 },  p1: { x: W * 0.92, y: -H * 0.2 } }) },
+  SCURVE: { L: () => ({ p0: { x: -80,    y: H * 0.05 }, p1: { x: W * 0.92, y: H * 0.4 } }),
+            R: () => ({ p0: { x: W + 80, y: H * 0.05 }, p1: { x: W * 0.08, y: H * 0.4 } }) },
+};
+const PT_DEFS = {
+  PT1: { groups: [{ side: 'L', count: 8, family: 'SWOOP' }] },                                 // left, 8, gentle high-speed swoop
+  PT2: { groups: [{ side: 'R', count: 8, family: 'SWOOP' }] },                                 // right, 8, gentle high-speed swoop
+  PT3: { groups: [{ side: 'L', count: 4, family: 'SWOOP' }, { side: 'R', count: 4, family: 'SWOOP' }] }, // left+right, 4 each, swoop
+  PT4: { groups: [{ side: 'L', count: 8, family: 'ARC' }] },                                   // left, 8, big high-speed arc
+  PT5: { groups: [{ side: 'R', count: 8, family: 'ARC' }] },                                   // right, 8, big high-speed arc
+  PT6: { groups: [{ side: 'L', count: 4, family: 'ARC' }, { side: 'R', count: 4, family: 'ARC' }] },     // left+right, 4 each, arc
+  PT7: { groups: [{ side: 'L', count: 8, family: 'SCURVE' }] },                                // left-to-right, 8, big S-curve
+  PT8: { groups: [{ side: 'R', count: 8, family: 'SCURVE' }] },                                // right-to-left, 8, big S-curve
+  PT9: { groups: [{ side: 'L', count: 4, family: 'SCURVE' }, { side: 'R', count: 4, family: 'SCURVE' }] }, // both ways, 4 each, S-curve
+};
+
+function makeFormationEnemy(slot, p0, p1) {
+  const t = TYPES[slot.type];
+  return {
+    type: slot.type, def: t, hp: t.hp, maxHp: t.hp,
+    slot, state: 'enter',
+    x: p0.x, y: p0.y,
+    p0, p1, p2: { x: slot.x, y: slot.y }, quadratic: true,
+    t: 0, duration: rand(1.5, 2.0) / 1.5 / 1.5 * 2 / 0.6, // entrance speed: uniform 0.6x for all enemies (tier speedMul doesn't apply during entry)
+    diveCd: rand(2, 5),
+    swayPhase: rand(0, Math.PI * 2),
+    angle: 0,
+    countsForPattern: true,
+  };
+}
+
+function makeRowSlots(rowIndex, count) {
+  const baseY = H * 0.45; // first row starts near mid-screen ("bottom" of the formation stack)
+  const rowGap = Math.min(30, H * 0.06);
+  const usableW = Math.min(W * 0.7, 520);
+  const gap = usableW / count;
+  const startX = (W - usableW) / 2;
+  const y = baseY - rowIndex * rowGap; // later rows stack upward
+  const slots = [];
+  for (let i = 0; i < count; i++) {
+    slots.push({ x: startX + gap * (i + 0.5), y, type: null, filled: false, slotId: rowIndex * 100 + i });
+  }
+  return slots;
+}
+
+// per-wave sequential pattern list (each wave-position gets its own list; patterns run one at a time)
+let wavePatternQueue = [];
+let waveRowIndex = 0;
+let waveTotalPatterns = 0;
+let activeEnterCount = 0;
+let waveEnemyGlobalIndex = 0;
+let waveItemDropIndices = new Set();
+let waveRapidDropIndex = -1;
+
+function spawnPatternGroup(patternName) {
+  const def = PT_DEFS[patternName];
+  const rowFrac = waveTotalPatterns > 1 ? waveRowIndex / (waveTotalPatterns - 1) : 0;
+  const formationType = pickEnemyType(rowFrac);
+  const rowSlots = makeRowSlots(waveRowIndex, 8);
+  rowSlots.forEach(s => s.type = formationType);
+  let slotCursor = 0;
+  def.groups.forEach(g => {
+    const curveFn = FAMILY_CURVE[g.family][g.side];
+    for (let k = 0; k < g.count; k++) {
+      const slot = rowSlots[slotCursor++];
+      const { p0, p1 } = curveFn();
+      const idx = waveEnemyGlobalIndex++;
+      spawnQueue.push({
+        slot, delay: k * 0.1, isFormation: true, p0, p1,
+        dropsItem: waveItemDropIndices.has(idx),
+        dropsRapid: idx === waveRapidDropIndex,
+      });
+      activeEnterCount++;
+    }
+  });
+  waveRowIndex++;
+}
+
+function tryAdvanceWavePattern() {
+  if (!waveActive) return;
+  if (activeEnterCount > 0) return; // current pattern still entering
+  if (wavePatternQueue.length === 0) return; // this wave's patterns are all done
+  spawnPatternGroup(wavePatternQueue.shift());
+}
+
 const BOSS_TYPES = {
   X: { color: '#ff2e2e', sides: 3 },
   Y: { color: '#ff8c1a', sides: 4 },
@@ -508,7 +674,7 @@ function makeBossEnemy() {
   const bossHp = wave * 5;
   const key = choice(['X', 'Y', 'Z']);
   const bossType = BOSS_TYPES[key];
-  const t = { hp: bossHp, score: 100, color: bossType.color, r: 54, sides: bossType.sides };
+  const t = { hp: bossHp, score: 100, color: bossType.color, r: 120, sides: bossType.sides };
   const startX = W / 2, startY = -100;
   const target = { x: W / 2, y: H * 0.2 };
   return {
@@ -518,27 +684,129 @@ function makeBossEnemy() {
     p0: { x: startX, y: startY }, p1: { x: W * 0.3, y: H * 0.05 }, p2: { x: W * 0.7, y: H * 0.1 }, p3: target,
     t: 0, duration: 2.4,
     angle: 0, swayPhase: 0,
-    bossT: 0, fireTimer: 1.4,
+    bossT: 0, fireTimer: rand(0.8, 2.0),
+    trail: [],
   };
 }
 
 let starReverse = false;
+let bossDefeated = false;
+
+// 10-position cycle: wave1, wave2, ASTEROID, wave3, wave4, ASTEROID+enemies, wave5, wave6, ASTEROID+fast, BOSS
+const CYCLE_LEN = 10;
+const CYCLE_KIND = ['ENEMY', 'ENEMY', 'ASTEROID', 'ENEMY', 'ENEMY', 'ASTEROID_ENEMY', 'ENEMY', 'ENEMY', 'ASTEROID_FAST', 'BOSS'];
+function isAsteroidKind(kind) {
+  return kind === 'ASTEROID' || kind === 'ASTEROID_ENEMY' || kind === 'ASTEROID_FAST';
+}
+// for ENEMY positions, the sequential list of patterns to run (one at a time)
+const WAVE_PATTERN_LISTS = [
+  ['PT1', 'PT2', 'PT3', 'PT1', 'PT2', 'PT3', 'PT3'], // wave1
+  ['PT7', 'PT8', 'PT9', 'PT7', 'PT8', 'PT9', 'PT9'], // wave2
+  ['PT1', 'PT3', 'PT2', 'PT3', 'PT1', 'PT2', 'PT3'], // wave3
+  ['PT4', 'PT5', 'PT6', 'PT4', 'PT5', 'PT6', 'PT6'], // wave4
+  ['PT3', 'PT9', 'PT3', 'PT6', 'PT3', 'PT9', 'PT6'], // wave5
+  ['PT3', 'PT6', 'PT3', 'PT6', 'PT3', 'PT6', 'PT6'], // wave6
+];
 
 function waveEnemyCount(w) {
-  const m = ((w - 1) % 5) + 1;
-  if (m === 1) return 20;
-  if (m === 2) return 20;
-  if (m === 3) return 25;
-  if (m === 4) return 30;
-  return 0; // boss wave (escorts handled separately)
+  const m = ((w - 1) % CYCLE_LEN) + 1;
+  const kind = CYCLE_KIND[m - 1];
+  if (kind !== 'ENEMY') return 0;
+  const enemySlotIndex = CYCLE_KIND.slice(0, m - 1).filter(k => k === 'ENEMY').length;
+  return WAVE_PATTERN_LISTS[enemySlotIndex].length * 8;
 }
 
+let asteroids = [];
+let asteroidTotalDamage = 0;
+let asteroidBonusGiven = false;
+let asteroidWaveTimer = 0;
+let asteroidSpawnTimer = 0;
+let asteroidItemTimer = 0;
+let asteroidSpeedMul = 1;
+let asteroidEnemySpawnTimer = 0;
+const ASTEROID_ENEMY_TRIGGER_TIMES = [15, 30, 45];
+let asteroidEnemyTriggersDone = [false, false, false];
+let asteroidEnemyRowIndex = 0;
+
+function makeAsteroidVerts(r, n) {
+  // rough, irregular polygon rather than a clean regular shape
+  const verts = [];
+  for (let k = 0; k < n; k++) {
+    const baseAngle = (k / n) * Math.PI * 2;
+    const jitterAngle = baseAngle + rand(-0.35, 0.35);
+    const rad = r * rand(0.65, 1.15);
+    verts.push({ x: rad * Math.sin(jitterAngle), y: rad * Math.cos(jitterAngle) });
+  }
+  return verts;
+}
+
+function spawnAsteroid() {
+  const r = rand(50, 75); // overall size 100-150
+  const n = Math.floor(rand(4, 9)); // 4-8 vertices
+  asteroids.push({
+    x: rand(80, W - 80), y: -90,
+    r,
+    verts: makeAsteroidVerts(r, n),
+    angle: rand(0, Math.PI * 2),
+    spin: rand(0.5, 1.1) * (Math.random() < 0.5 ? -1 : 1),
+    vy: rand(110, 220) * asteroidSpeedMul, // each asteroid falls at its own speed, faster overall
+  });
+}
+
+function spawnRandomFormationDuringAsteroids() {
+  const patternNames = Object.keys(PT_DEFS);
+  const patternName = choice(patternNames);
+  const def = PT_DEFS[patternName];
+  const formationType = pickEnemyType(Math.random());
+  const rowSlots = makeRowSlots(asteroidEnemyRowIndex % 6, 8);
+  rowSlots.forEach(s => s.type = formationType);
+  let slotCursor = 0;
+  def.groups.forEach(g => {
+    const curveFn = FAMILY_CURVE[g.family][g.side];
+    for (let k = 0; k < g.count; k++) {
+      const slot = rowSlots[slotCursor++];
+      const { p0, p1 } = curveFn();
+      spawnQueue.push({ slot, delay: k * 0.1, isFormation: true, p0, p1, dropsItem: false, dropsRapid: false });
+      activeEnterCount++;
+    }
+  });
+  asteroidEnemyRowIndex++;
+}
+
+let pendingWaveActivation = null; // { kind, m } while waiting for the announce + 1s delay
+let waveStartDelayTimer = 0;
+let waveActive = false;
+
 function startWave() {
-  const m = ((wave - 1) % 5) + 1;
+  const m = ((wave - 1) % CYCLE_LEN) + 1;
+  const kind = CYCLE_KIND[m - 1];
+  waveActive = false;
   enemies = [];
   spawnQueue = [];
   starReverse = false;
-  if (m === 5) {
+  bossDefeated = false;
+  asteroids = [];
+  asteroidWaveTimer = 0;
+  asteroidSpawnTimer = 0;
+  asteroidItemTimer = 10;
+  formationSlots = [];
+  wavePatternQueue = [];
+  activeEnterCount = 0;
+  spawnTimer = 0;
+  waveClearTimer = 0;
+  diveTimer = rand(2.5, 4.5);
+  waveAnnounce = isAsteroidKind(kind)
+    ? { text: 'APPROACHING\nASTEROID BELT', t: 0, hold: 1.2, fade: 0.6 }
+    : kind === 'BOSS'
+      ? { text: 'APPROACHING\nENEMY BOSS', t: 0, hold: 1.2, fade: 0.6 }
+      : { text: 'WAVE ' + wave, t: 0, hold: 1.2, fade: 0.6 };
+  pendingWaveActivation = { kind, m };
+  waveStartDelayTimer = 1.0; // starts counting down only once the announce has fully finished
+}
+
+function activateWave(kind, m) {
+  waveActive = true;
+  if (kind === 'BOSS') {
     starReverse = true;
     specialStars = [];
     enemies.push(makeBossEnemy());
@@ -552,22 +820,70 @@ function startWave() {
       fromLeft: i % 2 === 0,
       entryMode: i % 2 === 0 ? 'TOP' : 'LEFTRIGHT',
     }));
+    // item drops for the boss escorts
+    const dropPool = [...spawnQueue];
+    for (let i = dropPool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [dropPool[i], dropPool[j]] = [dropPool[j], dropPool[i]];
+    }
+    const itemDropCount = Math.min(2, dropPool.length);
+    for (let i = 0; i < itemDropCount; i++) dropPool[i].dropsItem = true;
+    if (Math.random() < 0.2 && dropPool.length > itemDropCount) {
+      dropPool[itemDropCount].dropsRapid = true;
+    }
+  } else if (isAsteroidKind(kind)) {
+    // Asteroid Belt: no regular enemies (except the ASTEROID_ENEMY variant) —
+    // dodge indestructible rotating asteroids for 60s
+    lastLayoutCount = 0;
+    formationSlots = [];
+    asteroidWaveTimer = 0;
+    asteroidSpawnTimer = 0;
+    asteroidItemTimer = 10;
+    asteroidSpeedMul = kind === 'ASTEROID_FAST' ? 1.2 : 1;
+    asteroidEnemySpawnTimer = 10;
+    asteroidEnemyTriggersDone = [false, false, false];
+    asteroidEnemyRowIndex = 0;
+    asteroidTotalDamage = 0;
+    asteroidBonusGiven = false;
   } else {
-    const count = waveEnemyCount(wave);
-    lastLayoutCount = count;
-    layoutFormation(count);
-    formationSlots.forEach(s => s.filled = false);
-    let entryMode = 'LEFTRIGHT';
-    if (m === 1) entryMode = 'TOP';
-    else if (m === 2) entryMode = 'LEFTRIGHT';
-    else if (m === 3) entryMode = 'TOP';
-    else if (m === 4) entryMode = 'CENTER';
-    spawnQueue = formationSlots.map((s, i) => ({ slot: s, delay: i * 0.08, fromLeft: i % 2 === 0, entryMode }));
+    const enemySlotIndex = CYCLE_KIND.slice(0, m - 1).filter(k => k === 'ENEMY').length;
+    const patternList = WAVE_PATTERN_LISTS[enemySlotIndex];
+    lastLayoutCount = patternList.length * 8;
+    // patterns run sequentially: only the first is dispatched now, the rest
+    // wait (via tryAdvanceWavePattern) until the current one finishes entering
+    wavePatternQueue = [...patternList];
+    waveTotalPatterns = patternList.length;
+    waveRowIndex = 0;
+    activeEnterCount = 0;
+    waveEnemyGlobalIndex = 0;
+
+    // item drops: designate 2 random enemies (by spawn order) this wave to drop a
+    // weapon item on death, plus a 20% chance one more drops RAPID
+    const totalEnemies = patternList.length * 8;
+    waveItemDropIndices = new Set();
+    waveRapidDropIndex = -1;
+    const indices = Array.from({ length: totalEnemies }, (_, i) => i);
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+    if (totalEnemies > 0) waveItemDropIndices.add(indices[0]);
+    if (totalEnemies > 1) waveItemDropIndices.add(indices[1]);
+    if (totalEnemies > 2 && Math.random() < 0.2) waveRapidDropIndex = indices[2];
+
+    tryAdvanceWavePattern();
   }
-  spawnTimer = 0;
-  waveClearTimer = 0;
-  diveTimer = rand(2.5, 4.5);
-  waveAnnounce = { text: 'WAVE ' + wave, t: 0, hold: 1.2, fade: 0.6 };
+}
+
+function updatePendingWaveStart(dt) {
+  if (!pendingWaveActivation) return;
+  if (waveAnnounce) return; // still showing/fading — don't count down yet
+  waveStartDelayTimer -= dt;
+  if (waveStartDelayTimer <= 0) {
+    const { kind, m } = pendingWaveActivation;
+    pendingWaveActivation = null;
+    activateWave(kind, m);
+  }
 }
 
 let waveAnnounce = null;
@@ -603,7 +919,12 @@ function drawWaveAnnounce() {
   ctx.fillStyle = '#7CFFF0';
   // match the title screen's style: same font-size clamp and 20px letter-spacing
   const fontPx = clamp(W * 0.035, 8, 18);
-  drawSpacedText(a.text, W / 2, H / 2, fontPx, 20);
+  const lines = a.text.split('\n');
+  const lineGap = fontPx * 1.6;
+  const startY = H / 2 - (lineGap * (lines.length - 1)) / 2;
+  lines.forEach((line, i) => {
+    drawSpacedText(line, W / 2, startY + i * lineGap, fontPx, 20);
+  });
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.globalAlpha = 1;
@@ -615,11 +936,16 @@ function updateSpawns(dt) {
     sq.delay -= dt;
     if (sq.delay <= 0) {
       sq.slot.filled = true;
-      const e = makeEnemy(sq.slot, sq.fromLeft, sq.entryMode);
+      const e = sq.isFormation
+        ? makeFormationEnemy(sq.slot, sq.p0, sq.p1)
+        : makeEnemy(sq.slot, sq.fromLeft, sq.entryMode);
+      e.dropsItem = sq.dropsItem || false;
+      e.dropsRapid = sq.dropsRapid || false;
       enemies.push(e);
       spawnQueue.splice(i, 1);
     }
   }
+  tryAdvanceWavePattern();
 }
 
 function pickDivers() {
@@ -668,6 +994,32 @@ function fireEnemyBullet(e) {
   enemyBullets.push({ x: e.x, y: e.y, vx: dx/len*spd, vy: dy/len*spd, r: 4 });
 }
 
+function fireEnemySpread(e, n) {
+  const dx = player.x - e.x, dy = player.y - e.y;
+  const baseAngle = Math.atan2(dy, dx);
+  const spd = 260 * (2 / 3);
+  const step = 18 * Math.PI / 180;
+  for (let k = 0; k < n; k++) {
+    const a = baseAngle + (k - (n - 1) / 2) * step;
+    enemyBullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, r: 4 });
+  }
+}
+
+// each tier has its own attack behavior:
+// E - never attacks; D - 50% chance of a single aimed shot; C - 2-way spread;
+// B - 4-way spread; A - guaranteed single shot precisely aimed at the player
+function fireByTier(e) {
+  if (e.isFragment) return; // split fragments never attack
+  switch (e.type) {
+    case 'E': if (Math.random() < 0.25) fireEnemyBullet(e); break;
+    case 'D': if (Math.random() < 0.5) fireEnemyBullet(e); break;
+    case 'C': if (Math.random() < 0.5) fireEnemySpread(e, 2); break;
+    case 'B': if (Math.random() < 0.5) fireEnemySpread(e, 3); break;
+    case 'A': fireEnemyBullet(e); break; // 100% chance, precisely aimed
+    default: fireEnemyBullet(e);
+  }
+}
+
 function fireBossBarrage(e) {
   // bullets fired in all directions (omnidirectional), pattern varies by boss type
   const n = e.bossKey === 'Z' ? 24 : 12; // Z: finer angle steps, more bullets per volley
@@ -688,7 +1040,8 @@ function updateEnemies(dt) {
   formationOffsetX = Math.sin(formationOffsetT * 0.35) * 26;
 
   diveTimer -= dt;
-  if (diveTimer <= 0 && enemies.some(e => e.state === 'formation')) {
+  const patternsSettled = wavePatternQueue.length === 0 && activeEnterCount === 0;
+  if (patternsSettled && diveTimer <= 0 && enemies.some(e => e.state === 'formation')) {
     pickDivers();
     diveTimer = rand(2.2, 4.0);
   }
@@ -706,26 +1059,34 @@ function updateEnemies(dt) {
         } else {
           e.state = 'formation';
           e.x = e.slot.x; e.y = e.slot.y;
+          e.angle = 0; // apex points straight down once settled
+          if (e.countsForPattern) { activeEnterCount--; e.countsForPattern = false; }
         }
       } else {
-        const p = bezier(e.p0, e.p1, e.p2, e.p3, e.t);
+        const p = e.quadratic
+          ? qbezier(e.p0, e.p1, e.p2, e.t)
+          : bezier(e.p0, e.p1, e.p2, e.p3, e.t);
         e.x = p.x; e.y = p.y;
       }
     } else if (e.state === 'bossmove') {
       e.bossT += dt;
-      e.x = W / 2 + Math.sin(e.bossT * 0.5) * (W * 0.3);
-      e.y = H * 0.2 + Math.sin(e.bossT * 0.8) * 12;
+      if (!e.trail) e.trail = [];
+      e.trail.push({ x: e.x, y: e.y, angle: e.angle });
+      if (e.trail.length > 14) e.trail.shift();
+      // wanders up/down/left/right across the top of the screen (Lissajous-style)
+      e.x = W / 2 + Math.sin(e.bossT * 0.4) * (W * 0.32);
+      e.y = H * 0.22 + Math.sin(e.bossT * 0.65 + 1.3) * (H * 0.13);
       e.fireTimer -= dt;
       if (e.fireTimer <= 0) {
         fireBossBarrage(e);
-        e.fireTimer = 2.0;
+        e.fireTimer = rand(0.8, 2.0);
       }
     } else if (e.state === 'formation') {
       e.x = e.slot.x + formationOffsetX;
       e.y = e.slot.y + Math.sin(formationOffsetT * 0.9 + e.swayPhase) * 3;
     } else if (e.state === 'dive') {
       e.t += dt / e.duration;
-      if (!e.fired && e.t > 0.35) { fireEnemyBullet(e); e.fired = true; }
+      if (!e.fired && e.t > 0.35) { fireByTier(e); e.fired = true; }
       if (e.t >= 1) {
         startReturn(e);
       } else {
@@ -737,13 +1098,21 @@ function updateEnemies(dt) {
       if (e.t >= 1) {
         e.state = 'formation';
         e.x = e.slot.x; e.y = e.slot.y;
+        e.angle = 0; // apex points straight down once settled
       } else {
         const p = bezier(e.p0, e.p1, e.p2, e.p3, e.t);
         e.x = p.x; e.y = p.y;
       }
+    } else if (e.state === 'shard') {
+      e.x += e.vx * dt;
+      e.y += e.vy * dt;
+      if (e.x < -30 || e.x > W + 30 || e.y < -30 || e.y > H + 30) {
+        enemies.splice(i, 1);
+        continue;
+      }
     }
     const dx = e.x - ox, dy = e.y - oy;
-    if (dx * dx + dy * dy > 0.0001) {
+    if (e.state !== 'formation' && dx * dx + dy * dy > 0.0001) {
       const target = Math.atan2(dy, dx) - Math.PI / 2;
       e.angle = lerpAngle(e.angle, target, Math.min(1, dt * 10));
     }
@@ -759,7 +1128,7 @@ function pointerToXY(clientX, clientY) {
 }
 canvas.addEventListener('pointerdown', e => {
   if (state === STATE.TITLE) { beginGame(); return; }
-  if (state === STATE.GAMEOVER) { beginGame(); return; }
+  if (state === STATE.GAMEOVER) { goToTitle(); return; }
   dragging = true;
   const p = pointerToXY(e.clientX, e.clientY);
   player.targetX = p.x; player.targetY = p.y - 50;
@@ -775,8 +1144,10 @@ window.addEventListener('pointerup', () => { dragging = false; });
 const keys = {};
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
-  if ((e.code === 'Space' || e.code === 'Enter') && (state === STATE.TITLE || state === STATE.GAMEOVER)) {
+  if ((e.code === 'Space' || e.code === 'Enter') && state === STATE.TITLE) {
     beginGame();
+  } else if ((e.code === 'Space' || e.code === 'Enter') && state === STATE.GAMEOVER) {
+    goToTitle();
   }
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
@@ -784,6 +1155,9 @@ window.addEventListener('keyup', e => { keys[e.code] = false; });
 function beginGame() {
   state = STATE.PLAYING;
   overlay.style.display = 'none';
+  titleShowingItems = false;
+  titleScreen.classList.remove('hidden');
+  itemsScreen.classList.add('hidden');
   score = 0; wave = 1; killCount = 0; starReverse = false; globalSpeedBonus = 0;
   resetPlayer();
   playerBullets = []; enemyBullets = []; items = []; pickupTexts = []; particles = []; shockwaves = [];
@@ -797,6 +1171,15 @@ function endGame() {
   hiScoreLine2.textContent = 'HIGH SCORE: ' + highScore;
   titleScreen.classList.add('hidden');
   overScreen.classList.remove('hidden');
+  overlay.style.display = 'flex';
+}
+
+function goToTitle() {
+  state = STATE.TITLE;
+  overScreen.classList.add('hidden');
+  itemsScreen.classList.add('hidden');
+  titleShowingItems = false;
+  titleScreen.classList.remove('hidden');
   overlay.style.display = 'flex';
 }
 
@@ -850,10 +1233,12 @@ function updatePlayer(dt) {
 function updateBullets(dt) {
   for (let i = playerBullets.length - 1; i >= 0; i--) {
     const b = playerBullets[i];
-    if (!b.trail) b.trail = [];
-    b.trail.push({ x: b.x, y: b.y });
-    const maxTrail = b.laser ? 40 : 14;
-    if (b.trail.length > maxTrail) b.trail.shift();
+    if (!b.bubble) {
+      if (!b.trail) b.trail = [];
+      b.trail.push({ x: b.x, y: b.y });
+      const maxTrail = b.laser ? 40 : 14;
+      if (b.trail.length > maxTrail) b.trail.shift();
+    }
     if (b.homing) {
       if (!b.target || b.target.hp <= 0 || enemies.indexOf(b.target) === -1) {
         const targeted = new Set(
@@ -887,14 +1272,16 @@ function handleEnemyDeath(e) {
   score += e.def.score * wave * 10;
   if (e.slot) e.slot.filled = false;
   killCount += 1;
+  if (e.countsForPattern) { activeEnterCount--; e.countsForPattern = false; }
   if (e.type === 'GIANTBOSS') {
     spawnBossExplosion(e.x, e.y);
     globalSpeedBonus += 0.2;
+    bossDefeated = true;
   } else {
     spawnDeathParticles(e.x, e.y, e.def.color, 18);
   }
-  if (killCount % 20 === 0) spawnItem(e.x, e.y);
-  if (killCount % 75 === 0) spawnRapidItem(e.x + 20, e.y);
+  if (e.dropsItem) spawnItem(e.x, e.y);
+  if (e.dropsRapid) spawnRapidItem(e.x + 20, e.y);
 }
 
 function handleCollisions() {
@@ -928,15 +1315,16 @@ function handleCollisions() {
         const rr = (e.def.r + b.r) * (e.def.r + b.r);
         if (dist2(e.x, e.y, b.x, b.y) < rr) {
           playerBullets.splice(j, 1);
+          const ex = e.x, ey = e.y;
           e.hp -= (b.power || 1);
           if (e.hp <= 0) {
-            const ex = e.x, ey = e.y;
             handleEnemyDeath(e);
             enemies.splice(i, 1);
             if (b.gravity) applyGravitySplash(ex, ey, b.gravityRadius, e);
           } else if (e.type !== 'GIANTBOSS') {
             spawnDeathParticles(e.x, e.y, e.def.color, 3);
           }
+          if (b.bubble) applyGravitySplash(ex, ey, b.bubbleRadius, e);
           break;
         }
       }
@@ -986,7 +1374,20 @@ function hitPlayer() {
 
 function checkWaveClear() {
   if (state !== STATE.PLAYING) return;
-  if (enemies.length === 0 && spawnQueue.length === 0) {
+  if (!waveActive) return; // wave hasn't been activated yet (still in announce/delay)
+  const m = ((wave - 1) % CYCLE_LEN) + 1;
+  const kind = CYCLE_KIND[m - 1];
+  const cleared = kind === 'BOSS'
+    ? bossDefeated
+    : isAsteroidKind(kind)
+      ? asteroidWaveTimer >= 60
+      : (enemies.length === 0 && spawnQueue.length === 0);
+  if (cleared) {
+    // clean transition: clear anything left over regardless of wave kind
+    enemies = [];
+    spawnQueue = [];
+    enemyBullets = [];
+    asteroids = [];
     waveClearTimer += 1/60;
     if (waveClearTimer > 1.2) {
       wave += 1;
@@ -1018,15 +1419,43 @@ function drawPlayer() {
 
 function drawPlayerShape(x, y, color) {
   const r = player.r;
-  const scaleY = 1.5;
-  ctx.strokeStyle = color;
   ctx.lineWidth = 1;
+  if (color.charAt(0) === '#') {
+    // gradient from the top (direction of travel) to a darker shade at the base
+    const grad = ctx.createLinearGradient(x, y - r * 1.9, x, y + r * 1.1);
+    grad.addColorStop(0, color);
+    grad.addColorStop(1, darkenColor(color, 0.35));
+    ctx.strokeStyle = grad;
+  } else {
+    ctx.strokeStyle = color;
+  }
+
+  // central kite/diamond body (hand-sketch inspired)
   ctx.beginPath();
-  // upward-pointing triangle, stretched 1.5x vertically
-  ctx.moveTo(x, y - r * scaleY);
-  ctx.lineTo(x - r * 0.8660254, y + r * 0.5 * scaleY);
-  ctx.lineTo(x + r * 0.8660254, y + r * 0.5 * scaleY);
-  ctx.closePath();
+  const kitePts = [
+    { x: x,            y: y - r * 1.9 },  // top point
+    { x: x - r * 0.7,  y: y + r * 0.05 }, // left point (widest)
+    { x: x,            y: y + r * 1.1 },  // bottom point
+    { x: x + r * 0.7,  y: y + r * 0.05 }, // right point (widest)
+  ];
+  roundedPolygonPath(kitePts, 2);
+  ctx.stroke();
+
+  // side wings, shifted slightly inward and down (may overlap the body, that's fine)
+  ctx.beginPath();
+  roundedPolygonPath([
+    { x: x - r * 1.0,  y: y - r * 0.6 },
+    { x: x - r * 1.35, y: y + r * 0.75 },
+    { x: x - r * 0.7,  y: y + r * 0.8 },
+  ], 1.5);
+  ctx.stroke();
+
+  ctx.beginPath();
+  roundedPolygonPath([
+    { x: x + r * 1.0,  y: y - r * 0.6 },
+    { x: x + r * 0.7,  y: y + r * 0.8 },
+    { x: x + r * 1.35, y: y + r * 0.75 },
+  ], 1.5);
   ctx.stroke();
 }
 
@@ -1035,6 +1464,35 @@ function drawDownTriangle(x, y, r) {
   ctx.lineTo(x - r * 0.8660254, y - r * 0.5);
   ctx.lineTo(x + r * 0.8660254, y - r * 0.5);
   ctx.closePath();
+}
+
+function roundedPolygonPath(pts, radius) {
+  const n = pts.length;
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[(i - 1 + n) % n];
+    const p1 = pts[i];
+    const p2 = pts[(i + 1) % n];
+    const d1x = p1.x - p0.x, d1y = p1.y - p0.y;
+    const len1 = Math.max(0.0001, Math.hypot(d1x, d1y));
+    const d2x = p2.x - p1.x, d2y = p2.y - p1.y;
+    const len2 = Math.max(0.0001, Math.hypot(d2x, d2y));
+    const rad = Math.min(radius, len1 / 2, len2 / 2);
+    const startX = p1.x - (d1x / len1) * rad, startY = p1.y - (d1y / len1) * rad;
+    const endX = p1.x + (d2x / len2) * rad, endY = p1.y + (d2y / len2) * rad;
+    if (i === 0) ctx.moveTo(startX, startY); else ctx.lineTo(startX, startY);
+    ctx.quadraticCurveTo(p1.x, p1.y, endX, endY);
+  }
+  ctx.closePath();
+}
+
+function drawEnemyTriangle(x, y, r) {
+  // slightly isosceles (not equilateral) but roughly the same overall size, with lightly rounded corners
+  const pts = [
+    { x: x, y: y + r * 1.1 },
+    { x: x - r * 0.8, y: y - r * 0.65 },
+    { x: x + r * 0.8, y: y - r * 0.65 },
+  ];
+  roundedPolygonPath(pts, 2.2);
 }
 
 function drawPolygonDown(cx, cy, r, sides) {
@@ -1047,6 +1505,110 @@ function drawPolygonDown(cx, cy, r, sides) {
   ctx.closePath();
 }
 
+// ---------- asteroid belt wave ----------
+function updateAsteroidWave(dt) {
+  if (!waveActive) return;
+  const m = ((wave - 1) % CYCLE_LEN) + 1;
+  const kind = CYCLE_KIND[m - 1];
+  if (!isAsteroidKind(kind)) return;
+  asteroidWaveTimer += dt;
+  asteroidSpawnTimer -= dt;
+  if (asteroidSpawnTimer <= 0 && asteroidWaveTimer < 55) {
+    spawnAsteroid();
+    asteroidSpawnTimer = rand(0.6, 1.2);
+  }
+  asteroidItemTimer -= dt;
+  if (asteroidItemTimer <= 0 && asteroidWaveTimer < 60) {
+    spawnItem(rand(60, W - 60), -20);
+    asteroidItemTimer = 10;
+  }
+  if (kind === 'ASTEROID_ENEMY') {
+    ASTEROID_ENEMY_TRIGGER_TIMES.forEach((triggerTime, idx) => {
+      if (!asteroidEnemyTriggersDone[idx] && asteroidWaveTimer >= triggerTime) {
+        asteroidEnemyTriggersDone[idx] = true;
+        spawnRandomFormationDuringAsteroids();
+      }
+    });
+  }
+}
+function updateAsteroids(dt) {
+  for (let i = asteroids.length - 1; i >= 0; i--) {
+    const a = asteroids[i];
+    a.y += a.vy * dt;
+    a.angle += a.spin * dt;
+    if (a.y > H + 100) asteroids.splice(i, 1);
+  }
+}
+function drawAsteroids() {
+  ctx.strokeStyle = '#bbbbbb';
+  ctx.lineWidth = 1;
+  asteroids.forEach(a => {
+    ctx.save();
+    ctx.translate(a.x, a.y);
+    ctx.rotate(a.angle);
+    ctx.beginPath();
+    a.verts.forEach((v, i) => { if (i === 0) ctx.moveTo(v.x, v.y); else ctx.lineTo(v.x, v.y); });
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+function registerAsteroidDamage(amount) {
+  if (asteroidBonusGiven) return;
+  asteroidTotalDamage += amount;
+  if (asteroidTotalDamage >= 1000) {
+    asteroidBonusGiven = true;
+    player.lives += 1;
+    waveAnnounce = { text: 'GOOD JOB!\nBONUS 1up', t: 0, hold: 1.2, fade: 0.6 };
+  }
+}
+
+function handleAsteroidCollisions() {
+  // player bullets vs asteroids: score + explosion, but asteroids are indestructible
+  for (let j = playerBullets.length - 1; j >= 0; j--) {
+    const b = playerBullets[j];
+    if (b.laser) {
+      const top = b.y - b.length, bottom = b.y;
+      for (let i = 0; i < asteroids.length; i++) {
+        const a = asteroids[i];
+        if (b.hitSet.has(a)) continue;
+        const closestY = clamp(a.y, top, bottom);
+        const rr = (a.r + b.r) * (a.r + b.r);
+        if (dist2(a.x, a.y, b.x, closestY) < rr) {
+          b.hitSet.add(a);
+          score += wave * 20;
+          registerAsteroidDamage(b.power || 1);
+          spawnDeathParticles(a.x, a.y, '#bbbbbb', 10);
+          b.pierceLeft -= 1;
+          if (b.pierceLeft <= 0) break;
+        }
+      }
+      if (b.pierceLeft <= 0) playerBullets.splice(j, 1);
+    } else {
+      for (let i = 0; i < asteroids.length; i++) {
+        const a = asteroids[i];
+        const rr = (a.r + b.r) * (a.r + b.r);
+        if (dist2(a.x, a.y, b.x, b.y) < rr) {
+          playerBullets.splice(j, 1);
+          score += wave * 20;
+          registerAsteroidDamage(b.power || 1);
+          spawnDeathParticles(a.x, a.y, '#bbbbbb', 10);
+          break;
+        }
+      }
+    }
+  }
+  if (!player.alive || player.invT > 0) return;
+  for (let i = 0; i < asteroids.length; i++) {
+    const a = asteroids[i];
+    const rr = (player.r + a.r) * (player.r + a.r);
+    if (dist2(player.x, player.y, a.x, a.y) < rr) {
+      hitPlayer();
+      return;
+    }
+  }
+}
+
 function hexToRgba(hex, alpha) {
   const h = hex.replace('#', '');
   const r = parseInt(h.substring(0, 2), 16);
@@ -1055,9 +1617,30 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+function darkenColor(hex, amt, alpha) {
+  const h = hex.replace('#', '');
+  const r = Math.round(parseInt(h.substring(0, 2), 16) * (1 - amt));
+  const g = Math.round(parseInt(h.substring(2, 4), 16) * (1 - amt));
+  const b = Math.round(parseInt(h.substring(4, 6), 16) * (1 - amt));
+  return alpha === undefined ? `rgb(${r},${g},${b})` : `rgba(${r},${g},${b},${alpha})`;
+}
+
 function drawEnemy(e) {
   const x = e.x, y = e.y, r = e.def.r;
   ctx.lineWidth = 1;
+  if (e.type === 'GIANTBOSS' && e.trail && e.trail.length > 0) {
+    e.trail.forEach((p, idx) => {
+      const alpha = ((idx + 1) / (e.trail.length + 1)) * 0.35;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.angle);
+      ctx.strokeStyle = hexToRgba(e.def.color, alpha);
+      ctx.beginPath();
+      drawPolygonDown(0, 0, r, e.def.sides);
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(e.angle);
@@ -1068,12 +1651,18 @@ function drawEnemy(e) {
     ctx.stroke();
   } else {
     // outer triangle (HP=1 size) is fully opaque; each additional HP point adds
-    // a nested triangle 3px smaller (drawn inward), at 30% opacity
+    // a nested triangle 3px smaller (drawn inward), at 50% opacity.
+    // each triangle is stroked with a gradient from its base color (apex) to a darker shade (base).
     const n = Math.max(1, e.hp);
     for (let k = 0; k < n; k++) {
-      ctx.strokeStyle = k === 0 ? e.def.color : hexToRgba(e.def.color, 0.5);
+      const rr = Math.max(1, r - k * 3);
+      const alpha = k === 0 ? 1 : 0.5;
+      const grad = ctx.createLinearGradient(0, rr * 1.1, 0, -rr * 0.65);
+      grad.addColorStop(0, hexToRgba(e.def.color, alpha));
+      grad.addColorStop(1, darkenColor(e.def.color, 0.35, alpha));
+      ctx.strokeStyle = grad;
       ctx.beginPath();
-      drawDownTriangle(0, 0, Math.max(1, r - k * 3));
+      drawEnemyTriangle(0, 0, rr);
       ctx.stroke();
     }
   }
@@ -1082,7 +1671,7 @@ function drawEnemy(e) {
 }
 
 function drawBossHpBar(e) {
-  const barW = W / 2, barH = 5;
+  const barW = W / 2, barH = 3;
   const barX = W / 2 - barW / 2, barY = 60;
   const frac = Math.max(0, e.hp / e.maxHp);
   ctx.strokeStyle = 'rgba(255,46,90,0.5)';
@@ -1110,6 +1699,12 @@ function drawBullets() {
       ctx.beginPath();
       ctx.moveTo(b.x, b.y);
       ctx.lineTo(b.x, b.y - b.length);
+      ctx.stroke();
+    } else if (b.bubble) {
+      // circle bullet, no afterimage trail
+      ctx.strokeStyle = '#ff9de2';
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
       ctx.stroke();
     } else {
       if (b.trail) {
@@ -1146,6 +1741,10 @@ function drawBullets() {
 function drawStarfield(dt) {
   const dir = starReverse ? -1 : 1;
   let speedFactor = starReverse ? 3 : 1;
+  const cycleM = ((wave - 1) % CYCLE_LEN) + 1;
+  if (isAsteroidKind(CYCLE_KIND[cycleM - 1])) {
+    speedFactor *= 4; // asteroid belt: much faster starfield for a sense of speed
+  }
   if (player.warping) {
     // ramp up alongside the player's accelerating warp speed
     speedFactor *= 1 + Math.min(1, player.warpT / 1.1) * 5;
@@ -1220,6 +1819,29 @@ function drawSpecialStars() {
   });
 }
 
+function drawLevelBar(name, level, maxLevel, rightX, y) {
+  ctx.textAlign = 'left';
+  const nameW = ctx.measureText(name).width;
+  const blockW = 6, blockH = 12, gap = 2;
+  const blocksW = maxLevel * blockW + (maxLevel - 1) * gap;
+  const spacing = 8;
+  let x = rightX - (nameW + spacing + blocksW);
+  ctx.fillStyle = '#7CFFF0';
+  ctx.fillText(name, x, y);
+  x += nameW + spacing;
+  for (let i = 0; i < maxLevel; i++) {
+    if (i < level) {
+      ctx.fillStyle = '#7CFFF0';
+      ctx.fillRect(x, y, blockW, blockH);
+    } else {
+      ctx.strokeStyle = '#7CFFF0';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, blockW, blockH);
+    }
+    x += blockW + gap;
+  }
+}
+
 function drawHUD() {
   ctx.fillStyle = '#7CFFF0';
   ctx.font = '12px "Montserrat", sans-serif';
@@ -1233,20 +1855,29 @@ function drawHUD() {
   ctx.textAlign = 'left';
   ctx.fillText('WAVE ' + wave, 12, 10);
 
-  // item status: right side
-  ctx.textAlign = 'right';
-  if (player.weapon !== 'NORMAL') ctx.fillText(player.weapon + ' Lv' + player.weaponLevel, W - 12, 28);
-  if (player.rapidLevel > 0) ctx.fillText('RAPID Lv' + player.rapidLevel, W - 12, 40);
+  // asteroid belt countdown
+  const cycleM = ((wave - 1) % CYCLE_LEN) + 1;
+  if (isAsteroidKind(CYCLE_KIND[cycleM - 1])) {
+    const remaining = Math.max(0, Math.ceil(60 - asteroidWaveTimer));
+    ctx.textAlign = 'center';
+    ctx.fillText(String(remaining), W / 2, 28);
+  }
+
+  // item status: right side, as name + level block bar (font 2px smaller than the rest of the HUD)
+  ctx.font = '10px "Montserrat", sans-serif';
+  if (player.weapon !== 'NORMAL') drawLevelBar(player.weapon, player.weaponLevel, 5, W - 12, 26);
+  if (player.rapidLevel > 0) drawLevelBar('RAPID', player.rapidLevel, 3, W - 12, 44);
+  ctx.font = '12px "Montserrat", sans-serif';
   ctx.textAlign = 'left';
 
-  // LIVES: triangle icons only, right-aligned
+  // LIVES: triangle icons only, right-aligned (slightly smaller, matching the item display)
   ctx.strokeStyle = '#7CFFF0'; ctx.lineWidth = 1;
   for (let i = 0; i < player.lives; i++) {
-    const lx = W - 20 - i * 16, ly = 17;
+    const lx = W - 18 - i * 13, ly = 17;
     ctx.beginPath();
-    ctx.moveTo(lx, ly - 6);
-    ctx.lineTo(lx - 5, ly + 5);
-    ctx.lineTo(lx + 5, ly + 5);
+    ctx.moveTo(lx, ly - 4);
+    ctx.lineTo(lx - 3.5, ly + 3.5);
+    ctx.lineTo(lx + 3.5, ly + 3.5);
     ctx.closePath();
     ctx.stroke();
   }
@@ -1271,13 +1902,18 @@ function frame(now) {
     updateItems(dt);
     updatePickupTexts(dt);
     updateWaveAnnounce(dt);
+    updatePendingWaveStart(dt);
+    updateAsteroidWave(dt);
+    updateAsteroids(dt);
     handleCollisions();
+    handleAsteroidCollisions();
     checkWaveClear();
   }
   updateParticles(dt);
   updateShockwaves(dt);
 
   enemies.forEach(drawEnemy);
+  drawAsteroids();
   drawBullets();
   drawItems();
   drawParticles();
@@ -1292,6 +1928,21 @@ function frame(now) {
 resize();
 initStars();
 requestAnimationFrame(frame);
+
+// title screen (10s) alternates with an item legend (20s)
+let titleShowingItems = false;
+function scheduleTitleToggle() {
+  const delay = titleShowingItems ? 20000 : 10000;
+  setTimeout(() => {
+    if (state === STATE.TITLE) {
+      titleShowingItems = !titleShowingItems;
+      titleScreen.classList.toggle('hidden', titleShowingItems);
+      itemsScreen.classList.toggle('hidden', !titleShowingItems);
+    }
+    scheduleTitleToggle();
+  }, delay);
+}
+scheduleTitleToggle();
 
 })();
 </script>
