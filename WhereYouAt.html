@@ -2208,6 +2208,38 @@
     }
   }
 
+  // 端末に蓄積済みの駅データがあれば、それを使って地図・電光掲示・一覧・矢印を即座に表示する。
+  // 通信開始前(体感速度向上)と、通信が全て失敗した場合の代替表示の両方で使う。
+  // 既に駅データが1件でもあれば何もしない(戻り値: 表示できたらtrue)
+  function showStoredStationsFallback(origin){
+    if(cachedStations.length > 0) return false;
+    const stored = getStoredStationsNear(origin, STATION_RADIUS_XFAR);
+    if(stored.length === 0) return false;
+    clearStations();
+    cachedStations = stored.slice();
+    const nearby = [];
+    stored.forEach(s=>{
+      const dist = origin.distanceTo([s.lat, s.lng]);
+      if(dist > STATION_RADIUS_XFAR) return;
+      const color = colorForStationDistance(dist);
+      const m = L.marker([s.lat, s.lng], { icon: stationIcon(s.name, color, s.lines), interactive:false }).addTo(map);
+      stationMarkers.push(m);
+      nearby.push({ name:s.name, dist, lines:s.lines, lat:s.lat, lng:s.lng });
+    });
+    mapOverlay.textContent = nearby.length > 0 ? t('stationCount', nearby.length) : 'MAP VIEW';
+    hideMapWaitOverlay();
+    updateMapModeBtnVisibility();
+    try{ updateTicker(nearby); }catch(tickerErr){ console.warn('updateTicker failed (non-critical):', tickerErr); }
+    try{ updateInfoModal(); }catch(modalErr){ console.warn('updateInfoModal failed (non-critical):', modalErr); }
+    try{
+      if(nearby.length > 0){
+        const nearest = nearby.slice().sort((a,b)=> a.dist - b.dist)[0];
+        updateNearestArrow(origin, L.latLng(nearest.lat, nearest.lng));
+      }
+    }catch(arrowErr){ console.warn('updateNearestArrow failed (non-critical):', arrowErr); }
+    return true;
+  }
+
   async function fetchStations(){
     if(isFetchingStations) return; // 既に実行中なら重複実行しない
     isFetchingStations = true;
@@ -2216,6 +2248,10 @@
       if(!marker){ setFetchStatus(t('fsWaitingPosition')); return; }
 
       const origin = marker.getLatLng(); // 現在地(GPS)中心
+
+      // 端末に蓄積済みの駅データがあれば、Overpassとの通信を待たずに先に表示しておく(体感速度の向上)。
+      // この後の通信が成功すれば、最新のデータで上書き・追加される
+      showStoredStationsFallback(origin);
 
       // 定期実行・地図移動など、fetchStationsが呼ばれたことが分かるよう一旦「取得中」を表示する
       setFetchStatus(t('fsFetchingBasic'));
@@ -2349,33 +2385,7 @@
         setFetchStatus(t('fsFailedRetry', reason, Math.round(backoff/1000), stationFailCount));
 
         // 通信に失敗し、まだ駅データが無ければ、端末に蓄積済みのデータで代替表示する(通信削減・オフライン対応)
-        if(cachedStations.length === 0){
-          const stored = getStoredStationsNear(origin, STATION_RADIUS_XFAR);
-          if(stored.length > 0){
-            clearStations();
-            cachedStations = stored.slice();
-            const nearby = [];
-            stored.forEach(s=>{
-              const dist = origin.distanceTo([s.lat, s.lng]);
-              if(dist > STATION_RADIUS_XFAR) return;
-              const color = colorForStationDistance(dist);
-              const m = L.marker([s.lat, s.lng], { icon: stationIcon(s.name, color, s.lines), interactive:false }).addTo(map);
-              stationMarkers.push(m);
-              nearby.push({ name:s.name, dist, lines:s.lines, lat:s.lat, lng:s.lng });
-            });
-            mapOverlay.textContent = nearby.length > 0 ? t('stationCount', nearby.length) : 'MAP VIEW';
-            hideMapWaitOverlay();
-            updateMapModeBtnVisibility();
-            try{ updateTicker(nearby); }catch(tickerErr){ console.warn('updateTicker failed (non-critical):', tickerErr); }
-            try{ updateInfoModal(); }catch(modalErr){ console.warn('updateInfoModal failed (non-critical):', modalErr); }
-            try{
-              if(nearby.length > 0){
-                const nearest = nearby.slice().sort((a,b)=> a.dist - b.dist)[0];
-                updateNearestArrow(origin, L.latLng(nearest.lat, nearest.lng));
-              }
-            }catch(arrowErr){ console.warn('updateNearestArrow failed (non-critical):', arrowErr); }
-          }
-        }
+        showStoredStationsFallback(origin);
 
         clearTimeout(stationRetryTimer);
         // 連続失敗するほど間隔を伸ばす(3秒→6秒→12秒...最大30秒): 過度な連打によるレート制限を避ける
