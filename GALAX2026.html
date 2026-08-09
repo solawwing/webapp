@@ -106,6 +106,10 @@
         <div class="item-header"><span class="item-icon">P</span><span class="item-name">PHANTOM</span></div>
         <div class="item-desc">Flashes a wide beam straight up, damaging everything caught in it. Cooldown shortens each level.</div>
       </div>
+      <div class="item-entry">
+        <div class="item-header"><span class="item-icon">C</span><span class="item-name">CURVE</span></div>
+        <div class="item-desc">A violet beam that bends to chase down enemies, piercing through several as it goes.</div>
+      </div>
       <hr style="width:100%; border:none; border-top:1px solid #39FF14; margin:8px 0;">
       <div class="item-entry">
         <div class="item-header"><span class="item-icon">^</span><span class="item-name">RAPID</span></div>
@@ -213,8 +217,8 @@ function resetPlayer() {
 }
 
 // ---------- items ----------
-const ITEM_TYPES = ['DOUBLE', 'WIDE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM'];
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', WIDE: '#ffd23f', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff' };
+const ITEM_TYPES = ['DOUBLE', 'WIDE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE'];
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', WIDE: '#ffd23f', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff', CURVE: '#b967ff' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -384,7 +388,7 @@ function updateItems(dt) {
     }
   }
 }
-const ITEM_GLYPHS = { DOUBLE: 'D', WIDE: 'W', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P' };
+const ITEM_GLYPHS = { DOUBLE: 'D', WIDE: 'W', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C' };
 function drawItems() {
   ctx.lineWidth = 1;
   items.forEach(it => {
@@ -456,6 +460,27 @@ function findNearestEnemyExcluding(x, y, excludeSet) {
   });
   return best;
 }
+function findNearestEnemyAhead(x, y, excludeSet, maxY) {
+  // like findNearestEnemyExcluding, but ignores enemies behind the reference point (e.y > maxY)
+  let best = null, bestD = Infinity;
+  enemies.forEach(e => {
+    if (excludeSet.has(e)) return;
+    if (e.y > maxY) return;
+    const d = dist2(x, y, e.x, e.y);
+    if (d < bestD) { bestD = d; best = e; }
+  });
+  return best;
+}
+function findTopmostEnemyAhead(excludeSet, maxY) {
+  // the enemy with the smallest y (highest on screen), ignoring ones behind maxY
+  let best = null, bestY = Infinity;
+  enemies.forEach(e => {
+    if (excludeSet.has(e)) return;
+    if (e.y > maxY) return;
+    if (e.y < bestY) { bestY = e.y; best = e; }
+  });
+  return best;
+}
 function fanAngles(n, step) {
   const arr = [];
   for (let i = 0; i < n; i++) arr.push((i - (n - 1) / 2) * step);
@@ -478,6 +503,13 @@ const LASER_SPECS = [null,
   { length: 100, pierce: 3 },
   { length: 200, pierce: 4 },
   { length: 300, pierce: 10 },
+];
+const CURVE_SPECS = [null,
+  { turn: 5 },
+  { turn: 6 },
+  { turn: 7 },
+  { turn: 8 },
+  { turn: 10 },
 ];
 function fireWeapon() {
   const bx = player.x, by = player.y - player.r;
@@ -523,6 +555,18 @@ function fireWeapon() {
     fireVulcanShot(); // first shot immediately
     player.vulcanBurstRemaining = n - 1;
     player.vulcanBurstTimer = 0.1;
+  } else if (player.weapon === 'CURVE') {
+    const spec = CURVE_SPECS[lvl];
+    const assigned = new Set(); // targets already claimed by this volley's beams
+    for (let k = 0; k < lvl; k++) {
+      const target = findTopmostEnemyAhead(assigned, by);
+      if (target) assigned.add(target);
+      playerBullets.push({
+        x: bx, y: by, vx: 0, vy: -540, r: 3, power: 5,
+        laserCurve: true, turnRate: spec.turn, hitSet: new Set(), target,
+        noTrail: true, fullTrail: [{ x: bx, y: by }], dying: false, age: 0,
+      });
+    }
   } else {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, power: 5 });
   }
@@ -1422,19 +1466,47 @@ function updateBullets(dt) {
       }
       if (b.target) {
         const dx = b.target.x - b.x, dy = b.target.y - b.y;
-        const len = Math.max(1, Math.hypot(dx, dy));
+        const len = Math.max(0.0001, Math.hypot(dx, dy));
         const dvx = dx / len * 540, dvy = dy / len * 540;
         const turn = Math.min(1, 7 * dt);
         b.vx += (dvx - b.vx) * turn;
         b.vy += (dvy - b.vy) * turn;
       }
     }
+    if (b.laserCurve && b.dying) {
+      // erase the trail from the front (near the ship) until it's fully gone
+      const removeCount = Math.max(1, Math.ceil(b.fullTrail.length * dt / 0.35));
+      b.fullTrail.splice(0, removeCount);
+      if (b.fullTrail.length === 0) playerBullets.splice(i, 1);
+      continue;
+    }
+    if (b.laserCurve) {
+      b.age += dt;
+      if (b.age >= 2.5) { b.dying = true; continue; } // 2.5s lifespan, then fades out regardless of whether it's found/hit a target
+      if (!b.target || b.target.hp <= 0 || enemies.indexOf(b.target) === -1) {
+        const claimed = new Set(b.hitSet);
+        playerBullets.forEach(o => { if (o !== b && o.laserCurve && o.target) claimed.add(o.target); });
+        b.target = findTopmostEnemyAhead(claimed, player.y) || null;
+      }
+      if (b.target) {
+        const dx = b.target.x - b.x, dy = b.target.y - b.y;
+        const len = Math.max(0.0001, Math.hypot(dx, dy));
+        const spd = Math.hypot(b.vx, b.vy) || 540;
+        const dvx = dx / len * spd, dvy = dy / len * spd;
+        const turn = Math.min(1, b.turnRate * dt);
+        b.vx += (dvx - b.vx) * turn;
+        b.vy += (dvy - b.vy) * turn;
+      }
+    }
     b.x += b.vx * dt; b.y += b.vy * dt;
+    if (b.laserCurve) b.fullTrail.push({ x: b.x, y: b.y }); // keeps growing until it hits or leaves the screen
     if (b.bubble) {
       b.traveled += Math.hypot(b.vx, b.vy) * dt;
       b.r = 1 + (b.traveled / 30) * 2; // starts at 1px, grows +2px in radius for every 30px traveled (uncapped)
     }
-    if (b.y < -20 || b.y > H + 20 || b.x < -20 || b.x > W + 20) playerBullets.splice(i, 1);
+    if (b.y < -20 || b.y > H + 20 || b.x < -20 || b.x > W + 20) {
+      if (b.laserCurve) { b.dying = true; } else { playerBullets.splice(i, 1); }
+    }
   }
   for (let i = enemyBullets.length - 1; i >= 0; i--) {
     const b = enemyBullets[i];
@@ -1468,6 +1540,7 @@ function handleCollisions() {
   for (let j = playerBullets.length - 1; j >= 0; j--) {
     const b = playerBullets[j];
     if (b.spawnDelay > 0) continue; // not fired yet
+    if (b.dying) continue; // erasing its trail, no longer active
     if (b.laser) {
       const top = b.y - b.length, bottom = b.y;
       for (let i = enemies.length - 1; i >= 0; i--) {
@@ -1489,6 +1562,25 @@ function handleCollisions() {
         }
       }
       if (b.pierceLeft <= 0) playerBullets.splice(j, 1);
+    } else if (b.laserCurve) {
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        if (b.hitSet.has(e)) continue;
+        const rr = (e.def.r + b.r) * (e.def.r + b.r);
+        if (dist2(e.x, e.y, b.x, b.y) < rr) {
+          const wasTarget = e === b.target;
+          b.hitSet.add(e);
+          e.hp -= (wasTarget ? 5 : 1); // locked target takes 5, incidental pierced enemies take 1
+          if (e.hp <= 0) {
+            handleEnemyDeath(e);
+            enemies.splice(i, 1);
+          } else if (e.type !== 'GIANTBOSS') {
+            spawnDeathParticles(e.x, e.y, e.def.color, 3);
+          }
+          if (wasTarget) b.dying = true; // reached its locked (topmost) target — journey ends here
+          break;
+        }
+      }
     } else {
       for (let i = enemies.length - 1; i >= 0; i--) {
         const e = enemies[i];
@@ -1757,6 +1849,7 @@ function handleAsteroidCollisions() {
   for (let j = playerBullets.length - 1; j >= 0; j--) {
     const b = playerBullets[j];
     if (b.spawnDelay > 0) continue; // not fired yet
+    if (b.dying) continue; // erasing its trail, no longer active
     if (b.laser) {
       const top = b.y - b.length, bottom = b.y;
       for (let i = 0; i < asteroids.length; i++) {
@@ -1813,6 +1906,13 @@ function darkenColor(hex, amt, alpha) {
   const g = Math.round(parseInt(h.substring(2, 4), 16) * (1 - amt));
   const b = Math.round(parseInt(h.substring(4, 6), 16) * (1 - amt));
   return alpha === undefined ? `rgb(${r},${g},${b})` : `rgba(${r},${g},${b},${alpha})`;
+}
+function lerpColor(hexA, hexB, t) {
+  const a = hexA.replace('#', ''), b = hexB.replace('#', '');
+  const ar = parseInt(a.substring(0, 2), 16), ag = parseInt(a.substring(2, 4), 16), ab = parseInt(a.substring(4, 6), 16);
+  const br = parseInt(b.substring(0, 2), 16), bg = parseInt(b.substring(2, 4), 16), bb = parseInt(b.substring(4, 6), 16);
+  const r = Math.round(ar + (br - ar) * t), g = Math.round(ag + (bg - ag) * t), bc = Math.round(ab + (bb - ab) * t);
+  return `rgb(${r},${g},${bc})`;
 }
 
 function drawEnemy(e) {
@@ -1898,6 +1998,21 @@ function drawBullets() {
       ctx.beginPath();
       ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
       ctx.stroke();
+    } else if (b.laserCurve) {
+      // full path from origin to current tip, growing until it hits or leaves the
+      // screen, then erased from the near (origin) end forward; the head (tip) is
+      // brighter/more saturated, fading duller toward the tail (origin)
+      if (b.fullTrail && b.fullTrail.length > 1) {
+        const n = b.fullTrail.length;
+        for (let k = 1; k < n; k++) {
+          const t = k / (n - 1);
+          ctx.strokeStyle = lerpColor('#4a2566', '#d400ff', t);
+          ctx.beginPath();
+          ctx.moveTo(b.fullTrail[k - 1].x, b.fullTrail[k - 1].y);
+          ctx.lineTo(b.fullTrail[k].x, b.fullTrail[k].y);
+          ctx.stroke();
+        }
+      }
     } else if (b.homing) {
       // 3px square, with a fading afterimage trail
       if (b.trail) {
