@@ -1608,6 +1608,57 @@
   let hasFetchedExtended = false; // 拡張取得(2〜10km圏)が一度でも成功したか
   let stationFetchAttempted = false; // 一度でも駅取得を開始したか(最初の駅取得より前に住所取得が走らないようにする)
 
+  // --- 駅情報のローカル蓄積(通信削減): 一度取得した駅は端末に保存し、同じ場所を再訪した際や
+  //     オフライン時にOverpassへ問い合わせずに表示できるようにする。言語ごとに別キーで保存する。
+  const STATION_STORAGE_KEY_PREFIX = 'whereyouat_stations_';
+  const STATION_STORAGE_MAX = 3000; // 保存件数の上限(localStorage容量対策のための概算値)
+
+  function getStationStorageKey(){
+    return STATION_STORAGE_KEY_PREFIX + currentLang;
+  }
+
+  function loadStoredStations(){
+    try{
+      const raw = localStorage.getItem(getStationStorageKey());
+      if(!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    }catch(e){
+      console.warn('loadStoredStations failed (non-critical):', e);
+      return [];
+    }
+  }
+
+  // 新しく取得した駅データを、既存の蓄積データにマージして保存する(駅IDで重複排除、最新の情報で上書き)
+  function saveStoredStations(newStations){
+    if(!newStations || newStations.length === 0) return;
+    try{
+      const existing = loadStoredStations();
+      const map = new Map(existing.map(s => [s.id, s]));
+      newStations.forEach(s=>{
+        if(s.id != null){
+          map.set(s.id, { id:s.id, name:s.name, lat:s.lat, lng:s.lng, lines:s.lines });
+        }
+      });
+      let merged = Array.from(map.values());
+      if(merged.length > STATION_STORAGE_MAX){
+        merged = merged.slice(merged.length - STATION_STORAGE_MAX); // 古い分から間引く
+      }
+      localStorage.setItem(getStationStorageKey(), JSON.stringify(merged));
+    }catch(e){
+      console.warn('saveStoredStations failed (non-critical, storage may be full):', e);
+    }
+  }
+
+  // 蓄積データのうち、指定した中心から半径内にあるものだけを返す
+  function getStoredStationsNear(originLatLng, radiusM){
+    const stored = loadStoredStations();
+    return stored.filter(s=>{
+      const d = originLatLng.distanceTo([s.lat, s.lng]);
+      return d <= radiusM;
+    });
+  }
+
   async function fetchAddress(lat, lng){
     try{
       const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&accept-language=${currentLang}`;
@@ -2065,6 +2116,7 @@
         });
         if(addedCount > 0){
           mapOverlay.textContent = t('stationCount', cachedStations.length);
+          saveStoredStations(cachedStations); // 通信削減のため端末に蓄積しておく
           try{ refreshTickerDistances(); }catch(e){ console.warn('refreshTickerDistances failed (non-critical):', e); }
         }
         hasFetchedExtended = true; // 拡張取得(2〜10km圏)に成功
@@ -2237,6 +2289,7 @@
           });
           mapOverlay.textContent = count > 0 ? t('stationCount', count) : 'MAP VIEW';
           hideMapWaitOverlay(); // 駅名取得(基本)が完了したので待機表示を消す
+          saveStoredStations(cachedStations); // 通信削減のため端末に蓄積しておく
           setFetchStatus(t('fsBasicToExtended'));
           updateMapModeBtnVisibility();
           try{ updateTicker(nearby); }catch(tickerErr){ console.warn('updateTicker failed (non-critical):', tickerErr); }
@@ -2294,6 +2347,36 @@
         const reason = lastError ? (lastError.name === 'AbortError' ? t('reasonTimeout') : lastError.message) : t('reasonUnknown');
         const backoff = Math.min(30000, 3000 * Math.pow(2, stationFailCount - 1));
         setFetchStatus(t('fsFailedRetry', reason, Math.round(backoff/1000), stationFailCount));
+
+        // 通信に失敗し、まだ駅データが無ければ、端末に蓄積済みのデータで代替表示する(通信削減・オフライン対応)
+        if(cachedStations.length === 0){
+          const stored = getStoredStationsNear(origin, STATION_RADIUS_XFAR);
+          if(stored.length > 0){
+            clearStations();
+            cachedStations = stored.slice();
+            const nearby = [];
+            stored.forEach(s=>{
+              const dist = origin.distanceTo([s.lat, s.lng]);
+              if(dist > STATION_RADIUS_XFAR) return;
+              const color = colorForStationDistance(dist);
+              const m = L.marker([s.lat, s.lng], { icon: stationIcon(s.name, color, s.lines), interactive:false }).addTo(map);
+              stationMarkers.push(m);
+              nearby.push({ name:s.name, dist, lines:s.lines, lat:s.lat, lng:s.lng });
+            });
+            mapOverlay.textContent = nearby.length > 0 ? t('stationCount', nearby.length) : 'MAP VIEW';
+            hideMapWaitOverlay();
+            updateMapModeBtnVisibility();
+            try{ updateTicker(nearby); }catch(tickerErr){ console.warn('updateTicker failed (non-critical):', tickerErr); }
+            try{ updateInfoModal(); }catch(modalErr){ console.warn('updateInfoModal failed (non-critical):', modalErr); }
+            try{
+              if(nearby.length > 0){
+                const nearest = nearby.slice().sort((a,b)=> a.dist - b.dist)[0];
+                updateNearestArrow(origin, L.latLng(nearest.lat, nearest.lng));
+              }
+            }catch(arrowErr){ console.warn('updateNearestArrow failed (non-critical):', arrowErr); }
+          }
+        }
+
         clearTimeout(stationRetryTimer);
         // 連続失敗するほど間隔を伸ばす(3秒→6秒→12秒...最大30秒): 過度な連打によるレート制限を避ける
         stationRetryTimer = setTimeout(fetchStations, backoff);
