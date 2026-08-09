@@ -57,6 +57,18 @@
 <div id="overlay">
   <div id="titleScreen">
     <div class="title" style="font-size:clamp(8px,3.5vw,18px);">GALAX2026</div>
+    <svg width="360" height="26" viewBox="0 0 360 26" style="display:block; margin:0 auto 0;">
+      <defs>
+        <linearGradient id="titleArcFade" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#0ff" stop-opacity="0"/>
+          <stop offset="30%" stop-color="#0ff" stop-opacity="0.45"/>
+          <stop offset="50%" stop-color="#0ff" stop-opacity="1"/>
+          <stop offset="70%" stop-color="#0ff" stop-opacity="0.45"/>
+          <stop offset="100%" stop-color="#0ff" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="M 5 22 A 265 26 0 0 1 355 22" stroke="url(#titleArcFade)" stroke-width="1" fill="none" stroke-linecap="round"/>
+    </svg>
     <div class="sub blink" style="margin-top:24px;">TAP TO START</div>
   </div>
   <div id="itemsScreen" class="hidden">
@@ -87,8 +99,17 @@
         <div class="item-desc">Slow drifting orbs fired in a wide forward cone. Every hit splashes nearby enemies too.</div>
       </div>
       <div class="item-entry">
+        <div class="item-header"><span class="item-icon">V</span><span class="item-name">VULCAN</span></div>
+        <div class="item-desc">Fires a rapid 5-shot burst (0.2s apart), growing by 5 more shots per level. Stacks with RAPID.</div>
+      </div>
+      <div class="item-entry">
+        <div class="item-header"><span class="item-icon">P</span><span class="item-name">PHANTOM</span></div>
+        <div class="item-desc">Flashes a wide beam straight up, damaging everything caught in it. Cooldown shortens each level.</div>
+      </div>
+      <hr style="width:100%; border:none; border-top:1px solid #39FF14; margin:8px 0;">
+      <div class="item-entry">
         <div class="item-header"><span class="item-icon">^</span><span class="item-name">RAPID</span></div>
-        <div class="item-desc">Fires several extra shots in a quick burst before waiting for the next volley.</div>
+        <div class="item-desc">Fires several extra shots in a quick burst before waiting for the next volley. Earn it by pushing hard through the Asteroid Belt.</div>
       </div>
     </div>
   </div>
@@ -172,10 +193,12 @@ function lerpAngle(a, b, t) {
 
 // ---------- player ----------
 const player = {
-  x: 0, y: 0, r: 9,
+  x: 0, y: 0, r: 7,
   targetX: 0, targetY: 0, lives: 3, alive: true,
   invT: 0, fireCd: 0, fireInterval: 0.28, weapon: 'NORMAL', weaponLevel: 0,
   rapidLevel: 0, burstRemaining: 0, burstTimer: 0,
+  vulcanBurstRemaining: 0, vulcanBurstTimer: 0,
+  phantomCooldown: 0,
   warping: false, warpT: 0, warpTrail: [],
 };
 function resetPlayer() {
@@ -184,12 +207,14 @@ function resetPlayer() {
   player.lives = 3; player.alive = true; player.invT = 2.0; player.fireCd = 0;
   player.weapon = 'NORMAL'; player.weaponLevel = 0;
   player.rapidLevel = 0; player.burstRemaining = 0; player.burstTimer = 0;
+  player.vulcanBurstRemaining = 0; player.vulcanBurstTimer = 0;
+  player.phantomCooldown = 0;
   player.warping = false; player.warpT = 0; player.warpTrail = [];
 }
 
 // ---------- items ----------
-const ITEM_TYPES = ['DOUBLE', 'WIDE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE'];
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', WIDE: '#ffd23f', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#ff9de2' };
+const ITEM_TYPES = ['DOUBLE', 'WIDE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM'];
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', WIDE: '#ffd23f', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -270,6 +295,23 @@ function applyGravitySplash(x, y, radius, excludeEnemy) {
   }
 }
 
+function applySplashNoWave(x, y, radius, excludeEnemy) {
+  // same splash damage as applyGravitySplash, without the shockwave-ring visual
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    if (e === excludeEnemy) continue;
+    if (dist2(x, y, e.x, e.y) <= radius * radius) {
+      e.hp -= 1;
+      if (e.hp <= 0) {
+        handleEnemyDeath(e);
+        enemies.splice(i, 1);
+      } else if (e.type !== 'GIANTBOSS') {
+        spawnDeathParticles(e.x, e.y, e.def.color, 3);
+      }
+    }
+  }
+}
+
 function updateParticles(dt) {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
@@ -296,8 +338,8 @@ function drawParticles() {
   });
 }
 function pickItemType() {
-  // the weapon type currently equipped is half as likely to drop again
-  const weights = ITEM_TYPES.map(t => t === player.weapon ? 0.5 : 1);
+  // the weapon type currently equipped is 70% as likely to drop again
+  const weights = ITEM_TYPES.map(t => t === player.weapon ? 0.7 : 1);
   const total = weights.reduce((a, b) => a + b, 0);
   let r = Math.random() * total;
   for (let i = 0; i < ITEM_TYPES.length; i++) {
@@ -336,7 +378,7 @@ function updateItems(dt) {
     }
   }
 }
-const ITEM_GLYPHS = { DOUBLE: 'D', WIDE: 'W', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B' };
+const ITEM_GLYPHS = { DOUBLE: 'D', WIDE: 'W', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P' };
 function drawItems() {
   ctx.lineWidth = 1;
   items.forEach(it => {
@@ -419,9 +461,11 @@ function xOffsets(n, spacing) {
   return arr;
 }
 const DOUBLE_COUNTS = [0, 2, 4, 6, 8, 10];
-const WIDE_COUNTS = [0, 3, 4, 5, 7, 10];
+const WIDE_COUNTS = [0, 3, 5, 7, 9, 11];
 const HOMING_COUNTS = [0, 1, 2, 3, 4, 5];
 const BUBBLE_COUNTS = [0, 8, 16, 24, 32, 40]; // linear, +8 per level
+const VULCAN_COUNTS = [0, 5, 10, 15, 20, 25]; // +5 shots per level
+const PHANTOM_COOLDOWNS = [0, 1.2, 1.0, 0.8, 0.6, 0.4]; // -0.2s per level
 const LASER_SPECS = [null,
   { length: 50, pierce: 2 },
   { length: 75, pierce: 2 },
@@ -439,7 +483,7 @@ function fireWeapon() {
     });
   } else if (player.weapon === 'WIDE') {
     const n = WIDE_COUNTS[lvl];
-    fanAngles(n, 20).forEach(a => {
+    fanAngles(n, 15).forEach(a => {
       const rad = a * Math.PI / 180;
       playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 2 });
     });
@@ -464,11 +508,72 @@ function fireWeapon() {
       const rad = rand(-60, 60) * Math.PI / 180; // random angle within a 120-degree forward cone
       playerBullets.push({
         x: bx, y: by, vx: Math.sin(rad) * spd, vy: -Math.cos(rad) * spd,
-        r: 5, power: 1, bubble: true, bubbleRadius: 50,
+        r: 1, power: 1, bubble: true, bubbleRadius: 50, traveled: 0,
+        alpha: choice([1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4]),
       });
     }
+  } else if (player.weapon === 'VULCAN') {
+    const n = VULCAN_COUNTS[lvl];
+    fireVulcanShot(); // first shot immediately
+    player.vulcanBurstRemaining = n - 1;
+    player.vulcanBurstTimer = 0.2;
   } else {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, power: 3 });
+  }
+}
+
+function fireVulcanShot() {
+  // always fires from wherever the ship currently is, not a position baked in earlier
+  const bx = player.x, by = player.y - player.r;
+  playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, power: 3 });
+}
+
+// ---------- PHANTOM: instant flash strike ----------
+let phantomFlashes = [];
+function spawnPhantomFlash(x, y, w, h) {
+  phantomFlashes.push({ x, y, w, h, t: 0, duration: 0.15 });
+}
+function updatePhantomFlashes(dt) {
+  for (let i = phantomFlashes.length - 1; i >= 0; i--) {
+    const f = phantomFlashes[i];
+    f.t += dt;
+    if (f.t >= f.duration) phantomFlashes.splice(i, 1);
+  }
+}
+function drawPhantomFlashes() {
+  ctx.lineWidth = 1;
+  phantomFlashes.forEach(f => {
+    const frac = f.t / f.duration;
+    ctx.globalAlpha = Math.max(0, 1 - frac) * 0.7;
+    ctx.strokeStyle = '#ffffff';
+    ctx.strokeRect(f.x, f.y, f.w, f.h);
+    ctx.globalAlpha = 1;
+  });
+}
+function firePhantomFlash() {
+  const halfW = 50; // 100px-wide rectangle
+  const left = player.x - halfW, right = player.x + halfW;
+  const top = 0, bottom = player.y;
+  spawnPhantomFlash(left, top, right - left, bottom - top);
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    if (e.x >= left && e.x <= right && e.y >= top && e.y <= bottom) {
+      e.hp -= 3;
+      if (e.hp <= 0) {
+        handleEnemyDeath(e);
+        enemies.splice(i, 1);
+      } else if (e.type !== 'GIANTBOSS') {
+        spawnDeathParticles(e.x, e.y, e.def.color, 3);
+      }
+    }
+  }
+  for (let i = 0; i < asteroids.length; i++) {
+    const a = asteroids[i];
+    if (a.x >= left && a.x <= right && a.y >= top && a.y <= bottom) {
+      score += wave * 20;
+      registerAsteroidDamage(3);
+      spawnDeathParticles(a.x, a.y, '#bbbbbb', 10);
+    }
   }
 }
 
@@ -478,11 +583,11 @@ let enemyBullets = [];
 
 // ---------- enemy types ----------
 const TYPES = {
-  A: { hp: 5, score: 25, color: '#ff1744', r: 12, speedMul: 1.2 },
-  B: { hp: 4, score: 15, color: '#ff6d00', r: 12, speedMul: 1.0 },
-  C: { hp: 3, score: 10, color: '#eeff00', r: 12, speedMul: 0.8 },
-  D: { hp: 2, score: 5,  color: '#39ff14', r: 12, speedMul: 0.6 },
-  E: { hp: 1, score: 2,  color: '#ffffff', r: 12, speedMul: 0.4 },
+  A: { hp: 5, score: 25, color: '#ff1744', r: 10, speedMul: 1.2 },
+  B: { hp: 4, score: 15, color: '#ff6d00', r: 10, speedMul: 1.0 },
+  C: { hp: 3, score: 10, color: '#eeff00', r: 10, speedMul: 0.8 },
+  D: { hp: 2, score: 5,  color: '#39ff14', r: 10, speedMul: 0.6 },
+  E: { hp: 1, score: 2,  color: '#ffffff', r: 10, speedMul: 0.4 },
 };
 let globalSpeedBonus = 0; // +0.2 per boss destroyed, applied on top of each type's speedMul
 
@@ -691,12 +796,13 @@ function makeBossEnemy() {
 
 let starReverse = false;
 let bossDefeated = false;
+let bossExplosionBurstTimer = 0;
 
 // 10-position cycle: wave1, wave2, ASTEROID, wave3, wave4, ASTEROID+enemies, wave5, wave6, ASTEROID+fast, BOSS
 const CYCLE_LEN = 10;
-const CYCLE_KIND = ['ENEMY', 'ENEMY', 'ASTEROID', 'ENEMY', 'ENEMY', 'ASTEROID_ENEMY', 'ENEMY', 'ENEMY', 'ASTEROID_FAST', 'BOSS'];
+const CYCLE_KIND = ['ENEMY', 'ENEMY', 'ASTEROID', 'ENEMY', 'ENEMY', 'ASTEROID_FAST', 'ENEMY', 'ENEMY', 'ASTEROID_FASTER', 'BOSS'];
 function isAsteroidKind(kind) {
-  return kind === 'ASTEROID' || kind === 'ASTEROID_ENEMY' || kind === 'ASTEROID_FAST';
+  return kind === 'ASTEROID' || kind === 'ASTEROID_FAST' || kind === 'ASTEROID_FASTER';
 }
 // for ENEMY positions, the sequential list of patterns to run (one at a time)
 const WAVE_PATTERN_LISTS = [
@@ -718,7 +824,9 @@ function waveEnemyCount(w) {
 
 let asteroids = [];
 let asteroidTotalDamage = 0;
+let asteroidHitCount = 0;
 let asteroidBonusGiven = false;
+let asteroidRapidGiven = false;
 let asteroidWaveTimer = 0;
 let asteroidSpawnTimer = 0;
 let asteroidItemTimer = 0;
@@ -754,21 +862,15 @@ function spawnAsteroid() {
 }
 
 function spawnRandomFormationDuringAsteroids() {
-  const patternNames = Object.keys(PT_DEFS);
-  const patternName = choice(patternNames);
-  const def = PT_DEFS[patternName];
+  // enemies during the Asteroid Belt always enter straight down from the top,
+  // and can dive/attack right away (not gated behind the whole group settling)
   const formationType = pickEnemyType(Math.random());
   const rowSlots = makeRowSlots(asteroidEnemyRowIndex % 6, 8);
   rowSlots.forEach(s => s.type = formationType);
-  let slotCursor = 0;
-  def.groups.forEach(g => {
-    const curveFn = FAMILY_CURVE[g.family][g.side];
-    for (let k = 0; k < g.count; k++) {
-      const slot = rowSlots[slotCursor++];
-      const { p0, p1 } = curveFn();
-      spawnQueue.push({ slot, delay: k * 0.1, isFormation: true, p0, p1, dropsItem: false, dropsRapid: false });
-      activeEnterCount++;
-    }
+  rowSlots.forEach((slot, k) => {
+    const p0 = { x: slot.x, y: -80 };
+    const p1 = { x: slot.x, y: slot.y - 60 };
+    spawnQueue.push({ slot, delay: k * 0.1, isFormation: true, p0, p1, dropsItem: false, dropsRapid: false, skipEnterGate: true });
   });
   asteroidEnemyRowIndex++;
 }
@@ -828,23 +930,18 @@ function activateWave(kind, m) {
     }
     const itemDropCount = Math.min(2, dropPool.length);
     for (let i = 0; i < itemDropCount; i++) dropPool[i].dropsItem = true;
-    if (Math.random() < 0.2 && dropPool.length > itemDropCount) {
-      dropPool[itemDropCount].dropsRapid = true;
-    }
   } else if (isAsteroidKind(kind)) {
-    // Asteroid Belt: no regular enemies (except the ASTEROID_ENEMY variant) —
-    // dodge indestructible rotating asteroids for 60s
+    // Asteroid Belt: asteroids only, no enemies — dodge indestructible rotating asteroids for 60s
     lastLayoutCount = 0;
     formationSlots = [];
     asteroidWaveTimer = 0;
     asteroidSpawnTimer = 0;
     asteroidItemTimer = 10;
-    asteroidSpeedMul = kind === 'ASTEROID_FAST' ? 1.2 : 1;
-    asteroidEnemySpawnTimer = 10;
-    asteroidEnemyTriggersDone = [false, false, false];
-    asteroidEnemyRowIndex = 0;
+    asteroidSpeedMul = kind === 'ASTEROID_FASTER' ? 1.5 : kind === 'ASTEROID_FAST' ? 1.2 : 1;
     asteroidTotalDamage = 0;
+    asteroidHitCount = 0;
     asteroidBonusGiven = false;
+    asteroidRapidGiven = false;
   } else {
     const enemySlotIndex = CYCLE_KIND.slice(0, m - 1).filter(k => k === 'ENEMY').length;
     const patternList = WAVE_PATTERN_LISTS[enemySlotIndex];
@@ -858,7 +955,7 @@ function activateWave(kind, m) {
     waveEnemyGlobalIndex = 0;
 
     // item drops: designate 2 random enemies (by spawn order) this wave to drop a
-    // weapon item on death, plus a 20% chance one more drops RAPID
+    // weapon item on death (RAPID no longer drops in normal waves — see the Asteroid Belt bonus)
     const totalEnemies = patternList.length * 8;
     waveItemDropIndices = new Set();
     waveRapidDropIndex = -1;
@@ -869,7 +966,6 @@ function activateWave(kind, m) {
     }
     if (totalEnemies > 0) waveItemDropIndices.add(indices[0]);
     if (totalEnemies > 1) waveItemDropIndices.add(indices[1]);
-    if (totalEnemies > 2 && Math.random() < 0.2) waveRapidDropIndex = indices[2];
 
     tryAdvanceWavePattern();
   }
@@ -941,6 +1037,7 @@ function updateSpawns(dt) {
         : makeEnemy(sq.slot, sq.fromLeft, sq.entryMode);
       e.dropsItem = sq.dropsItem || false;
       e.dropsRapid = sq.dropsRapid || false;
+      if (sq.skipEnterGate) e.countsForPattern = false; // can dive/attack immediately, not gated behind the group settling
       enemies.push(e);
       spawnQueue.splice(i, 1);
     }
@@ -1071,8 +1168,12 @@ function updateEnemies(dt) {
     } else if (e.state === 'bossmove') {
       e.bossT += dt;
       if (!e.trail) e.trail = [];
-      e.trail.push({ x: e.x, y: e.y, angle: e.angle });
-      if (e.trail.length > 14) e.trail.shift();
+      e.trailCounter = (e.trailCounter || 0) + 1;
+      if (e.trailCounter % 6 === 0) {
+        // spaced-out samples so each afterimage reads as a distinct outline, not a smooth blur
+        e.trail.push({ x: e.x, y: e.y, angle: e.angle });
+        if (e.trail.length > 6) e.trail.shift();
+      }
       // wanders up/down/left/right across the top of the screen (Lissajous-style)
       e.x = W / 2 + Math.sin(e.bossT * 0.4) * (W * 0.32);
       e.y = H * 0.22 + Math.sin(e.bossT * 0.65 + 1.3) * (H * 0.13);
@@ -1160,7 +1261,7 @@ function beginGame() {
   itemsScreen.classList.add('hidden');
   score = 0; wave = 1; killCount = 0; starReverse = false; globalSpeedBonus = 0;
   resetPlayer();
-  playerBullets = []; enemyBullets = []; items = []; pickupTexts = []; particles = []; shockwaves = [];
+  playerBullets = []; enemyBullets = []; items = []; pickupTexts = []; particles = []; shockwaves = []; phantomFlashes = [];
   startWave();
 }
 
@@ -1213,12 +1314,32 @@ function updatePlayer(dt) {
 
   if (player.invT > 0) player.invT -= dt;
 
+  // VULCAN multi-shot burst: fires individual shots from the player's current position
+  if (player.vulcanBurstRemaining > 0) {
+    player.vulcanBurstTimer -= dt;
+    if (player.vulcanBurstTimer <= 0) {
+      fireVulcanShot();
+      player.vulcanBurstRemaining -= 1;
+      player.vulcanBurstTimer = 0.2;
+    }
+  }
+
   // rapid-fire burst: extra volleys fired quickly, bypassing the "screen clear" gate
   if (player.burstRemaining > 0) {
     player.burstTimer -= dt;
     if (player.burstTimer <= 0) {
-      fireWeapon();
+      if (player.weapon === 'PHANTOM') firePhantomFlash(); else fireWeapon();
       player.burstRemaining -= 1;
+      player.burstTimer = 0.12;
+    }
+  } else if (player.weapon === 'PHANTOM') {
+    // instant AoE flash: gated by its own cooldown instead of the "screen clear" gate
+    if (player.phantomCooldown > 0) player.phantomCooldown -= dt;
+    if (player.alive && player.phantomCooldown <= 0) {
+      firePhantomFlash();
+      player.phantomCooldown = PHANTOM_COOLDOWNS[player.weaponLevel] || 1.2;
+      const rapidCount = player.rapidLevel === 1 ? 2 : player.rapidLevel === 2 ? 3 : player.rapidLevel === 3 ? 5 : 1;
+      player.burstRemaining = rapidCount - 1;
       player.burstTimer = 0.12;
     }
   } else if (player.alive && playerBullets.length === 0) {
@@ -1233,6 +1354,10 @@ function updatePlayer(dt) {
 function updateBullets(dt) {
   for (let i = playerBullets.length - 1; i >= 0; i--) {
     const b = playerBullets[i];
+    if (b.spawnDelay > 0) {
+      b.spawnDelay -= dt;
+      continue; // held back, not yet fired
+    }
     if (!b.bubble) {
       if (!b.trail) b.trail = [];
       b.trail.push({ x: b.x, y: b.y });
@@ -1256,6 +1381,10 @@ function updateBullets(dt) {
       }
     }
     b.x += b.vx * dt; b.y += b.vy * dt;
+    if (b.bubble) {
+      b.traveled += Math.hypot(b.vx, b.vy) * dt;
+      b.r = 1 + (b.traveled / 30) * 2; // starts at 1px, grows +2px in radius for every 30px traveled (uncapped)
+    }
     if (b.y < -20 || b.y > H + 20 || b.x < -20 || b.x > W + 20) playerBullets.splice(i, 1);
   }
   for (let i = enemyBullets.length - 1; i >= 0; i--) {
@@ -1277,6 +1406,7 @@ function handleEnemyDeath(e) {
     spawnBossExplosion(e.x, e.y);
     globalSpeedBonus += 0.2;
     bossDefeated = true;
+    bossExplosionBurstTimer = 0.3;
   } else {
     spawnDeathParticles(e.x, e.y, e.def.color, 18);
   }
@@ -1288,6 +1418,7 @@ function handleCollisions() {
   // player bullets vs enemies
   for (let j = playerBullets.length - 1; j >= 0; j--) {
     const b = playerBullets[j];
+    if (b.spawnDelay > 0) continue; // not fired yet
     if (b.laser) {
       const top = b.y - b.length, bottom = b.y;
       for (let i = enemies.length - 1; i >= 0; i--) {
@@ -1320,11 +1451,11 @@ function handleCollisions() {
           if (e.hp <= 0) {
             handleEnemyDeath(e);
             enemies.splice(i, 1);
-            if (b.gravity) applyGravitySplash(ex, ey, b.gravityRadius, e);
           } else if (e.type !== 'GIANTBOSS') {
             spawnDeathParticles(e.x, e.y, e.def.color, 3);
           }
-          if (b.bubble) applyGravitySplash(ex, ey, b.bubbleRadius, e);
+          if (b.gravity) applyGravitySplash(ex, ey, b.gravityRadius, e);
+          if (b.bubble) applySplashNoWave(ex, ey, b.bubbleRadius, e);
           break;
         }
       }
@@ -1389,7 +1520,16 @@ function checkWaveClear() {
     enemyBullets = [];
     asteroids = [];
     waveClearTimer += 1/60;
-    if (waveClearTimer > 1.2) {
+    const clearDelay = kind === 'BOSS' ? 5.0 : 1.2; // let the boss explosion play out fully
+    if (kind === 'BOSS' && waveClearTimer < clearDelay) {
+      bossExplosionBurstTimer -= 1/60;
+      if (bossExplosionBurstTimer <= 0) {
+        const px = rand(0, W), py = rand(0, H * 0.7);
+        spawnDeathParticles(px, py, Math.random() < 0.5 ? '#ff2e6b' : '#ffd23f', 20, 300);
+        bossExplosionBurstTimer = rand(0.3, 0.6);
+      }
+    }
+    if (waveClearTimer > clearDelay) {
       wave += 1;
       startWave();
       if (player.alive) {
@@ -1424,7 +1564,7 @@ function drawPlayerShape(x, y, color) {
     // gradient from the top (direction of travel) to a darker shade at the base
     const grad = ctx.createLinearGradient(x, y - r * 1.9, x, y + r * 1.1);
     grad.addColorStop(0, color);
-    grad.addColorStop(1, darkenColor(color, 0.35));
+    grad.addColorStop(1, darkenColor(color, 0.5));
     ctx.strokeStyle = grad;
   } else {
     ctx.strokeStyle = color;
@@ -1522,14 +1662,6 @@ function updateAsteroidWave(dt) {
     spawnItem(rand(60, W - 60), -20);
     asteroidItemTimer = 10;
   }
-  if (kind === 'ASTEROID_ENEMY') {
-    ASTEROID_ENEMY_TRIGGER_TIMES.forEach((triggerTime, idx) => {
-      if (!asteroidEnemyTriggersDone[idx] && asteroidWaveTimer >= triggerTime) {
-        asteroidEnemyTriggersDone[idx] = true;
-        spawnRandomFormationDuringAsteroids();
-      }
-    });
-  }
 }
 function updateAsteroids(dt) {
   for (let i = asteroids.length - 1; i >= 0; i--) {
@@ -1554,9 +1686,15 @@ function drawAsteroids() {
   });
 }
 function registerAsteroidDamage(amount) {
-  if (asteroidBonusGiven) return;
-  asteroidTotalDamage += amount;
-  if (asteroidTotalDamage >= 1000) {
+  asteroidHitCount += 1;
+  if (asteroidHitCount % 50 === 0) {
+    spawnItem(rand(60, W - 60), -20);
+  }
+  if (!asteroidRapidGiven && asteroidHitCount >= 250) {
+    asteroidRapidGiven = true;
+    spawnRapidItem(W / 2, -20);
+  }
+  if (!asteroidBonusGiven && asteroidHitCount >= 500) {
     asteroidBonusGiven = true;
     player.lives += 1;
     waveAnnounce = { text: 'GOOD JOB!\nBONUS 1up', t: 0, hold: 1.2, fade: 0.6 };
@@ -1567,6 +1705,7 @@ function handleAsteroidCollisions() {
   // player bullets vs asteroids: score + explosion, but asteroids are indestructible
   for (let j = playerBullets.length - 1; j >= 0; j--) {
     const b = playerBullets[j];
+    if (b.spawnDelay > 0) continue; // not fired yet
     if (b.laser) {
       const top = b.y - b.length, bottom = b.y;
       for (let i = 0; i < asteroids.length; i++) {
@@ -1630,7 +1769,7 @@ function drawEnemy(e) {
   ctx.lineWidth = 1;
   if (e.type === 'GIANTBOSS' && e.trail && e.trail.length > 0) {
     e.trail.forEach((p, idx) => {
-      const alpha = ((idx + 1) / (e.trail.length + 1)) * 0.35;
+      const alpha = ((idx + 1) / (e.trail.length + 1)) * 0.6;
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.rotate(p.angle);
@@ -1659,7 +1798,7 @@ function drawEnemy(e) {
       const alpha = k === 0 ? 1 : 0.5;
       const grad = ctx.createLinearGradient(0, rr * 1.1, 0, -rr * 0.65);
       grad.addColorStop(0, hexToRgba(e.def.color, alpha));
-      grad.addColorStop(1, darkenColor(e.def.color, 0.35, alpha));
+      grad.addColorStop(1, darkenColor(e.def.color, 0.5, alpha));
       ctx.strokeStyle = grad;
       ctx.beginPath();
       drawEnemyTriangle(0, 0, rr);
@@ -1684,6 +1823,7 @@ function drawBossHpBar(e) {
 function drawBullets() {
   ctx.lineWidth = 1;
   playerBullets.forEach(b => {
+    if (b.spawnDelay > 0) return; // not fired yet, stay invisible
     if (b.laser) {
       if (b.trail) {
         b.trail.forEach((p, idx) => {
@@ -1701,11 +1841,22 @@ function drawBullets() {
       ctx.lineTo(b.x, b.y - b.length);
       ctx.stroke();
     } else if (b.bubble) {
-      // circle bullet, no afterimage trail
-      ctx.strokeStyle = '#ff9de2';
+      // circle bullet, no afterimage trail, random opacity
+      ctx.strokeStyle = hexToRgba('#fc0fc0', b.alpha === undefined ? 0.4 : b.alpha);
       ctx.beginPath();
-      ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
       ctx.stroke();
+    } else if (b.homing) {
+      // 3px square, with a fading afterimage trail
+      if (b.trail) {
+        b.trail.forEach((p, idx) => {
+          const alpha = ((idx + 1) / (b.trail.length + 1)) * 0.4;
+          ctx.strokeStyle = `rgba(186,255,201,${alpha})`;
+          ctx.strokeRect(p.x - 1.5, p.y - 1.5, 3, 3);
+        });
+      }
+      ctx.strokeStyle = '#baffc9';
+      ctx.strokeRect(b.x - 1.5, b.y - 1.5, 3, 3);
     } else {
       if (b.trail) {
         b.trail.forEach((p, idx) => {
@@ -1831,10 +1982,10 @@ function drawLevelBar(name, level, maxLevel, rightX, y) {
   x += nameW + spacing;
   for (let i = 0; i < maxLevel; i++) {
     if (i < level) {
-      ctx.fillStyle = '#7CFFF0';
+      ctx.fillStyle = 'rgba(124,255,240,0.7)';
       ctx.fillRect(x, y, blockW, blockH);
     } else {
-      ctx.strokeStyle = '#7CFFF0';
+      ctx.strokeStyle = 'rgba(124,255,240,0.7)';
       ctx.lineWidth = 1;
       ctx.strokeRect(x, y, blockW, blockH);
     }
@@ -1860,7 +2011,7 @@ function drawHUD() {
   if (isAsteroidKind(CYCLE_KIND[cycleM - 1])) {
     const remaining = Math.max(0, Math.ceil(60 - asteroidWaveTimer));
     ctx.textAlign = 'center';
-    ctx.fillText(String(remaining), W / 2, 28);
+    ctx.fillText(remaining + '  ' + asteroidHitCount, W / 2, 28); // debug: hit count next to the seconds
   }
 
   // item status: right side, as name + level block bar (font 2px smaller than the rest of the HUD)
@@ -1873,7 +2024,7 @@ function drawHUD() {
   // LIVES: triangle icons only, right-aligned (slightly smaller, matching the item display)
   ctx.strokeStyle = '#7CFFF0'; ctx.lineWidth = 1;
   for (let i = 0; i < player.lives; i++) {
-    const lx = W - 18 - i * 13, ly = 17;
+    const lx = W - 18 - i * 9, ly = 17;
     ctx.beginPath();
     ctx.moveTo(lx, ly - 4);
     ctx.lineTo(lx - 3.5, ly + 3.5);
@@ -1911,6 +2062,7 @@ function frame(now) {
   }
   updateParticles(dt);
   updateShockwaves(dt);
+  updatePhantomFlashes(dt);
 
   enemies.forEach(drawEnemy);
   drawAsteroids();
@@ -1918,6 +2070,7 @@ function frame(now) {
   drawItems();
   drawParticles();
   drawShockwaves();
+  drawPhantomFlashes();
   drawPlayer();
   drawPickupTexts();
   if (state === STATE.PLAYING) { drawHUD(); drawWaveAnnounce(); }
