@@ -814,7 +814,6 @@
     vertical-align:top;
   }
   .stCol-no{ color:#FFFFFF; text-align:right; white-space:nowrap; }
-  .stCol-id{ color:#FFFFFF; white-space:nowrap; }
   .stCol-name{ color:#FF0000; white-space:normal; }
   .stCol-lat, .stCol-lng{ color:#22e5e5; white-space:nowrap; font-variant-numeric: tabular-nums; }
   .stCol-lines{ color:#FF9D1F; white-space:normal; }
@@ -2381,7 +2380,6 @@
       const lineText = (s.lines && s.lines.length > 0) ? s.lines.join(' / ') : '';
       return `<tr>
         <td class="stCol-no">${i + 1}</td>
-        <td class="stCol-id">${s.id}</td>
         <td class="stCol-name">${s.name}</td>
         <td class="stCol-lat">${s.lat.toFixed(5)}</td>
         <td class="stCol-lng">${s.lng.toFixed(5)}</td>
@@ -2394,7 +2392,6 @@
       <thead>
         <tr>
           <th class="stCol-no" data-sort="no">No.${storedListSortKey === null ? ' ▲' : ''}</th>
-          <th class="stCol-id" data-sort="id">ID${arrow('id')}</th>
           <th class="stCol-name" data-sort="name">${currentLang === 'en' ? 'Name' : '駅名'}${arrow('name')}</th>
           <th class="stCol-lat" data-sort="lat">Lat${arrow('lat')}</th>
           <th class="stCol-lng" data-sort="lng">Lng${arrow('lng')}</th>
