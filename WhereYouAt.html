@@ -779,44 +779,43 @@
     color:var(--ink-dim);
     font-size:11px;
   }
+  .storedListBody{
+    overflow-x:auto;
+  }
   .storedListEmpty{
     color:var(--ink-dim);
     font-size:13px;
     text-align:center;
     padding:30px 0;
   }
-  .storedListRow{
-    display:flex;
-    align-items:baseline;
-    justify-content:space-between;
-    gap:8px;
-    padding:7px 2px;
-    border-bottom:1px solid rgba(255,255,255,0.1);
+  .storedListTable{
+    width:100%;
+    min-width:480px;
+    border-collapse:collapse;
+    font-size:11px;
   }
-  .storedListNames{
-    min-width:0;
-    flex:1 1 auto;
-  }
-  .storedListName{
-    color:#FF0000;
-    font-size:14px;
-    font-weight:400;
-    white-space:normal;
-  }
-  .storedListLine{
-    color:#FF9D1F;
+  .storedListTable th{
+    color:#39FF14;
     font-size:10px;
-    white-space:normal;
-    line-height:1.1;
-    margin-top:1px;
-  }
-  .storedListDist{
-    flex:none;
-    color:#22e5e5;
-    font-size:12px;
-    text-align:right;
+    text-align:left;
+    font-weight:400;
+    padding:4px 3px;
+    border-bottom:1px solid rgba(255,255,255,0.25);
     white-space:nowrap;
+    position:sticky;
+    top:0;
+    background:rgba(20,25,21,0.95);
   }
+  .storedListTable td{
+    padding:5px 3px;
+    border-bottom:1px solid rgba(255,255,255,0.1);
+    vertical-align:top;
+  }
+  .stCol-no{ color:var(--ink-dim); text-align:right; white-space:nowrap; }
+  .stCol-id{ color:var(--ink-dim); white-space:nowrap; }
+  .stCol-name{ color:#FF0000; white-space:normal; }
+  .stCol-lat, .stCol-lng{ color:#22e5e5; white-space:nowrap; font-variant-numeric: tabular-nums; }
+  .stCol-lines{ color:#FF9D1F; white-space:normal; }
 </style>
 </head>
 <body>
@@ -2340,34 +2339,36 @@
   function openStoredListModal(){
     if(!storedListOverlayEl) return;
     const stored = loadStoredStations();
-    const origin = marker ? marker.getLatLng() : null;
-    const withDist = stored.map(s=>{
-      const dist = origin ? origin.distanceTo([s.lat, s.lng]) : null;
-      return { name:s.name, lines:s.lines, dist };
-    });
-    withDist.sort((a,b)=>{
-      if(a.dist == null && b.dist == null) return 0;
-      if(a.dist == null) return 1;
-      if(b.dist == null) return -1;
-      return a.dist - b.dist;
-    });
 
-    if(storedListCountEl) storedListCountEl.textContent = t('storedCount', withDist.length);
+    if(storedListCountEl) storedListCountEl.textContent = t('storedCount', stored.length);
     if(storedListBodyEl){
-      if(withDist.length === 0){
+      if(stored.length === 0){
         storedListBodyEl.innerHTML = `<div class="storedListEmpty">${t('storedEmpty')}</div>`;
       } else {
-        storedListBodyEl.innerHTML = withDist.map(s=>{
+        const rowsHtml = stored.map((s, i)=>{
           const lineText = (s.lines && s.lines.length > 0) ? s.lines.join(' / ') : '';
-          const distText = s.dist != null ? Math.round(s.dist).toLocaleString('ja-JP') + 'm' : '';
-          return `<div class="storedListRow">
-            <div class="storedListNames">
-              <div class="storedListName">${s.name}${t('stationSuffix')}</div>
-              ${lineText ? `<div class="storedListLine">${lineText}</div>` : ''}
-            </div>
-            ${distText ? `<div class="storedListDist">${distText}</div>` : ''}
-          </div>`;
+          return `<tr>
+            <td class="stCol-no">${i + 1}</td>
+            <td class="stCol-id">${s.id}</td>
+            <td class="stCol-name">${s.name}</td>
+            <td class="stCol-lat">${s.lat.toFixed(5)}</td>
+            <td class="stCol-lng">${s.lng.toFixed(5)}</td>
+            <td class="stCol-lines">${lineText}</td>
+          </tr>`;
         }).join('');
+        storedListBodyEl.innerHTML = `<table class="storedListTable">
+          <thead>
+            <tr>
+              <th class="stCol-no">No.</th>
+              <th class="stCol-id">ID</th>
+              <th class="stCol-name">${currentLang === 'en' ? 'Name' : '駅名'}</th>
+              <th class="stCol-lat">Lat</th>
+              <th class="stCol-lng">Lng</th>
+              <th class="stCol-lines">${currentLang === 'en' ? 'Lines' : '路線名'}</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>`;
       }
     }
     storedListOverlayEl.classList.add('open');
