@@ -730,6 +730,93 @@
     71.43%  { opacity:0; letter-spacing:1em; }
     100%    { opacity:0; letter-spacing:1em; }
   }
+
+  /* 保存済み駅一覧: 画面下部のダブルタップで開く、端末に蓄積された全駅データの一覧 */
+  .storedListOverlay{
+    position:fixed;
+    inset:0;
+    z-index:2000;
+    background:rgba(0,0,0,0.55);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+    transition: opacity 0.35s ease, visibility 0.35s ease;
+  }
+  .storedListOverlay.open{
+    opacity:1;
+    visibility:visible;
+    pointer-events:auto;
+  }
+  .storedListModal{
+    width:90%;
+    height:85%;
+    background:rgba(20,25,21,0.95);
+    border:1px solid rgba(255,255,255,0.5);
+    border-radius:14px;
+    box-shadow:0 8px 30px rgba(0,0,0,0.5);
+    overflow-y:auto;
+    padding:10px 12px;
+    box-sizing:border-box;
+    font-family: var(--mono);
+    cursor:pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .storedListHeader{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    font-size:13px;
+    color:#39FF14;
+    letter-spacing:.04em;
+    margin-bottom:10px;
+    padding-bottom:6px;
+    border-bottom:1px solid rgba(255,255,255,0.25);
+  }
+  .storedListCount{
+    color:var(--ink-dim);
+    font-size:11px;
+  }
+  .storedListEmpty{
+    color:var(--ink-dim);
+    font-size:13px;
+    text-align:center;
+    padding:30px 0;
+  }
+  .storedListRow{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:8px;
+    padding:7px 2px;
+    border-bottom:1px solid rgba(255,255,255,0.1);
+  }
+  .storedListNames{
+    min-width:0;
+    flex:1 1 auto;
+  }
+  .storedListName{
+    color:#FF0000;
+    font-size:14px;
+    font-weight:400;
+    white-space:normal;
+  }
+  .storedListLine{
+    color:#FF9D1F;
+    font-size:10px;
+    white-space:normal;
+    line-height:1.1;
+    margin-top:1px;
+  }
+  .storedListDist{
+    flex:none;
+    color:#22e5e5;
+    font-size:12px;
+    text-align:right;
+    white-space:nowrap;
+  }
 </style>
 </head>
 <body>
@@ -824,6 +911,16 @@
   <div class="langGimmickFace">Ｕ(｡╹ ꒳ ╹｡)Ｕ</div>
 </div>
 
+<div class="storedListOverlay" id="storedListOverlay">
+  <div class="storedListModal" id="storedListModal">
+    <div class="storedListHeader">
+      <span id="storedListTitle">保存済み駅一覧</span>
+      <span class="storedListCount" id="storedListCount"></span>
+    </div>
+    <div class="storedListBody" id="storedListBody"></div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
   // ============================================================
@@ -845,6 +942,9 @@
       whereAmI: '今どこ？',
       acquiringInfo: '情報取得中‥',
       pleaseWait: '・・・　しばらくお待ち下さい　・・・',
+      storedListTitle: '保存済み駅一覧',
+      storedCount: (n) => `${n}件`,
+      storedEmpty: '保存されている駅情報がありません',
       tickerPreparing: '電光掲示を準備中‥',
       tickerNoStations: '周辺2km以内に駅が見つかりません',
       noStationsNearby: '周辺に駅が見つかりません',
@@ -905,6 +1005,9 @@
       whereAmI: 'Where?',
       acquiringInfo: 'Loading…',
       pleaseWait: '・・・　PLEASE WAIT　・・・',
+      storedListTitle: 'Saved Stations',
+      storedCount: (n) => `${n}`,
+      storedEmpty: 'No saved stations yet',
       tickerPreparing: 'Preparing display…',
       tickerNoStations: 'No stations found within 2km',
       noStationsNearby: 'No stations found nearby',
@@ -1000,6 +1103,10 @@
   const langGimmickEl = document.getElementById('langGimmick');
   const mapWaitOverlayEl = document.getElementById('mapWaitOverlay');
   const mapWaitTextEl = document.getElementById('mapWaitText');
+  const storedListOverlayEl = document.getElementById('storedListOverlay');
+  const storedListTitleEl = document.getElementById('storedListTitle');
+  const storedListCountEl = document.getElementById('storedListCount');
+  const storedListBodyEl = document.getElementById('storedListBody');
 
   // 地図上の駅取得待ちオーバーレイ: 初回・言語切替時、駅名取得が終わるまで中央に表示する
   function showMapWaitOverlay(){
@@ -1038,6 +1145,7 @@
     if(labelSpeedEl) labelSpeedEl.textContent = t('speed');
     if(labelWhereAmIEl) labelWhereAmIEl.textContent = t('whereAmI');
     if(labelNearestStationEl) labelNearestStationEl.textContent = t('nearestStation');
+    if(storedListTitleEl) storedListTitleEl.textContent = t('storedListTitle');
     if(tickerInitialMsgEl) tickerInitialMsgEl.textContent = t('tickerPreparing');
     if(recenterBtnEl) recenterBtnEl.setAttribute('aria-label', t('recenterLabel'));
     if(mapModeBtnEl){
@@ -1126,10 +1234,28 @@
     // touchend/dblclickではなくclickに統一する: モバイルブラウザではtouchendが確実に発火しない
     // 場合があるが、clickはタップ操作でもマウス操作でも共通して発火するため信頼性が高い
     document.addEventListener('click', (e)=>{
-      if(e.target.closest('#map') || e.target.closest('.mapPane')) return; // 地図エリアは対象外
+      // 地図エリアと画面下部(フッター、保存済み駅一覧のダブルタップに使う)は対象外
+      if(e.target.closest('#map') || e.target.closest('.mapPane') || e.target.closest('.statusFoot')) return;
       const now = Date.now();
       if(now - lastTapTime < DOUBLE_TAP_MS){
         switchLanguage();
+        lastTapTime = 0;
+      } else {
+        lastTapTime = now;
+      }
+    });
+  })();
+
+  // 画面下部(フッター)のダブルタップで、保存済み駅一覧を開く
+  (function setupStoredListDoubleTap(){
+    let lastTapTime = 0;
+    const DOUBLE_TAP_MS = 500;
+    const footEl = document.getElementById('statusFootCloseArea');
+    if(!footEl) return;
+    footEl.addEventListener('click', ()=>{
+      const now = Date.now();
+      if(now - lastTapTime < DOUBLE_TAP_MS){
+        openStoredListModal();
         lastTapTime = 0;
       } else {
         lastTapTime = now;
@@ -1310,7 +1436,7 @@
   let deviceHeading = null; // 現在推定されているデバイスの向き(真北基準、度)。取得できていなければnull
   let compassPermissionGranted = false;
   const HEADING_SPEED_THRESHOLD = 5; // この速度(km/h)以上ならGPSのheadingを優先する
-  let initialZoomLevel = null; // 初回表示時に自動計算されたズームレベル(「現在地に戻る」ボタンで再利用)
+  let initialZoomLevel = null; // 初回表示時に自動計算されたズームレベル(現在は未使用。「現在地に戻る」ボタンは現在の縮尺を維持する仕様に変更済み)
   let nearestArrowLine = null;   // 現在地→最寄り駅 中間点までの線
   let nearestArrowHead = null;   // 矢印の先端(三角形)
   let radiusLabelNear = null; // 1000mラベル
@@ -1414,8 +1540,7 @@
   document.getElementById('recenterBtn').addEventListener('click', ()=>{
     followMe = true;
     if(marker){
-      const zoomToUse = (initialZoomLevel != null) ? initialZoomLevel : 17;
-      map.setView(marker.getLatLng(), zoomToUse, { animate:true });
+      map.setView(marker.getLatLng(), map.getZoom(), { animate:true });
     }
   });
 
@@ -2211,6 +2336,49 @@
   // 端末に蓄積済みの駅データがあれば、それを使って地図・電光掲示・一覧・矢印を即座に表示する。
   // 通信開始前(体感速度向上)と、通信が全て失敗した場合の代替表示の両方で使う。
   // 既に駅データが1件でもあれば何もしない(戻り値: 表示できたらtrue)
+  // 保存済み駅一覧モーダル: 端末に蓄積された全駅データを、現在地からの距離順に一覧表示する
+  function openStoredListModal(){
+    if(!storedListOverlayEl) return;
+    const stored = loadStoredStations();
+    const origin = marker ? marker.getLatLng() : null;
+    const withDist = stored.map(s=>{
+      const dist = origin ? origin.distanceTo([s.lat, s.lng]) : null;
+      return { name:s.name, lines:s.lines, dist };
+    });
+    withDist.sort((a,b)=>{
+      if(a.dist == null && b.dist == null) return 0;
+      if(a.dist == null) return 1;
+      if(b.dist == null) return -1;
+      return a.dist - b.dist;
+    });
+
+    if(storedListCountEl) storedListCountEl.textContent = t('storedCount', withDist.length);
+    if(storedListBodyEl){
+      if(withDist.length === 0){
+        storedListBodyEl.innerHTML = `<div class="storedListEmpty">${t('storedEmpty')}</div>`;
+      } else {
+        storedListBodyEl.innerHTML = withDist.map(s=>{
+          const lineText = (s.lines && s.lines.length > 0) ? s.lines.join(' / ') : '';
+          const distText = s.dist != null ? Math.round(s.dist).toLocaleString('ja-JP') + 'm' : '';
+          return `<div class="storedListRow">
+            <div class="storedListNames">
+              <div class="storedListName">${s.name}${t('stationSuffix')}</div>
+              ${lineText ? `<div class="storedListLine">${lineText}</div>` : ''}
+            </div>
+            ${distText ? `<div class="storedListDist">${distText}</div>` : ''}
+          </div>`;
+        }).join('');
+      }
+    }
+    storedListOverlayEl.classList.add('open');
+  }
+  function closeStoredListModal(){
+    if(storedListOverlayEl) storedListOverlayEl.classList.remove('open');
+  }
+  if(storedListOverlayEl){
+    storedListOverlayEl.addEventListener('click', ()=>{ closeStoredListModal(); });
+  }
+
   function showStoredStationsFallback(origin){
     if(cachedStations.length > 0) return false;
     const stored = getStoredStationsNear(origin, STATION_RADIUS_XFAR);
