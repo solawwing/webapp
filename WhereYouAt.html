@@ -805,14 +805,16 @@
     position:sticky;
     top:0;
     background:rgba(20,25,21,0.95);
+    cursor:pointer;
+    user-select:none;
   }
   .storedListTable td{
     padding:5px 3px;
     border-bottom:1px solid rgba(255,255,255,0.1);
     vertical-align:top;
   }
-  .stCol-no{ color:var(--ink-dim); text-align:right; white-space:nowrap; }
-  .stCol-id{ color:var(--ink-dim); white-space:nowrap; }
+  .stCol-no{ color:#FFFFFF; text-align:right; white-space:nowrap; }
+  .stCol-id{ color:#FFFFFF; white-space:nowrap; }
   .stCol-name{ color:#FF0000; white-space:normal; }
   .stCol-lat, .stCol-lng{ color:#22e5e5; white-space:nowrap; font-variant-numeric: tabular-nums; }
   .stCol-lines{ color:#FF9D1F; white-space:normal; }
@@ -2336,42 +2338,88 @@
   // 通信開始前(体感速度向上)と、通信が全て失敗した場合の代替表示の両方で使う。
   // 既に駅データが1件でもあれば何もしない(戻り値: 表示できたらtrue)
   // 保存済み駅一覧モーダル: 端末に蓄積された全駅データを、現在地からの距離順に一覧表示する
+  let storedListSortKey = null; // 'id' | 'name' | 'lat' | 'lng' | 'lines' | null(No.=保存順)
+  let storedListSortAsc = true;
+
   function openStoredListModal(){
     if(!storedListOverlayEl) return;
-    const stored = loadStoredStations();
+    renderStoredList();
+    storedListOverlayEl.classList.add('open');
+  }
+
+  function renderStoredList(){
+    let stored = loadStoredStations();
+
+    if(storedListSortKey){
+      const key = storedListSortKey;
+      stored = stored.slice().sort((a, b)=>{
+        let av, bv;
+        if(key === 'lines'){
+          av = (a.lines && a.lines[0]) || '';
+          bv = (b.lines && b.lines[0]) || '';
+        } else {
+          av = a[key];
+          bv = b[key];
+        }
+        let cmp;
+        if(typeof av === 'string' || typeof bv === 'string'){
+          cmp = String(av).localeCompare(String(bv));
+        } else {
+          cmp = (av - bv);
+        }
+        return storedListSortAsc ? cmp : -cmp;
+      });
+    }
 
     if(storedListCountEl) storedListCountEl.textContent = t('storedCount', stored.length);
-    if(storedListBodyEl){
-      if(stored.length === 0){
-        storedListBodyEl.innerHTML = `<div class="storedListEmpty">${t('storedEmpty')}</div>`;
-      } else {
-        const rowsHtml = stored.map((s, i)=>{
-          const lineText = (s.lines && s.lines.length > 0) ? s.lines.join(' / ') : '';
-          return `<tr>
-            <td class="stCol-no">${i + 1}</td>
-            <td class="stCol-id">${s.id}</td>
-            <td class="stCol-name">${s.name}</td>
-            <td class="stCol-lat">${s.lat.toFixed(5)}</td>
-            <td class="stCol-lng">${s.lng.toFixed(5)}</td>
-            <td class="stCol-lines">${lineText}</td>
-          </tr>`;
-        }).join('');
-        storedListBodyEl.innerHTML = `<table class="storedListTable">
-          <thead>
-            <tr>
-              <th class="stCol-no">No.</th>
-              <th class="stCol-id">ID</th>
-              <th class="stCol-name">${currentLang === 'en' ? 'Name' : '駅名'}</th>
-              <th class="stCol-lat">Lat</th>
-              <th class="stCol-lng">Lng</th>
-              <th class="stCol-lines">${currentLang === 'en' ? 'Lines' : '路線名'}</th>
-            </tr>
-          </thead>
-          <tbody>${rowsHtml}</tbody>
-        </table>`;
-      }
+    if(!storedListBodyEl) return;
+    if(stored.length === 0){
+      storedListBodyEl.innerHTML = `<div class="storedListEmpty">${t('storedEmpty')}</div>`;
+      return;
     }
-    storedListOverlayEl.classList.add('open');
+    const rowsHtml = stored.map((s, i)=>{
+      const lineText = (s.lines && s.lines.length > 0) ? s.lines.join(' / ') : '';
+      return `<tr>
+        <td class="stCol-no">${i + 1}</td>
+        <td class="stCol-id">${s.id}</td>
+        <td class="stCol-name">${s.name}</td>
+        <td class="stCol-lat">${s.lat.toFixed(5)}</td>
+        <td class="stCol-lng">${s.lng.toFixed(5)}</td>
+        <td class="stCol-lines">${lineText}</td>
+      </tr>`;
+    }).join('');
+    // No.は保存順に戻すための特別列(ソートキー'no'扱い)。それ以外は矢印でソート方向を示す
+    const arrow = (key)=> storedListSortKey === key ? (storedListSortAsc ? ' ▲' : ' ▼') : '';
+    storedListBodyEl.innerHTML = `<table class="storedListTable">
+      <thead>
+        <tr>
+          <th class="stCol-no" data-sort="no">No.${storedListSortKey === null ? ' ▲' : ''}</th>
+          <th class="stCol-id" data-sort="id">ID${arrow('id')}</th>
+          <th class="stCol-name" data-sort="name">${currentLang === 'en' ? 'Name' : '駅名'}${arrow('name')}</th>
+          <th class="stCol-lat" data-sort="lat">Lat${arrow('lat')}</th>
+          <th class="stCol-lng" data-sort="lng">Lng${arrow('lng')}</th>
+          <th class="stCol-lines" data-sort="lines">${currentLang === 'en' ? 'Lines' : '路線名'}${arrow('lines')}</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>`;
+
+    // 列見出しタップでソート切替(No.は保存順に戻す専用)
+    storedListBodyEl.querySelectorAll('th[data-sort]').forEach(th=>{
+      th.addEventListener('click', (ev)=>{
+        ev.stopPropagation(); // モーダルを閉じる処理に伝播させない
+        const key = th.getAttribute('data-sort');
+        if(key === 'no'){
+          storedListSortKey = null;
+        } else if(storedListSortKey === key){
+          storedListSortAsc = !storedListSortAsc;
+        } else {
+          storedListSortKey = key;
+          storedListSortAsc = true;
+        }
+        renderStoredList();
+      });
+    });
   }
   function closeStoredListModal(){
     if(storedListOverlayEl) storedListOverlayEl.classList.remove('open');
