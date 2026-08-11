@@ -205,6 +205,13 @@
     const floorFillVerts = [];
     const half = 3.2;
     const wallH = 4.4;
+    const nodeMap = new Map(); // shared endpoints across segments -> filled/walled joint pillar
+
+    function nodeKey(p){ return Math.round(p.x*10)+'_'+Math.round(p.z*10); }
+    function registerNode(p){
+      const k = nodeKey(p);
+      if(!nodeMap.has(k)) nodeMap.set(k, p);
+    }
 
     rawSegs.forEach(seg=>{
       const dx = seg.b.x - seg.a.x, dz = seg.b.z - seg.a.z;
@@ -218,6 +225,8 @@
       const r2 = {x:seg.b.x-nx*half, z:seg.b.z-nz*half};
 
       corridorSegs.push({p1:seg.a, p2:seg.b, half:half});
+      registerNode(seg.a);
+      registerNode(seg.b);
 
       // wall rectangles as line loops (bottom, top, 2 verticals) for both sides
       [[l1,l2],[r1,r2]].forEach(([p1,p2])=>{
@@ -237,6 +246,23 @@
       );
     });
 
+    // joint pillars at every shared node: seals the gap where segments meet at an angle
+    // (each segment offsets its own walls independently, so corners don't line up at bends/intersections)
+    nodeMap.forEach(p=>{
+      const cx0=p.x-half, cx1=p.x+half, cz0=p.z-half, cz1=p.z+half;
+      const corners = [[cx0,cz0],[cx1,cz0],[cx1,cz1],[cx0,cz1]];
+      for(let i=0;i<4;i++){
+        const [ax,az] = corners[i], [bx,bz] = corners[(i+1)%4];
+        pushLine(wallVerts, ax,0,az, bx,0,bz);
+        pushLine(wallVerts, ax,wallH,az, bx,wallH,bz);
+        pushLine(wallVerts, ax,0,az, ax,wallH,az);
+      }
+      floorFillVerts.push(
+        cx0,0.01,cz0,  cx1,0.01,cz0,  cx1,0.01,cz1,
+        cx0,0.01,cz0,  cx1,0.01,cz1,  cx0,0.01,cz1
+      );
+    });
+
     const wallGeo = new THREE.BufferGeometry();
     wallGeo.setAttribute('position', new THREE.Float32BufferAttribute(wallVerts,3));
     const wallMat = new THREE.LineBasicMaterial({ color:0x026881, transparent:true, opacity:0.85 });
@@ -246,7 +272,7 @@
     const fillGeo = new THREE.BufferGeometry();
     fillGeo.setAttribute('position', new THREE.Float32BufferAttribute(floorFillVerts,3));
     fillGeo.computeVertexNormals();
-    const fillMat = new THREE.MeshBasicMaterial({ color:0x013e4d, transparent:true, opacity:0.55, side:THREE.DoubleSide });
+    const fillMat = new THREE.MeshBasicMaterial({ color:0x026881, transparent:true, opacity:0.5, side:THREE.DoubleSide });
     scene.add(new THREE.Mesh(fillGeo, fillMat));
 
     const floorGeo = new THREE.BufferGeometry();
@@ -484,7 +510,7 @@
     // map content: fixed orientation (north = up, matching a real-world map), only pans with the player
     ctx.save();
     ctx.translate(w/2, h/2);
-    ctx.strokeStyle = 'rgba(2,104,129,0.35)';
+    ctx.strokeStyle = 'rgba(2,104,129,0.55)';
     ctx.lineWidth = 6.4 * scale; // filled road width (matches corridor width)
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
