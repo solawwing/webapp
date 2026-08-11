@@ -400,10 +400,10 @@
     for(const t of e.changedTouches) if(t.identifier===lookTouchId) lookTouchId=null;
   });
 
-  // ---------- collision: keep player within nearest corridor ----------
+  // ---------- keep player snapped onto the nearest road at all times ----------
   function clampToCorridor(x,z){
     if(corridorSegs.length===0) return {x,z};
-    let best=null, bestD=Infinity, bestPt=null;
+    let bestD=Infinity, bestPt=null;
     for(const s of corridorSegs){
       const abx=s.p2.x-s.p1.x, abz=s.p2.z-s.p1.z;
       const len2 = abx*abx+abz*abz || 1e-6;
@@ -411,12 +411,10 @@
       t = Math.max(0,Math.min(1,t));
       const px = s.p1.x+abx*t, pz = s.p1.z+abz*t;
       const d = (x-px)*(x-px)+(z-pz)*(z-pz);
-      if(d<bestD){ bestD=d; best=s; bestPt={x:px,z:pz}; }
+      if(d<bestD){ bestD=d; bestPt={x:px,z:pz}; }
     }
-    const dist = Math.sqrt(bestD);
-    if(dist <= best.half + 0.4) return {x,z};
-    const nx=(x-bestPt.x)/dist, nz=(z-bestPt.z)/dist;
-    return { x: bestPt.x + nx*(best.half+0.35), z: bestPt.z + nz*(best.half+0.35) };
+    // always snap exactly onto the nearest road's centerline
+    return bestPt;
   }
 
   // ---------- game loop ----------
