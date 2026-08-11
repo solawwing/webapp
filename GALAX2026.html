@@ -574,8 +574,8 @@ const SPARK_COOLDOWNS = [0, 0.3, 0.3, 0.3, 0.3, 0.3]; // fixed 0.3s regardless o
 // per-weapon fire cooldown (seconds between shots), replacing the old one-size-fits-all
 // "wait until the screen is clear of your own bullets" gate for these weapons
 const WEAPON_FIRE_COOLDOWNS = {
-  NORMAL: 0.3, DOUBLE: 0.3, WIDE: 0.3, HOMING: 0.6, LASER: 0.8,
-  GRAVITY: 0.6, BUBBLE: 0.8, CURVE: 0.6, THUNDER: 0.6,
+  NORMAL: 0.3, DOUBLE: 0.3, WIDE: 0.3, HOMING: 0.5, LASER: 0.5,
+  GRAVITY: 0.5, BUBBLE: 0.5, CURVE: 0.5, THUNDER: 0.5,
 };
 const LASER_SPECS = [null,
   { length: 50, pierce: 2 },
@@ -602,7 +602,7 @@ function fireWeapon() {
     });
   } else if (player.weapon === 'WIDE') {
     const n = WIDE_COUNTS[lvl];
-    fanAngles(n, 15).forEach(a => {
+    fanAngles(n, 7).forEach(a => {
       const rad = a * Math.PI / 180;
       playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 2, lenMul: 0.5 });
     });
@@ -635,8 +635,6 @@ function fireWeapon() {
     }
   } else if (player.weapon === 'VULCAN') {
     const n = VULCAN_COUNTS[lvl];
-    // one random x offset for the whole burst — every shot in this burst fires from it
-    player.vulcanXOffset = choice([-10, 0, 10]);
     fireVulcanShot(); // first shot immediately
     player.vulcanBurstRemaining = n - 1;
     player.vulcanShotInterval = 0.5 / n; // whole burst fits within 0.5s regardless of shot count
@@ -665,9 +663,8 @@ function fireWeapon() {
 }
 
 function fireVulcanShot() {
-  // always fires from wherever the ship currently is, at the x offset chosen once
-  // for this whole burst (-10/0/+10), so every shot in the burst shares one position
-  const bx = player.x + (player.vulcanXOffset || 0), by = player.y - player.r;
+  // fixed center firing position, no offset
+  const bx = player.x, by = player.y - player.r;
   playerBullets.push({ x: bx, y: by, vx: 0, vy: -400, r: 1, power: 1, noTrail: true, vulcanLine: true });
 }
 
@@ -2436,11 +2433,11 @@ function drawBullets() {
       ctx.strokeStyle = '#baffc9';
       ctx.strokeRect(b.x - 1.5, b.y - 1.5, 3, 3);
     } else if (b.vulcanLine) {
-      // vertical line, 1x15px, no trail
+      // two parallel vertical lines "||", each 1x5px, 2px gap between them
       ctx.strokeStyle = '#ff9100';
       ctx.beginPath();
-      ctx.moveTo(b.x, b.y - 7.5);
-      ctx.lineTo(b.x, b.y + 7.5);
+      ctx.moveTo(b.x - 1.5, b.y - 2.5); ctx.lineTo(b.x - 1.5, b.y + 2.5);
+      ctx.moveTo(b.x + 1.5, b.y - 2.5); ctx.lineTo(b.x + 1.5, b.y + 2.5);
       ctx.stroke();
     } else if (b.spark && !b.burst) {
       // small rising spark, harmless until it bursts above mid-screen — 3x3px square
@@ -2472,7 +2469,7 @@ function drawBullets() {
       ctx.restore();
     } else {
       const half = b.r * 2 * (b.lenMul || 1);
-      const trailAlphaMul = (b.gravity || b.lenMul) ? 0.15 : 0.4;
+      const trailAlphaMul = (b.gravity || b.lenMul) ? 0.07 : 0.4;
       if (b.trail) {
         b.trail.forEach((p, idx) => {
           const alpha = ((idx + 1) / (b.trail.length + 1)) * trailAlphaMul;
