@@ -1977,7 +1977,7 @@ function checkWaveClear() {
   const cleared = kind === 'BOSS'
     ? bossDefeated
     : isAsteroidKind(kind)
-      ? asteroidWaveTimer >= 60
+      ? asteroidWaveTimer >= 45
       : (enemies.length === 0 && spawnQueue.length === 0);
   if (cleared) {
     // clean transition: clear anything left over regardless of wave kind
@@ -2126,12 +2126,12 @@ function updateAsteroidWave(dt) {
   if (!isAsteroidKind(kind)) return;
   asteroidWaveTimer += dt;
   asteroidSpawnTimer -= dt;
-  if (asteroidSpawnTimer <= 0 && asteroidWaveTimer < 55) {
+  if (asteroidSpawnTimer <= 0 && asteroidWaveTimer < 40) {
     spawnAsteroid();
     asteroidSpawnTimer = rand(0.6, 1.2);
   }
   asteroidItemTimer -= dt;
-  if (asteroidItemTimer <= 0 && asteroidWaveTimer < 60) {
+  if (asteroidItemTimer <= 0 && asteroidWaveTimer < 45) {
     spawnItem(rand(60, W - 60), -20);
     asteroidItemTimer = 10;
   }
@@ -2624,7 +2624,7 @@ function drawHUD() {
   // asteroid belt countdown
   const cycleM = ((wave - 1) % CYCLE_LEN) + 1;
   if (isAsteroidKind(CYCLE_KIND[cycleM - 1])) {
-    const remaining = Math.max(0, Math.ceil(60 - asteroidWaveTimer));
+    const remaining = Math.max(0, Math.ceil(45 - asteroidWaveTimer));
     ctx.textAlign = 'center';
     ctx.fillText(remaining + '  ' + asteroidHitCount, W / 2, 28); // debug: hit count next to the seconds
   }
