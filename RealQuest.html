@@ -52,8 +52,16 @@
   #minimapWrap {
     position:absolute; top:10px; right:10px; width:120px; height:120px;
     border:1px solid #013e4d; background:rgba(0,0,0,0.55);
+    pointer-events:auto; cursor:pointer;
   }
   #minimapCanvas { width:100%; height:100%; }
+  #gyroBtn {
+    position:absolute; top:150px; right:10px; width:120px;
+    background:#000; border:1px solid #013e4d; color:#013e4d;
+    font-size:10px; letter-spacing:3px; padding:6px 0; text-align:center;
+    pointer-events:auto; cursor:pointer;
+  }
+  #gyroBtn.active { border-color:#026881; color:#000; background:#026881; }
   #headingLabel {
     position:absolute; top:132px; right:10px; width:120px; text-align:center;
     font-size:10px; letter-spacing:2px; color:#4fa8bf; text-shadow:0 0 4px #000;
@@ -115,6 +123,7 @@
   <div id="msgLog"></div>
   <div id="minimapWrap"><canvas id="minimapCanvas"></canvas></div>
   <div id="headingLabel" class="mont">N 0°</div>
+  <button id="gyroBtn" class="mont">GYRO</button>
   <div id="crosshair"></div>
   <div id="gpsBadge" class="mont">GPS LINK ●</div>
   <div id="gpsInfo" class="mont">
@@ -528,7 +537,7 @@
       const p = project(c.latitude, c.longitude);
       const snapped = clampToCorridor(p.x, p.z);
       player.x = snapped.x; player.z = snapped.z;
-      if(c.heading!=null && !isNaN(c.heading)){
+      if(!gyroEnabled && c.heading!=null && !isNaN(c.heading)){
         player.yaw = -c.heading * Math.PI/180;
       }
       document.getElementById('gpsLat').textContent = c.latitude.toFixed(5);
@@ -537,25 +546,48 @@
       document.getElementById('gpsAlt').textContent = (c.altitude!=null ? c.altitude.toFixed(1) : '--') + ' m';
       document.getElementById('gpsSpd').textContent = (c.speed!=null ? (c.speed*3.6).toFixed(1) : '--') + ' km/h';
     }, err=>{ logMsg('GPS取得に失敗しました'); }, { enableHighAccuracy:true, maximumAge:1000 });
-
-    if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
-      DeviceOrientationEvent.requestPermission().then(state=>{
-        if(state==='granted') window.addEventListener('deviceorientation', onOrient);
-      }).catch(()=>{});
-    } else {
-      window.addEventListener('deviceorientation', onOrient);
-    }
   }
   function disableGPSLink(){
     gpsLinked = false;
     document.getElementById('gpsBadge').style.display='none';
     if(gpsWatchId != null){ navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
   }
+
+  // ---------- gyro (compass) heading toggle ----------
+  let gyroEnabled = false;
+  const gyroBtn = document.getElementById('gyroBtn');
+
+  function enableGyro(){
+    function attach(){
+      window.addEventListener('deviceorientation', onOrient);
+      gyroEnabled = true;
+      gyroBtn.classList.add('active');
+    }
+    if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+      DeviceOrientationEvent.requestPermission().then(state=>{
+        if(state === 'granted') attach();
+        else logMsg('Compass permission was denied');
+      }).catch(()=>{ logMsg('Could not access the compass'); });
+    } else if(typeof DeviceOrientationEvent !== 'undefined'){
+      attach();
+    } else {
+      logMsg('This device does not support a compass');
+    }
+  }
+  function disableGyro(){
+    window.removeEventListener('deviceorientation', onOrient);
+    gyroEnabled = false;
+    gyroBtn.classList.remove('active');
+  }
   function onOrient(e){
-    if(!gpsLinked) return;
+    if(!gyroEnabled) return;
     let heading = e.webkitCompassHeading != null ? e.webkitCompassHeading : (360 - e.alpha);
     if(heading!=null && !isNaN(heading)) player.yaw = heading * Math.PI/180;
   }
+  gyroBtn.addEventListener('click', ()=>{
+    if(gyroEnabled){ disableGyro(); logMsg('Gyro heading OFF'); }
+    else { enableGyro(); logMsg('Gyro heading ON'); }
+  });
 
   // ---------- startup flows ----------
   async function startGame(lat, lon, radius){
