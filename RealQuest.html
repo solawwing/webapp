@@ -424,7 +424,7 @@
       if(mlen>0.001){
         mx/=mlen; mz/=mlen;
         const cos=Math.cos(player.yaw), sin=Math.sin(player.yaw);
-        const wx = mx*cos - mz*sin, wz = mx*sin + mz*cos;
+        const wx = mx*cos + mz*sin, wz = -mx*sin + mz*cos;
         const nx = player.x + wx*speed*dt;
         const nz = player.z + wz*speed*dt;
         const clamped = clampToCorridor(nx,nz);
@@ -498,7 +498,7 @@
     // player marker: field-of-view cone + triangle, rotated to the actual facing direction
     ctx.save();
     ctx.translate(w/2, h/2);
-    ctx.rotate(player.yaw);
+    ctx.rotate(-player.yaw);
     ctx.beginPath();
     ctx.moveTo(0,0);
     ctx.lineTo(-13,-30);
@@ -519,7 +519,7 @@
     ctx.restore();
 
     // heading readout
-    let deg = (player.yaw * 180/Math.PI) % 360;
+    let deg = (-player.yaw * 180/Math.PI) % 360;
     if(deg < 0) deg += 360;
     const compass = compassNames[Math.round(deg/22.5) % 16];
     headingLabel.textContent = compass + ' ' + Math.round(deg) + '°';
@@ -582,7 +582,7 @@
   function onOrient(e){
     if(!gyroEnabled) return;
     let heading = e.webkitCompassHeading != null ? e.webkitCompassHeading : (360 - e.alpha);
-    if(heading!=null && !isNaN(heading)) player.yaw = heading * Math.PI/180;
+    if(heading!=null && !isNaN(heading)) player.yaw = -heading * Math.PI/180;
   }
   gyroBtn.addEventListener('click', ()=>{
     if(gyroEnabled){ disableGyro(); logMsg('Gyro heading OFF'); }
