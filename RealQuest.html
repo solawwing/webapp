@@ -83,6 +83,14 @@
     color:#7fffb0; background:rgba(0,0,0,0.5); padding:4px 8px; border:1px solid #1a8f3c;
     display:none;
   }
+  #gpsInfo {
+    position:absolute; bottom:10px; left:10px; font-size:10px; letter-spacing:1px;
+    color:#7fffb0; background:rgba(0,0,0,0.5); border:1px solid #1a8f3c; padding:6px 10px;
+    display:flex; flex-direction:column; gap:2px; min-width:140px;
+  }
+  #gpsInfo .row { display:flex; justify-content:space-between; gap:10px; }
+  #gpsInfo .row span:first-child { color:#1a8f3c; }
+  #gpsInfo .row span:last-child { color:#33ff66; }
 
   /* touch controls */
   #joyZone, #lookZone {
@@ -140,6 +148,13 @@
   <div id="headingLabel">N 0°</div>
   <div id="crosshair"></div>
   <div id="gpsBadge">GPS LINK ●</div>
+  <div id="gpsInfo">
+    <div class="row"><span>LAT</span><span id="gpsLat">--</span></div>
+    <div class="row"><span>LON</span><span id="gpsLon">--</span></div>
+    <div class="row"><span>ACC</span><span id="gpsAcc">-- m</span></div>
+    <div class="row"><span>ALT</span><span id="gpsAlt">-- m</span></div>
+    <div class="row"><span>SPD</span><span id="gpsSpd">-- km/h</span></div>
+  </div>
 </div>
 
 <div id="joyZone"><div id="joyBase"></div><div id="joyStick"></div><div class="hint">移動</div></div>
@@ -228,6 +243,7 @@
     corridorSegs = [];
     const wallVerts = [];
     const floorVerts = [];
+    const floorFillVerts = [];
     const half = 3.2;
     const wallH = 4.4;
 
@@ -254,6 +270,12 @@
       // floor edge outline
       pushLine(floorVerts, l1.x,0.02,l1.z, l2.x,0.02,l2.z);
       pushLine(floorVerts, r1.x,0.02,r1.z, r2.x,0.02,r2.z);
+
+      // filled road surface (two triangles per segment quad)
+      floorFillVerts.push(
+        l1.x,0.01,l1.z,  r1.x,0.01,r1.z,  r2.x,0.01,r2.z,
+        l1.x,0.01,l1.z,  r2.x,0.01,r2.z,  l2.x,0.01,l2.z
+      );
     });
 
     const wallGeo = new THREE.BufferGeometry();
@@ -261,6 +283,12 @@
     const wallMat = new THREE.LineBasicMaterial({ color:0x33ff66, transparent:true, opacity:0.85 });
     const wallLines = new THREE.LineSegments(wallGeo, wallMat);
     scene.add(wallLines);
+
+    const fillGeo = new THREE.BufferGeometry();
+    fillGeo.setAttribute('position', new THREE.Float32BufferAttribute(floorFillVerts,3));
+    fillGeo.computeVertexNormals();
+    const fillMat = new THREE.MeshBasicMaterial({ color:0x0a2f18, transparent:true, opacity:0.55, side:THREE.DoubleSide });
+    scene.add(new THREE.Mesh(fillGeo, fillMat));
 
     const floorGeo = new THREE.BufferGeometry();
     floorGeo.setAttribute('position', new THREE.Float32BufferAttribute(floorVerts,3));
@@ -499,7 +527,21 @@
     // map content: fixed orientation (north = up, matching a real-world map), only pans with the player
     ctx.save();
     ctx.translate(w/2, h/2);
-    ctx.strokeStyle = 'rgba(51,255,102,0.7)';
+    ctx.strokeStyle = 'rgba(51,255,102,0.35)';
+    ctx.lineWidth = 6.4 * scale; // filled road width (matches corridor width)
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    corridorSegs.forEach(s=>{
+      const x1=(s.p1.x-player.x)*scale, y1=(s.p1.z-player.z)*scale;
+      const x2=(s.p2.x-player.x)*scale, y2=(s.p2.z-player.z)*scale;
+      if((Math.abs(x1)<w && Math.abs(y1)<h) || (Math.abs(x2)<w && Math.abs(y2)<h)){
+        ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+      }
+    });
+    ctx.stroke();
+    // road centerline / edge accent on top of the fill
+    ctx.strokeStyle = 'rgba(51,255,102,0.8)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     corridorSegs.forEach(s=>{
@@ -555,17 +597,25 @@
   }
 
   // ---------- GPS link mode ----------
+  let gpsWatchId = null;
+
   function enableGPSLink(){
     if(!navigator.geolocation){ logMsg('この端末はGPSに対応していません'); return; }
     gpsLinked = true;
     document.getElementById('gpsBadge').style.display='block';
-    navigator.geolocation.watchPosition(pos=>{
-      const p = project(pos.coords.latitude, pos.coords.longitude);
-      const c = clampToCorridor(p.x, p.z);
-      player.x = c.x; player.z = c.z;
-      if(pos.coords.heading!=null && !isNaN(pos.coords.heading)){
-        player.yaw = -pos.coords.heading * Math.PI/180;
+    gpsWatchId = navigator.geolocation.watchPosition(pos=>{
+      const c = pos.coords;
+      const p = project(c.latitude, c.longitude);
+      const snapped = clampToCorridor(p.x, p.z);
+      player.x = snapped.x; player.z = snapped.z;
+      if(c.heading!=null && !isNaN(c.heading)){
+        player.yaw = -c.heading * Math.PI/180;
       }
+      document.getElementById('gpsLat').textContent = c.latitude.toFixed(6);
+      document.getElementById('gpsLon').textContent = c.longitude.toFixed(6);
+      document.getElementById('gpsAcc').textContent = (c.accuracy!=null ? c.accuracy.toFixed(1) : '--') + ' m';
+      document.getElementById('gpsAlt').textContent = (c.altitude!=null ? c.altitude.toFixed(1) : '--') + ' m';
+      document.getElementById('gpsSpd').textContent = (c.speed!=null ? (c.speed*3.6).toFixed(1) : '--') + ' km/h';
     }, err=>{ logMsg('GPS取得に失敗しました'); }, { enableHighAccuracy:true, maximumAge:1000 });
 
     if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
@@ -576,7 +626,13 @@
       window.addEventListener('deviceorientation', onOrient);
     }
   }
+  function disableGPSLink(){
+    gpsLinked = false;
+    document.getElementById('gpsBadge').style.display='none';
+    if(gpsWatchId != null){ navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
+  }
   function onOrient(e){
+    if(!gpsLinked) return;
     let heading = e.webkitCompassHeading != null ? e.webkitCompassHeading : (360 - e.alpha);
     if(heading!=null && !isNaN(heading)) player.yaw = heading * Math.PI/180;
   }
@@ -604,6 +660,9 @@
     if(isTouch){ document.getElementById('desktopHint').style.display='none'; }
     else { joyZone.style.pointerEvents='none'; lookZone.style.pointerEvents='none'; }
     animate();
+
+    // GPS-linked mode is the default: walking the real roads moves you through the dungeon
+    enableGPSLink();
   }
 
   document.getElementById('genFromAddr').addEventListener('click', async ()=>{
@@ -628,11 +687,15 @@
     }, { enableHighAccuracy:true, timeout:10000 });
   });
 
-  // expose GPS link toggle via long-press on minimap (simple hidden control)
+  // tap the minimap to toggle GPS-linked mode on/off (default is ON)
   document.getElementById('minimapWrap').addEventListener('click', ()=>{
-    if(gpsLinked) return;
-    enableGPSLink();
-    logMsg('GPS連動モードON: 実際に歩くとダンジョンが進みます');
+    if(gpsLinked){
+      disableGPSLink();
+      logMsg('GPS連動モードOFF: 手動操作に切替');
+    } else {
+      enableGPSLink();
+      logMsg('GPS連動モードON: 実際に歩くとダンジョンが進みます');
+    }
   });
 
 })();
