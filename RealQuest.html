@@ -279,7 +279,7 @@
     const fillGeo = new THREE.BufferGeometry();
     fillGeo.setAttribute('position', new THREE.Float32BufferAttribute(floorFillVerts,3));
     fillGeo.computeVertexNormals();
-    const fillMat = new THREE.MeshBasicMaterial({ color:0xffffff, side:THREE.DoubleSide });
+    const fillMat = new THREE.MeshBasicMaterial({ color:0x026881, side:THREE.DoubleSide });
     scene.add(new THREE.Mesh(fillGeo, fillMat));
 
     const floorGeo = new THREE.BufferGeometry();
