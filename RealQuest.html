@@ -147,7 +147,7 @@
   // ---------- state ----------
   let scene, camera, renderer;
   let corridorSegs = []; // {p1:{x,z}, p2:{x,z}, half}
-  let player = { x:0, z:0, y:1.6, yaw:0, pitch:0 };
+  let player = { x:0, z:0, y:2.2, yaw:0, pitch:0 };
   let lon0=null, lat0=null;
   let gpsLinked = false;
   let clock;
@@ -272,19 +272,19 @@
 
     const wallGeo = new THREE.BufferGeometry();
     wallGeo.setAttribute('position', new THREE.Float32BufferAttribute(wallVerts,3));
-    const wallMat = new THREE.LineBasicMaterial({ color:0x026881, transparent:true, opacity:0.85 });
+    const wallMat = new THREE.LineBasicMaterial({ color:0x04a8cc, transparent:true, opacity:1.0 });
     const wallLines = new THREE.LineSegments(wallGeo, wallMat);
     scene.add(wallLines);
 
     const fillGeo = new THREE.BufferGeometry();
     fillGeo.setAttribute('position', new THREE.Float32BufferAttribute(floorFillVerts,3));
     fillGeo.computeVertexNormals();
-    const fillMat = new THREE.MeshBasicMaterial({ color:0x026881, transparent:true, opacity:0.5, side:THREE.DoubleSide });
+    const fillMat = new THREE.MeshBasicMaterial({ color:0x026881, transparent:true, opacity:0.65, side:THREE.DoubleSide });
     scene.add(new THREE.Mesh(fillGeo, fillMat));
 
     const floorGeo = new THREE.BufferGeometry();
     floorGeo.setAttribute('position', new THREE.Float32BufferAttribute(floorVerts,3));
-    const floorMat = new THREE.LineBasicMaterial({ color:0x013e4d, transparent:true, opacity:0.5 });
+    const floorMat = new THREE.LineBasicMaterial({ color:0x4fa8bf, transparent:true, opacity:0.7 });
     scene.add(new THREE.LineSegments(floorGeo, floorMat));
   }
 
@@ -305,8 +305,8 @@
   // ---------- three.js setup ----------
   function initThree(){
     scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x000000, 8, 70);
-    camera = new THREE.PerspectiveCamera(72, window.innerWidth/window.innerHeight, 0.1, 200);
+    scene.fog = new THREE.Fog(0x000000, 20, 180);
+    camera = new THREE.PerspectiveCamera(72, window.innerWidth/window.innerHeight, 0.1, 300);
     renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gamecanvas'), antialias:true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(devicePixelRatio,2));
@@ -457,7 +457,7 @@
     if(mmCanvas.width !== w) { mmCanvas.width=w; mmCanvas.height=h; }
     const ctx = mmCanvas.getContext('2d');
     ctx.clearRect(0,0,w,h);
-    const scale = 1.4;
+    const scale = 1.0;
 
     // map content: fixed orientation (north = up, matching a real-world map), only pans with the player
     ctx.save();
