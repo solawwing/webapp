@@ -74,7 +74,7 @@
     color:#4fa8bf; background:rgba(0,0,0,0.5); border:1px solid #013e4d; padding:5px 6px;
     display:flex; flex-direction:row; justify-content:space-between; gap:3px;
   }
-  #gpsInfo .row { display:flex; flex-direction:column; align-items:center; gap:1px; flex:1 1 0; min-width:0; overflow:hidden; }
+  #gpsInfo .row { display:flex; flex-direction:row; align-items:baseline; justify-content:center; gap:3px; flex:1 1 0; min-width:0; overflow:hidden; }
   #gpsInfo .row span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
   #gpsInfo .row span:first-child { color:#013e4d; }
   #gpsInfo .row span:last-child { color:#026881; }
@@ -138,10 +138,8 @@
   // ---------- state ----------
   let scene, camera, renderer;
   let corridorSegs = []; // {p1:{x,z}, p2:{x,z}, half}
-  let monsters = [], loots = [];
   let player = { x:0, z:0, y:1.6, yaw:0, pitch:0 };
   let lon0=null, lat0=null;
-  let score = 0;
   let gpsLinked = false;
   let clock;
   const isTouch = ('ontouchstart' in window);
@@ -283,39 +281,6 @@
 
   function pushLine(arr, x1,y1,z1,x2,y2,z2){
     arr.push(x1,y1,z1,x2,y2,z2);
-  }
-
-  // ---------- monsters & loot (adventure seed) ----------
-  function scatterEntities(){
-    monsters = []; loots = [];
-    if(corridorSegs.length === 0) return;
-    const mCount = Math.min(16, Math.max(6, Math.floor(corridorSegs.length/3)));
-    const lCount = Math.min(10, Math.max(4, Math.floor(corridorSegs.length/5)));
-
-    for(let i=0;i<mCount;i++){
-      const seg = corridorSegs[Math.floor(Math.random()*corridorSegs.length)];
-      const t = 0.2 + Math.random()*0.6;
-      const x = seg.p1.x + (seg.p2.x-seg.p1.x)*t;
-      const z = seg.p1.z + (seg.p2.z-seg.p1.z)*t;
-      const geo = new THREE.OctahedronGeometry(0.6,0);
-      const mat = new THREE.MeshBasicMaterial({ color:0xff3355, wireframe:true });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(x, 0.9, z);
-      scene.add(mesh);
-      monsters.push({mesh, x, z, alive:true});
-    }
-    for(let i=0;i<lCount;i++){
-      const seg = corridorSegs[Math.floor(Math.random()*corridorSegs.length)];
-      const t = 0.2 + Math.random()*0.6;
-      const x = seg.p1.x + (seg.p2.x-seg.p1.x)*t;
-      const z = seg.p1.z + (seg.p2.z-seg.p1.z)*t;
-      const geo = new THREE.BoxGeometry(0.5,0.5,0.5);
-      const mat = new THREE.MeshBasicMaterial({ color:0xffe93a, wireframe:true });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(x, 0.6, z);
-      scene.add(mesh);
-      loots.push({mesh, x, z, alive:true});
-    }
   }
 
   function logMsg(text){
@@ -463,28 +428,6 @@
     camera.rotation.y = player.yaw;
     camera.rotation.x = player.pitch;
 
-    // entity interactions
-    monsters.forEach(m=>{
-      if(!m.alive) return;
-      const d = Math.hypot(player.x-m.x, player.z-m.z);
-      m.mesh.rotation.y += dt*0.8;
-      if(d < 1.6){
-        m.alive=false; scene.remove(m.mesh);
-        score += 100;
-        logMsg('モンスターを撃退した！ +100');
-      }
-    });
-    loots.forEach(l=>{
-      if(!l.alive) return;
-      l.mesh.rotation.y += dt*1.4;
-      const d = Math.hypot(player.x-l.x, player.z-l.z);
-      if(d < 1.4){
-        l.alive=false; scene.remove(l.mesh);
-        score += 30;
-        logMsg('宝を発見した！ +30');
-      }
-    });
-
     drawMinimap();
   }
 
@@ -535,12 +478,6 @@
       }
     });
     ctx.stroke();
-    ctx.fillStyle = '#ff3355';
-    monsters.forEach(m=>{
-      if(!m.alive) return;
-      const x=(m.x-player.x)*scale, y=(m.z-player.z)*scale;
-      if(Math.abs(x)<w && Math.abs(y)<h) ctx.fillRect(x-1.5,y-1.5,3,3);
-    });
     ctx.restore();
 
     // "N" tick at the top edge — anchors the map to real-world north
@@ -635,7 +572,6 @@
       rawSegs = proceduralFallback().map(s=>({a:s.a,b:s.b}));
     }
     assemble(rawSegs);
-    scatterEntities();
     player.x = 0; player.z = 0; player.yaw = 0; player.pitch = 0;
 
     titleScreen.style.display = 'none';
