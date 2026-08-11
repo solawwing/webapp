@@ -817,6 +817,7 @@
   .stCol-name{ color:#FF0000; white-space:normal; }
   .stCol-lat, .stCol-lng{ color:#22e5e5; white-space:nowrap; font-variant-numeric: tabular-nums; }
   .stCol-lines{ color:#FF9D1F; white-space:normal; }
+  .stCol-dist{ color:#22e5e5; text-align:right; white-space:nowrap; font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
@@ -2348,6 +2349,9 @@
 
   function renderStoredList(){
     let stored = loadStoredStations();
+    const origin = marker ? marker.getLatLng() : null;
+    // 現在地からの距離を各駅に付与しておく(表示・ソート両方で使う)
+    stored = stored.map(s => ({ ...s, dist: origin ? origin.distanceTo([s.lat, s.lng]) : null }));
 
     if(storedListSortKey){
       const key = storedListSortKey;
@@ -2356,6 +2360,9 @@
         if(key === 'lines'){
           av = (a.lines && a.lines[0]) || '';
           bv = (b.lines && b.lines[0]) || '';
+        } else if(key === 'dist'){
+          av = (a.dist == null ? Infinity : a.dist);
+          bv = (b.dist == null ? Infinity : b.dist);
         } else {
           av = a[key];
           bv = b[key];
@@ -2378,12 +2385,14 @@
     }
     const rowsHtml = stored.map((s, i)=>{
       const lineText = (s.lines && s.lines.length > 0) ? s.lines.join(' / ') : '';
+      const distText = s.dist != null ? Math.round(s.dist).toLocaleString('ja-JP') + 'm' : '‥';
       return `<tr>
         <td class="stCol-no">${i + 1}</td>
         <td class="stCol-name">${s.name}</td>
         <td class="stCol-lat">${s.lat.toFixed(5)}</td>
         <td class="stCol-lng">${s.lng.toFixed(5)}</td>
         <td class="stCol-lines">${lineText}</td>
+        <td class="stCol-dist">${distText}</td>
       </tr>`;
     }).join('');
     // No.は保存順に戻すための特別列(ソートキー'no'扱い)。それ以外は矢印でソート方向を示す
@@ -2396,6 +2405,7 @@
           <th class="stCol-lat" data-sort="lat">Lat${arrow('lat')}</th>
           <th class="stCol-lng" data-sort="lng">Lng${arrow('lng')}</th>
           <th class="stCol-lines" data-sort="lines">${currentLang === 'en' ? 'Lines' : '路線名'}${arrow('lines')}</th>
+          <th class="stCol-dist" data-sort="dist">${currentLang === 'en' ? 'Dist.' : '距離'}${arrow('dist')}</th>
         </tr>
       </thead>
       <tbody>${rowsHtml}</tbody>
