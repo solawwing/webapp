@@ -6,91 +6,79 @@
 <title>MAP DUNGEON</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
   html,body { width:100%; height:100%; background:#000; overflow:hidden; font-family:'BIZ UDPGothic', sans-serif; }
+  .mont { font-family:'Montserrat', sans-serif; }
   #gamecanvas { display:block; width:100%; height:100%; }
 
   #titleScreen {
     position:fixed; inset:0; z-index:50;
     background:#000;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
-    color:#33ff66;
+    color:#026881;
+    padding:0 24px;
   }
   #titleScreen h1 {
-    font-size:clamp(22px,7vw,44px);
-    letter-spacing:10px;
-    text-shadow:0 0 8px #33ff66, 0 0 20px #33ff66;
-    margin-bottom:6px;
+    font-size:clamp(28px,8vw,52px);
+    letter-spacing:8px;
+    margin-bottom:14px;
     font-weight:normal;
+    text-align:center;
   }
   #titleScreen .sub {
-    font-size:11px; letter-spacing:3px; color:#1a8f3c; margin-bottom:36px;
+    font-size:13px; letter-spacing:0.5px; color:#4fa8bf; margin-bottom:40px;
+    text-align:center; max-width:340px; line-height:1.6;
   }
-  .panel {
-    border:1px solid #1a8f3c; padding:18px 22px; width:min(84vw,340px);
-    background:rgba(10,20,12,0.4);
-    box-shadow:0 0 16px rgba(51,255,102,0.15) inset;
-  }
-  .panel label { display:block; font-size:11px; letter-spacing:2px; color:#33ff66; margin-bottom:6px; }
-  .panel input[type=text] {
-    width:100%; background:#000; border:1px solid #1a8f3c; color:#33ff66;
-    padding:9px 8px; font-family:inherit; font-size:14px; letter-spacing:1px; margin-bottom:12px;
-  }
-  .panel input::placeholder { color:#1a8f3c; }
   .btn {
-    display:block; width:100%; background:#000; border:1px solid #33ff66; color:#33ff66;
-    padding:11px 8px; font-family:inherit; font-size:12px; letter-spacing:3px; margin-top:8px;
+    display:block; width:min(60vw,220px); background:#000; border:1px solid #026881; color:#026881;
+    padding:13px 8px; font-family:inherit; font-size:14px; letter-spacing:4px; margin-top:8px;
     cursor:pointer; text-align:center;
   }
-  .btn:active { background:#33ff66; color:#000; }
-  .btn.secondary { border-color:#1a8f3c; color:#1a8f3c; font-size:10px; }
+  .btn:active { background:#026881; color:#000; }
   #statusLine {
-    margin-top:18px; font-size:11px; letter-spacing:1px; color:#33ff66; min-height:16px; text-align:center;
+    margin-top:18px; font-size:11px; letter-spacing:1px; color:#026881; min-height:16px; text-align:center;
     max-width:84vw;
   }
-  #radiusRow { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
-  #radiusRow input[type=range] { flex:1; accent-color:#33ff66; }
-  #radiusRow span { font-size:11px; color:#33ff66; width:52px; text-align:right; }
 
-  #hud { position:fixed; inset:0; z-index:20; pointer-events:none; display:none; color:#33ff66; font-size:12px; letter-spacing:1px; }
+  #hud { position:fixed; inset:0; z-index:20; pointer-events:none; display:none; color:#026881; font-size:12px; letter-spacing:1px; }
   #hudTop { position:absolute; top:10px; left:10px; right:10px; display:flex; justify-content:space-between; text-shadow:0 0 4px #000; }
-  #hudTop div span { color:#7fffb0; }
+  #hudTop div span { color:#4fa8bf; }
   #msgLog {
-    position:absolute; top:46px; left:10px; font-size:11px; color:#33ff66; text-shadow:0 0 4px #000;
+    position:absolute; top:46px; left:10px; font-size:11px; color:#026881; text-shadow:0 0 4px #000;
     display:flex; flex-direction:column; gap:2px; max-width:70vw;
   }
   #msgLog span { opacity:0; transition:opacity 0.3s; }
 
   #minimapWrap {
     position:absolute; top:10px; right:10px; width:120px; height:120px;
-    border:1px solid #1a8f3c; background:rgba(0,0,0,0.55);
+    border:1px solid #013e4d; background:rgba(0,0,0,0.55);
   }
   #minimapCanvas { width:100%; height:100%; }
   #headingLabel {
     position:absolute; top:132px; right:10px; width:120px; text-align:center;
-    font-size:10px; letter-spacing:2px; color:#7fffb0; text-shadow:0 0 4px #000;
+    font-size:10px; letter-spacing:2px; color:#4fa8bf; text-shadow:0 0 4px #000;
   }
 
   #crosshair {
     position:absolute; top:50%; left:50%; width:6px; height:6px; margin:-3px 0 0 -3px;
-    border:1px solid #33ff66; border-radius:50%; opacity:0.6;
+    border:1px solid #026881; border-radius:50%; opacity:0.6;
   }
 
   #gpsBadge {
     position:absolute; bottom:10px; right:10px; font-size:10px; letter-spacing:1px;
-    color:#7fffb0; background:rgba(0,0,0,0.5); padding:4px 8px; border:1px solid #1a8f3c;
+    color:#4fa8bf; background:rgba(0,0,0,0.5); padding:4px 8px; border:1px solid #013e4d;
     display:none;
   }
   #gpsInfo {
     position:absolute; bottom:10px; left:10px; font-size:10px; letter-spacing:1px;
-    color:#7fffb0; background:rgba(0,0,0,0.5); border:1px solid #1a8f3c; padding:6px 10px;
+    color:#4fa8bf; background:rgba(0,0,0,0.5); border:1px solid #013e4d; padding:6px 10px;
     display:flex; flex-direction:column; gap:2px; min-width:140px;
   }
   #gpsInfo .row { display:flex; justify-content:space-between; gap:10px; }
-  #gpsInfo .row span:first-child { color:#1a8f3c; }
-  #gpsInfo .row span:last-child { color:#33ff66; }
+  #gpsInfo .row span:first-child { color:#013e4d; }
+  #gpsInfo .row span:last-child { color:#026881; }
 
   /* touch controls */
   #joyZone, #lookZone {
@@ -99,20 +87,20 @@
   #joyZone { left:0; }
   #lookZone { right:0; }
   #joyBase {
-    position:absolute; width:88px; height:88px; border:1px solid rgba(51,255,102,0.5);
+    position:absolute; width:88px; height:88px; border:1px solid rgba(2,104,129,0.5);
     border-radius:50%; display:none;
   }
   #joyStick {
-    position:absolute; width:38px; height:38px; border:1px solid #33ff66; background:rgba(51,255,102,0.25);
+    position:absolute; width:38px; height:38px; border:1px solid #026881; background:rgba(2,104,129,0.25);
     border-radius:50%; display:none;
   }
-  .hint { position:absolute; bottom:8px; font-size:9px; color:#1a8f3c; letter-spacing:1px; }
+  .hint { position:absolute; bottom:8px; font-size:9px; color:#013e4d; letter-spacing:1px; }
   #joyZone .hint { left:8px; }
   #lookZone .hint { right:8px; text-align:right; }
 
   #desktopHint {
     position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
-    font-size:10px; color:#1a8f3c; letter-spacing:1px; text-align:center; pointer-events:none;
+    font-size:10px; color:#013e4d; letter-spacing:1px; text-align:center; pointer-events:none;
   }
 </style>
 </head>
@@ -121,34 +109,24 @@
 <canvas id="gamecanvas"></canvas>
 
 <div id="titleScreen">
-  <h1>MAP DUNGEON</h1>
-  <div class="sub">WIREFRAME DUNGEON FROM REAL ROADS</div>
-  <div class="panel">
-    <label>地名・住所で生成</label>
-    <input type="text" id="addrInput" placeholder="例: 渋谷駅, 京都駅..." />
-    <label>ダンジョン範囲(半径)</label>
-    <div id="radiusRow">
-      <input type="range" id="radiusRange" min="150" max="600" step="50" value="300">
-      <span id="radiusVal">300m</span>
-    </div>
-    <button class="btn" id="genFromAddr">この場所で生成</button>
-    <button class="btn secondary" id="genFromGPS">現在地から生成</button>
-    <div id="statusLine"></div>
-  </div>
+  <h1 class="mont">Real Quest</h1>
+  <div class="sub mont">Embark on a journey through a 3D dungeon generated from a map.</div>
+  <button class="btn mont" id="startBtn">START</button>
+  <div id="statusLine"></div>
 </div>
 
 <div id="hud">
-  <div id="hudTop">
+  <div id="hudTop" class="mont">
     <div>SCORE <span id="scoreVal">0</span></div>
     <div>ENEMY <span id="enemyVal">0</span></div>
     <div>LOOT <span id="lootVal">0</span></div>
   </div>
   <div id="msgLog"></div>
   <div id="minimapWrap"><canvas id="minimapCanvas"></canvas></div>
-  <div id="headingLabel">N 0°</div>
+  <div id="headingLabel" class="mont">N 0°</div>
   <div id="crosshair"></div>
-  <div id="gpsBadge">GPS LINK ●</div>
-  <div id="gpsInfo">
+  <div id="gpsBadge" class="mont">GPS LINK ●</div>
+  <div id="gpsInfo" class="mont">
     <div class="row"><span>LAT</span><span id="gpsLat">--</span></div>
     <div class="row"><span>LON</span><span id="gpsLon">--</span></div>
     <div class="row"><span>ACC</span><span id="gpsAcc">-- m</span></div>
@@ -180,21 +158,11 @@
   const statusLine = document.getElementById('statusLine');
   const titleScreen = document.getElementById('titleScreen');
   const hud = document.getElementById('hud');
-  const radiusRange = document.getElementById('radiusRange');
-  const radiusVal = document.getElementById('radiusVal');
-  radiusRange.addEventListener('input', ()=> radiusVal.textContent = radiusRange.value + 'm');
+  const DEFAULT_RADIUS = 300;
 
   function setStatus(t){ statusLine.textContent = t; }
 
-  // ---------- geocode + overpass ----------
-  async function geocode(query){
-    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(query);
-    const res = await fetch(url, { headers: { 'Accept-Language':'ja' } });
-    if(!res.ok) throw new Error('geocode failed');
-    const data = await res.json();
-    if(!data.length) throw new Error('not found');
-    return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-  }
+  // ---------- overpass ----------
 
   async function fetchRoads(lat, lon, radius){
     const q = `[out:json][timeout:25];way["highway"](around:${radius},${lat},${lon});out geom;`;
@@ -280,19 +248,19 @@
 
     const wallGeo = new THREE.BufferGeometry();
     wallGeo.setAttribute('position', new THREE.Float32BufferAttribute(wallVerts,3));
-    const wallMat = new THREE.LineBasicMaterial({ color:0x33ff66, transparent:true, opacity:0.85 });
+    const wallMat = new THREE.LineBasicMaterial({ color:0x026881, transparent:true, opacity:0.85 });
     const wallLines = new THREE.LineSegments(wallGeo, wallMat);
     scene.add(wallLines);
 
     const fillGeo = new THREE.BufferGeometry();
     fillGeo.setAttribute('position', new THREE.Float32BufferAttribute(floorFillVerts,3));
     fillGeo.computeVertexNormals();
-    const fillMat = new THREE.MeshBasicMaterial({ color:0x0a2f18, transparent:true, opacity:0.55, side:THREE.DoubleSide });
+    const fillMat = new THREE.MeshBasicMaterial({ color:0x013e4d, transparent:true, opacity:0.55, side:THREE.DoubleSide });
     scene.add(new THREE.Mesh(fillGeo, fillMat));
 
     const floorGeo = new THREE.BufferGeometry();
     floorGeo.setAttribute('position', new THREE.Float32BufferAttribute(floorVerts,3));
-    const floorMat = new THREE.LineBasicMaterial({ color:0x1a8f3c, transparent:true, opacity:0.5 });
+    const floorMat = new THREE.LineBasicMaterial({ color:0x013e4d, transparent:true, opacity:0.5 });
     scene.add(new THREE.LineSegments(floorGeo, floorMat));
   }
 
@@ -527,7 +495,7 @@
     // map content: fixed orientation (north = up, matching a real-world map), only pans with the player
     ctx.save();
     ctx.translate(w/2, h/2);
-    ctx.strokeStyle = 'rgba(51,255,102,0.35)';
+    ctx.strokeStyle = 'rgba(2,104,129,0.35)';
     ctx.lineWidth = 6.4 * scale; // filled road width (matches corridor width)
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -541,7 +509,7 @@
     });
     ctx.stroke();
     // road centerline / edge accent on top of the fill
-    ctx.strokeStyle = 'rgba(51,255,102,0.8)';
+    ctx.strokeStyle = 'rgba(2,104,129,0.8)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     corridorSegs.forEach(s=>{
@@ -561,8 +529,8 @@
     ctx.restore();
 
     // "N" tick at the top edge — anchors the map to real-world north
-    ctx.fillStyle = '#7fffb0';
-    ctx.font = '9px "BIZ UDPGothic", sans-serif';
+    ctx.fillStyle = '#4fa8bf';
+    ctx.font = '9px "Montserrat", sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('N', w/2, 10);
 
@@ -575,14 +543,14 @@
     ctx.lineTo(-13,-30);
     ctx.lineTo(13,-30);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(51,255,102,0.20)';
+    ctx.fillStyle = 'rgba(2,104,129,0.20)';
     ctx.fill();
     ctx.beginPath();
     ctx.moveTo(0,-8);
     ctx.lineTo(-5.5,5.5);
     ctx.lineTo(5.5,5.5);
     ctx.closePath();
-    ctx.fillStyle = '#33ff66';
+    ctx.fillStyle = '#026881';
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 1;
     ctx.stroke();
@@ -665,23 +633,11 @@
     enableGPSLink();
   }
 
-  document.getElementById('genFromAddr').addEventListener('click', async ()=>{
-    const q = document.getElementById('addrInput').value.trim();
-    if(!q){ setStatus('地名を入力してください'); return; }
-    try {
-      setStatus('場所を検索中...');
-      const loc = await geocode(q);
-      startGame(loc.lat, loc.lon, parseInt(radiusRange.value,10));
-    } catch(e){
-      setStatus('場所が見つかりませんでした');
-    }
-  });
-
-  document.getElementById('genFromGPS').addEventListener('click', ()=>{
+  document.getElementById('startBtn').addEventListener('click', ()=>{
     if(!navigator.geolocation){ setStatus('この端末はGPSに対応していません'); return; }
     setStatus('現在地を取得中...');
     navigator.geolocation.getCurrentPosition(pos=>{
-      startGame(pos.coords.latitude, pos.coords.longitude, parseInt(radiusRange.value,10));
+      startGame(pos.coords.latitude, pos.coords.longitude, DEFAULT_RADIUS);
     }, err=>{
       setStatus('現在地を取得できませんでした（位置情報の許可を確認してください）');
     }, { enableHighAccuracy:true, timeout:10000 });
