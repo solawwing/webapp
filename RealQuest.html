@@ -65,6 +65,10 @@
     border:1px solid #1a8f3c; background:rgba(0,0,0,0.55);
   }
   #minimapCanvas { width:100%; height:100%; }
+  #headingLabel {
+    position:absolute; top:132px; right:10px; width:120px; text-align:center;
+    font-size:10px; letter-spacing:2px; color:#7fffb0; text-shadow:0 0 4px #000;
+  }
 
   #crosshair {
     position:absolute; top:50%; left:50%; width:6px; height:6px; margin:-3px 0 0 -3px;
@@ -130,6 +134,7 @@
   </div>
   <div id="msgLog"></div>
   <div id="minimapWrap"><canvas id="minimapCanvas"></canvas></div>
+  <div id="headingLabel">N 0°</div>
   <div id="crosshair"></div>
   <div id="gpsBadge">GPS LINK ●</div>
 </div>
@@ -476,24 +481,28 @@
     renderer.render(scene, camera);
   }
 
-  // ---------- minimap ----------
+  // ---------- minimap (fixed north-up, like a real map; player marker rotates to show facing) ----------
   const mmCanvas = document.getElementById('minimapCanvas');
+  const headingLabel = document.getElementById('headingLabel');
+  const compassNames = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+
   function drawMinimap(){
     const w = mmCanvas.clientWidth, h = mmCanvas.clientHeight;
     if(mmCanvas.width !== w) { mmCanvas.width=w; mmCanvas.height=h; }
     const ctx = mmCanvas.getContext('2d');
     ctx.clearRect(0,0,w,h);
     const scale = 1.4;
+
+    // map content: fixed orientation (north = up, matching a real-world map), only pans with the player
     ctx.save();
     ctx.translate(w/2, h/2);
-    ctx.rotate(-player.yaw);
     ctx.strokeStyle = 'rgba(51,255,102,0.7)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     corridorSegs.forEach(s=>{
       const x1=(s.p1.x-player.x)*scale, y1=(s.p1.z-player.z)*scale;
       const x2=(s.p2.x-player.x)*scale, y2=(s.p2.z-player.z)*scale;
-      if(Math.abs(x1)<w && Math.abs(y1)<h || Math.abs(x2)<w && Math.abs(y2)<h){
+      if((Math.abs(x1)<w && Math.abs(y1)<h) || (Math.abs(x2)<w && Math.abs(y2)<h)){
         ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
       }
     });
@@ -505,14 +514,41 @@
       if(Math.abs(x)<w && Math.abs(y)<h) ctx.fillRect(x-1.5,y-1.5,3,3);
     });
     ctx.restore();
-    // player marker (fixed, points up)
-    ctx.fillStyle = '#33ff66';
+
+    // "N" tick at the top edge — anchors the map to real-world north
+    ctx.fillStyle = '#7fffb0';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('N', w/2, 10);
+
+    // player marker: field-of-view cone + triangle, rotated to the actual facing direction
+    ctx.save();
+    ctx.translate(w/2, h/2);
+    ctx.rotate(player.yaw);
     ctx.beginPath();
-    ctx.moveTo(w/2, h/2-5);
-    ctx.lineTo(w/2-4, h/2+4);
-    ctx.lineTo(w/2+4, h/2+4);
+    ctx.moveTo(0,0);
+    ctx.lineTo(-13,-30);
+    ctx.lineTo(13,-30);
     ctx.closePath();
+    ctx.fillStyle = 'rgba(51,255,102,0.20)';
     ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(0,-8);
+    ctx.lineTo(-5.5,5.5);
+    ctx.lineTo(5.5,5.5);
+    ctx.closePath();
+    ctx.fillStyle = '#33ff66';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fill();
+    ctx.restore();
+
+    // heading readout
+    let deg = (player.yaw * 180/Math.PI) % 360;
+    if(deg < 0) deg += 360;
+    const compass = compassNames[Math.round(deg/22.5) % 16];
+    headingLabel.textContent = compass + ' ' + Math.round(deg) + '°';
   }
 
   // ---------- GPS link mode ----------
