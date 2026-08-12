@@ -507,14 +507,31 @@
     animation-timing-function: linear;
     animation-iteration-count: infinite;
   }
-  .dirStar-l0{ background:#FFFFFF;              animation-duration:1.6s; }
-  .dirStar-l1{ background:rgba(255,255,255,.55); animation-duration:2.6s; }
-  .dirStar-l2{ background:rgba(255,255,255,.25); animation-duration:3.8s; }
+  .dirStar-l0{
+    background:#FFFFFF;
+    animation-duration:1.6s;
+    box-shadow:
+      calc(var(--dx) * 3px) calc(var(--dy) * 3px) 0 0 rgba(255,255,255,.35),
+      calc(var(--dx) * 6px) calc(var(--dy) * 6px) 0 0 rgba(255,255,255,.15);
+  }
+  .dirStar-l1{
+    background:rgba(255,255,255,.55);
+    animation-duration:2.6s;
+    box-shadow:
+      calc(var(--dx) * 3px) calc(var(--dy) * 3px) 0 0 rgba(255,255,255,.2),
+      calc(var(--dx) * 6px) calc(var(--dy) * 6px) 0 0 rgba(255,255,255,.08);
+  }
+  .dirStar-l2{
+    background:rgba(255,255,255,.25);
+    animation-duration:3.8s;
+    box-shadow:
+      calc(var(--dx) * 3px) calc(var(--dy) * 3px) 0 0 rgba(255,255,255,.1);
+  }
   @keyframes dirStarMove{
-    0%   { opacity:0; transform:translate(0,0); }
+    0%   { opacity:0; transform:translate(calc(var(--dx) * var(--dist)), calc(var(--dy) * var(--dist))); }
     15%  { opacity:1; }
     85%  { opacity:1; }
-    100% { opacity:0; transform:translate(calc(var(--dx) * var(--dist)), calc(var(--dy) * var(--dist))); }
+    100% { opacity:0; transform:translate(0,0); }
   }
   .singleStationDirText{
     font-size:20px;
@@ -2011,6 +2028,11 @@
     const dy = -Math.cos(rad); // 北(0度)=画面上方向(Yマイナス)
     const TOTAL_STARS = 20;
     const LAYERS = 3;
+    const baseDurations = [1.6, 2.6, 3.8]; // 各階層の基本秒数(静止時)
+    // 現在の移動速度が速いほど、星も速く流れるようにduration(秒数)を短くする。
+    // 20km/hでおよそ半分の時間になるよう調整し、0.3〜1倍の範囲に収める
+    const speed = currentSpeedKmh || 0;
+    const speedScale = Math.max(0.3, Math.min(1, 1 / (1 + speed / 20)));
     for(let i = 0; i < TOTAL_STARS; i++){
       const layer = i % LAYERS;
       const star = document.createElement('div');
@@ -2020,7 +2042,8 @@
       star.style.setProperty('--dx', dx.toFixed(4));
       star.style.setProperty('--dy', dy.toFixed(4));
       star.style.setProperty('--dist', (140 + Math.random() * 40).toFixed(0) + 'px');
-      star.style.animationDelay = (Math.random() * 3) + 's';
+      star.style.animationDuration = (baseDurations[layer] * speedScale).toFixed(2) + 's';
+      star.style.animationDelay = (Math.random() * baseDurations[layer] * speedScale).toFixed(2) + 's';
       dirStarFieldEl.appendChild(star);
     }
   }
