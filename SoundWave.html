@@ -70,6 +70,7 @@
   }
   .brand .t2{
     margin-top:5px; font-size:10px; letter-spacing:3px; color:var(--text-dim);
+    white-space:nowrap; box-sizing:border-box; text-align:right;
   }
   .clock{
     text-align:right; font-size:11px; letter-spacing:1px; color:var(--text-dim);
@@ -85,7 +86,7 @@
   main{
     position:relative; z-index:2;
     flex:1; min-height:0;
-    display:flex; gap:10px; margin-top:12px;
+    display:flex; gap:10px; margin-top:6px;
   }
   #stage{
     position:relative; flex:1; min-width:0;
@@ -98,7 +99,7 @@
 
   /* side VU meter (peak level) */
   #vu{
-    width:46px; flex-shrink:0;
+    width:52px; flex-shrink:0;
     border:1px solid var(--grid);
     background:rgba(18,48,68,0.08);
     display:flex; flex-direction:column; align-items:center;
@@ -164,7 +165,7 @@
   <header>
     <div class="brand">
       <div class="t1">SOUNDWAVE</div>
-      <div class="t2">SPECTTRUM MONITOR</div>
+      <div class="t2">SPECTRUM MONITOR</div>
     </div>
     <div class="clock">
       <div class="status idle" id="statusText">● STANDBY</div>
@@ -234,8 +235,20 @@
       cv.height = Math.max(1, Math.round(rect.height * dpr));
       ctx.setTransform(dpr,0,0,dpr,0,0);
     }
+    alignSubtitle();
   }
   window.addEventListener('resize', resize);
+
+  function alignSubtitle(){
+    const header = document.querySelector('header');
+    const t2 = document.querySelector('.t2');
+    const bar = document.getElementById('modeBar');
+    if (!header || !t2 || !bar) return;
+    const headerRect = header.getBoundingClientRect();
+    const barRect = bar.getBoundingClientRect();
+    const width = barRect.right - headerRect.left;
+    if (width > 0) t2.style.width = width + 'px';
+  }
 
   function setStatus(text, cls){
     statusText.className = 'status ' + cls;
@@ -434,6 +447,9 @@
   }
 
   resize();
+  if (document.fonts && document.fonts.ready){
+    document.fonts.ready.then(alignSubtitle);
+  }
 })();
 </script>
 </body>
