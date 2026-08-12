@@ -1105,6 +1105,7 @@
   const mapWaitOverlayEl = document.getElementById('mapWaitOverlay');
   const mapWaitTextEl = document.getElementById('mapWaitText');
   const storedListOverlayEl = document.getElementById('storedListOverlay');
+  const storedListModalEl = document.getElementById('storedListModal');
   const storedListTitleEl = document.getElementById('storedListTitle');
   const storedListCountEl = document.getElementById('storedListCount');
   const storedListBodyEl = document.getElementById('storedListBody');
@@ -2369,7 +2370,12 @@
 
   function openStoredListModal(){
     if(!storedListOverlayEl) return;
+    // 開くたびに、近い順(距離昇順)で表示し直す
+    storedListSortKey = 'dist';
+    storedListSortAsc = true;
     renderStoredList();
+    // 前回開いた時のスクロール位置が残らないよう、先頭に戻す
+    if(storedListModalEl) storedListModalEl.scrollTop = 0;
     storedListOverlayEl.classList.add('open');
   }
 
