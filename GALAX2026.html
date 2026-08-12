@@ -598,13 +598,13 @@ function fireWeapon() {
   if (player.weapon === 'DOUBLE') {
     const n = DOUBLE_COUNTS[lvl];
     xOffsets(n, 20).forEach(ox => {
-      playerBullets.push({ x: bx + ox, y: by, vx: 0, vy: -540, r: 3, power: 2, lenMul: 0.5 });
+      playerBullets.push({ x: bx + ox, y: by, vx: 0, vy: -540, r: 3, power: 1, lenMul: 0.5 });
     });
   } else if (player.weapon === 'WIDE') {
     const n = WIDE_COUNTS[lvl];
     fanAngles(n, 7).forEach(a => {
       const rad = a * Math.PI / 180;
-      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 2, lenMul: 0.5 });
+      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 1, lenMul: 0.5 });
     });
   } else if (player.weapon === 'HOMING') {
     const n = HOMING_COUNTS[lvl];
@@ -613,11 +613,11 @@ function fireWeapon() {
       const rad = a * Math.PI / 180;
       const target = findNearestEnemyExcluding(bx, by, usedTargets) || findNearestEnemy(bx, by);
       if (target) usedTargets.add(target);
-      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, homing: true, target, power: 3 });
+      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, homing: true, target, power: 2 });
     });
   } else if (player.weapon === 'LASER') {
     const spec = LASER_SPECS[lvl];
-    playerBullets.push({ x: bx, y: by, vx: 0, vy: -700, r: 3, laser: true, length: spec.length, pierceLeft: spec.pierce, hitSet: new Set(), power: 5 });
+    playerBullets.push({ x: bx, y: by, vx: 0, vy: -700, r: 3, laser: true, length: spec.length, pierceLeft: spec.pierce, hitSet: new Set(), power: 10 });
   } else if (player.weapon === 'GRAVITY') {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, power: 2, gravity: true, gravityRadius: lvl * 50 });
   } else if (player.weapon === 'BUBBLE') {
@@ -629,7 +629,7 @@ function fireWeapon() {
       const alpha = choice([1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4]);
       playerBullets.push({
         x: bx, y: by, vx: Math.sin(rad) * spd, vy: -Math.cos(rad) * spd,
-        r: 1, power: 1, bubble: true, bubbleRadius: 50, traveled: 0,
+        r: 1, power: 2, bubble: true, bubbleRadius: 50, traveled: 0,
         alpha, maxTravel: maxTravelByAlpha[alpha],
       });
     }
@@ -716,7 +716,7 @@ function firePhantomFlash() {
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i];
     if (e.x >= left && e.x <= right && e.y >= top && e.y <= bottom) {
-      e.hp -= 1;
+      e.hp -= 2;
       score += 10; // +10 for dealing damage
       if (e.hp <= 0) {
         handleEnemyDeath(e);
@@ -730,7 +730,7 @@ function firePhantomFlash() {
     const a = asteroids[i];
     if (a.x >= left && a.x <= right && a.y >= top && a.y <= bottom) {
       score += wave * 20;
-      registerAsteroidDamage(1);
+      registerAsteroidDamage(2);
       spawnDeathParticles(a.x, a.y, '#bbbbbb', 10);
     }
   }
@@ -743,7 +743,7 @@ function currentSparkBurstCount() {
     const idx = Math.floor(elapsed / 5) % SPARK_DIRECTION_CYCLE.length;
     return SPARK_DIRECTION_CYCLE[idx];
   }
-  return choice([32, 64]); // final 10s: 32 or 64-direction bursts, randomly per trigger
+  return choice([64, 256]); // final 10s: 64 or 256-direction bursts, randomly per trigger
 }
 function fireSparkShot() {
   // built-in 2-shot: every trigger fires 2 sparks at once, sharing one burst height/point
@@ -761,11 +761,11 @@ function burstSpark(b) {
   const maxScatter = Math.min(W, H) / 2;
   for (let k = 0; k < b.burstCount; k++) {
     const angle = rand(0, Math.PI * 2);
-    const spd = rand(80, 150);
+    const spd = rand(40, 200);
     const scatterRadius = rand(maxScatter * 0.3, maxScatter);
     playerBullets.push({
-      x: b.x, y: b.y, vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd, r: 1.5, power: 2, sparkFrag: true,
-      rot: rand(0, Math.PI * 2), rotSpeed: rand(4, 9) * (Math.random() < 0.5 ? -1 : 1),
+      x: b.x, y: b.y, vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd, r: 1.5, power: 1, sparkFrag: true, noTrail: true,
+      rot: rand(0, Math.PI * 2), rotSpeed: 0,
       traveled: 0, scatterRadius,
     });
   }
@@ -2444,23 +2444,12 @@ function drawBullets() {
       ctx.strokeStyle = '#ffe93a';
       ctx.strokeRect(b.x - 1.5, b.y - 1.5, 3, 3);
     } else if (b.sparkFrag) {
-      // 7x7px rotating filled square fragment with a twinkling fill (glints as it spins)
-      // and a short fading afterimage trail; opacity fades continuously as it nears the
-      // max scatter radius
+      // 7x7px filled square fragment with a twinkling fill (glints as it spins in place,
+      // no longer actually rotating while moving); opacity fades continuously as it
+      // nears the max scatter radius; no afterimage trail
       const progress = Math.min(1, b.traveled / b.scatterRadius);
       const mainAlpha = Math.max(0, 1 - progress);
-      const twinkle = 0.5 + 0.5 * (Math.sin(b.rot * 3) + 1) / 2; // 0.5-1 oscillation as it spins, for a glinting sparkle
-      if (b.trail) {
-        b.trail.forEach((p, idx) => {
-          const trailAlpha = ((idx + 1) / (b.trail.length + 1)) * mainAlpha * 0.3;
-          ctx.save();
-          ctx.translate(p.x, p.y);
-          ctx.rotate(p.rot || 0);
-          ctx.fillStyle = `rgba(255,233,58,${trailAlpha})`;
-          ctx.fillRect(-3.5, -3.5, 7, 7);
-          ctx.restore();
-        });
-      }
+      const twinkle = 0.5 + 0.5 * (Math.sin(b.rot * 3) + 1) / 2; // 0.5-1 oscillation, for a glinting sparkle
       ctx.save();
       ctx.translate(b.x, b.y);
       ctx.rotate(b.rot);
