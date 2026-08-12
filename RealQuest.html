@@ -67,6 +67,27 @@
     font-size:10px; letter-spacing:2px; color:#4fa8bf; text-shadow:0 0 4px #000;
   }
 
+  #zoomRow {
+    position:absolute; top:186px; right:10px; width:120px; display:flex; gap:6px;
+  }
+  #zoomRow button {
+    flex:1; background:#000; border:1px solid #013e4d; color:#026881;
+    font-size:16px; padding:5px 0; text-align:center;
+    pointer-events:auto; cursor:pointer;
+  }
+  #zoomRow button:active { background:#026881; color:#000; }
+
+  #turnControls {
+    position:fixed; left:50%; bottom:47%; transform:translateX(-50%);
+    display:flex; gap:16px; z-index:26; pointer-events:auto;
+  }
+  #turnControls button {
+    width:48px; height:48px; border-radius:50%; background:rgba(0,0,0,0.55);
+    border:1px solid #026881; color:#026881; font-size:18px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  #turnControls button:active { background:#026881; color:#000; }
+
   #crosshair {
     position:absolute; top:50%; left:50%; width:6px; height:6px; margin:-3px 0 0 -3px;
     border:1px solid #026881; border-radius:50%; opacity:0.6;
@@ -124,6 +145,10 @@
   <div id="minimapWrap"><canvas id="minimapCanvas"></canvas></div>
   <div id="headingLabel" class="mont">N 0°</div>
   <button id="gyroBtn" class="mont">GYRO</button>
+  <div id="zoomRow">
+    <button id="zoomOutBtn" class="mont">－</button>
+    <button id="zoomInBtn" class="mont">＋</button>
+  </div>
   <div id="crosshair"></div>
   <div id="gpsBadge" class="mont">GPS LINK ●</div>
   <div id="gpsInfo" class="mont">
@@ -137,6 +162,10 @@
 
 <div id="joyZone"><div id="joyBase"></div><div id="joyStick"></div></div>
 <div id="lookZone"></div>
+<div id="turnControls">
+  <button id="turnLeftBtn" class="mont">◀</button>
+  <button id="turnRightBtn" class="mont">▶</button>
+</div>
 <div id="desktopHint">WASD 移動 / ドラッグ 視点 / クリックで視点ロック</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -335,6 +364,43 @@
     player.yaw -= e.movementX * 0.0022;
     player.pitch -= e.movementY * 0.0022;
     player.pitch = Math.max(-1.1, Math.min(1.1, player.pitch));
+  });
+
+  // ---------- zoom (FOV) controls: 2 steps in, 2 steps out ----------
+  const BASE_FOV = 72;
+  const FOV_STEP = 12;
+  let zoomLevel = 0; // -2..+2 (positive = zoomed in)
+  function updateZoom(){
+    if(!camera) return;
+    camera.fov = BASE_FOV - zoomLevel * FOV_STEP;
+    camera.updateProjectionMatrix();
+  }
+  document.getElementById('zoomInBtn').addEventListener('click', ()=>{
+    zoomLevel = Math.min(2, zoomLevel + 1);
+    updateZoom();
+  });
+  document.getElementById('zoomOutBtn').addEventListener('click', ()=>{
+    zoomLevel = Math.max(-2, zoomLevel - 1);
+    updateZoom();
+  });
+
+  // ---------- manual turn buttons (shown when gyro heading is off) ----------
+  const turnControls = document.getElementById('turnControls');
+  let turnInterval = null;
+  function startTurn(dir){ // dir: +1 = left (counter-clockwise), -1 = right
+    stopTurn();
+    turnInterval = setInterval(()=>{ player.yaw += dir * 0.045; }, 16);
+  }
+  function stopTurn(){
+    if(turnInterval){ clearInterval(turnInterval); turnInterval = null; }
+  }
+  const turnLeftBtn = document.getElementById('turnLeftBtn');
+  const turnRightBtn = document.getElementById('turnRightBtn');
+  turnLeftBtn.addEventListener('pointerdown', e=>{ e.preventDefault(); startTurn(1); });
+  turnRightBtn.addEventListener('pointerdown', e=>{ e.preventDefault(); startTurn(-1); });
+  ['pointerup','pointerleave','pointercancel'].forEach(evt=>{
+    turnLeftBtn.addEventListener(evt, stopTurn);
+    turnRightBtn.addEventListener(evt, stopTurn);
   });
 
   // touch joystick
@@ -562,6 +628,7 @@
       window.addEventListener('deviceorientation', onOrient);
       gyroEnabled = true;
       gyroBtn.classList.add('active');
+      turnControls.style.display = 'none';
     }
     if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
       DeviceOrientationEvent.requestPermission().then(state=>{
@@ -577,6 +644,7 @@
   function disableGyro(){
     window.removeEventListener('deviceorientation', onOrient);
     gyroEnabled = false;
+    turnControls.style.display = 'flex';
     gyroBtn.classList.remove('active');
   }
   function onOrient(e){
