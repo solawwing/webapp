@@ -423,6 +423,7 @@
     height:calc(100% - 30px);
     text-align:center;
     gap:14px;
+    position:relative;
   }
   .infoModal.singleMode .infoTableView{ display:none; }
   .infoModal.singleMode .infoSingleView{ display:flex; }
@@ -484,31 +485,36 @@
     border-left-width:12px;
     border-right-width:12px;
     border-bottom-width:39px;
-    position:relative;
   }
-  .singleStationDirWrap .dirArrow::before,
-  .singleStationDirWrap .dirArrow::after{
-    content:'';
+  .gyroActive .singleStationDirWrap .dirArrow{
+    border-bottom-color:#39FF14;
+  }
+  /* 方角の星: ウィンドウ内の任意の位置から発生し、駅の方角へ向けて流れる。3階層で奥ほど暗く・遅い */
+  .dirStarField{
     position:absolute;
-    left:0;
-    top:35px;
+    inset:0;
+    overflow:hidden;
+    pointer-events:none;
+    z-index:0;
+  }
+  .dirStar{
+    position:absolute;
     width:2px;
     height:2px;
     background:#FFFFFF;
     opacity:0;
-    animation: dirStarFlow 1.6s linear infinite;
+    animation-name: dirStarMove;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
   }
-  .singleStationDirWrap .dirArrow::after{
-    animation-delay:0.8s;
-  }
-  @keyframes dirStarFlow{
-    0%   { opacity:0; transform:translateY(0); }
+  .dirStar-l0{ background:#FFFFFF;              animation-duration:1.6s; }
+  .dirStar-l1{ background:rgba(255,255,255,.55); animation-duration:2.6s; }
+  .dirStar-l2{ background:rgba(255,255,255,.25); animation-duration:3.8s; }
+  @keyframes dirStarMove{
+    0%   { opacity:0; transform:translate(0,0); }
     15%  { opacity:1; }
     85%  { opacity:1; }
-    100% { opacity:0; transform:translateY(-260px); }
-  }
-  .gyroActive .singleStationDirWrap .dirArrow{
-    border-bottom-color:#39FF14;
+    100% { opacity:0; transform:translate(calc(var(--dx) * var(--dist)), calc(var(--dy) * var(--dist))); }
   }
   .singleStationDirText{
     font-size:20px;
@@ -923,6 +929,7 @@
           <div class="infoStationList" id="infoStationList"></div>
         </div>
         <div class="infoSingleView" id="infoSingleView">
+          <div class="dirStarField" id="dirStarField"></div>
           <div class="singleStationName" id="singleStationName">--</div>
           <div class="singleStationLine" id="singleStationLine">--</div>
           <div class="singleStationDist" id="singleStationDist">--<span class="singleUnit">m</span></div>
@@ -1242,6 +1249,8 @@
     if(singleStationDistEl) singleStationDistEl.innerHTML = '--<span class="singleUnit">m</span>';
     if(singleStationTimeEl) singleStationTimeEl.innerHTML = '--<span class="singleUnit">' + t('minUnit') + '</span>';
     if(singleStationDirWrapEl) singleStationDirWrapEl.innerHTML = '';
+    if(dirStarFieldEl) dirStarFieldEl.innerHTML = '';
+    lastStarBearing = null;
     try{ updateMapModeBtnVisibility(); }catch(e){ console.warn('updateMapModeBtnVisibility failed (non-critical):', e); }
     try{ fetchStations(); }catch(e){ console.warn('fetchStations on language switch failed (non-critical):', e); }
 
@@ -1988,6 +1997,33 @@
   const singleStationTimeEl = document.getElementById('singleStationTime');
   const singleStationSpeedEl = document.getElementById('singleStationSpeed');
   const singleStationDirWrapEl = document.getElementById('singleStationDirWrap');
+  const dirStarFieldEl = document.getElementById('dirStarField');
+  let lastStarBearing = null; // 方角の星を最後に再生成した角度(頻繁な作り直しを防ぐため)
+
+  // 方角の星: ウィンドウ内のランダムな位置から発生し、駅の方角(displayBearing基準、北=0=画面上、時計回り)
+  // へ向けて流れる演出。3階層に分け、奥の階層ほど暗く・ゆっくり動かす。合計20個。
+  function renderDirStars(bearingDeg){
+    if(!dirStarFieldEl) return;
+    dirStarFieldEl.innerHTML = '';
+    if(bearingDeg == null) return;
+    const rad = bearingDeg * Math.PI / 180;
+    const dx = Math.sin(rad);
+    const dy = -Math.cos(rad); // 北(0度)=画面上方向(Yマイナス)
+    const TOTAL_STARS = 20;
+    const LAYERS = 3;
+    for(let i = 0; i < TOTAL_STARS; i++){
+      const layer = i % LAYERS;
+      const star = document.createElement('div');
+      star.className = 'dirStar dirStar-l' + layer;
+      star.style.left = (Math.random() * 100) + '%';
+      star.style.top = (Math.random() * 100) + '%';
+      star.style.setProperty('--dx', dx.toFixed(4));
+      star.style.setProperty('--dy', dy.toFixed(4));
+      star.style.setProperty('--dist', (140 + Math.random() * 40).toFixed(0) + 'px');
+      star.style.animationDelay = (Math.random() * 3) + 's';
+      dirStarFieldEl.appendChild(star);
+    }
+  }
   const singleStationAddressEl = document.getElementById('singleStationAddress');
 
   function updateInfoModal(){
@@ -2007,6 +2043,8 @@
       if(singleStationTimeEl) singleStationTimeEl.innerHTML = '‥<span class="singleUnit">' + t('minUnit') + '</span>';
       if(singleStationSpeedEl) singleStationSpeedEl.innerHTML = (currentSpeedKmh != null ? currentSpeedKmh.toFixed(1) : '‥') + '<span class="singleUnit">km/h</span>';
       if(singleStationDirWrapEl) singleStationDirWrapEl.innerHTML = '';
+      if(dirStarFieldEl) dirStarFieldEl.innerHTML = '';
+      lastStarBearing = null;
       return;
     }
     const top3 = nearby.slice().sort((a,b)=> a.dist - b.dist).slice(0, 9);
@@ -2034,6 +2072,18 @@
       if(singleStationSpeedEl) singleStationSpeedEl.innerHTML = (currentSpeedKmh != null ? currentSpeedKmh.toFixed(1) : '‥') + '<span class="singleUnit">km/h</span>';
       if(singleStationDirWrapEl){
         singleStationDirWrapEl.innerHTML = `${nearestDirArrowHtml}<span class="singleStationDirText ${nearestDirClass}">${nearestDirText}</span>`;
+      }
+      // 方角の星は、方角が大きく変わった時だけ再生成する(GPS更新のたびに作り直すとアニメーションが
+      // 常にリセットされ、星が流れて見えなくなるため)
+      if(nearestBearing != null){
+        const starDeg = displayBearing(nearestBearing);
+        if(lastStarBearing == null || Math.abs(((starDeg - lastStarBearing + 540) % 360) - 180) > 15){
+          renderDirStars(starDeg);
+          lastStarBearing = starDeg;
+        }
+      } else if(dirStarFieldEl && lastStarBearing != null){
+        dirStarFieldEl.innerHTML = '';
+        lastStarBearing = null;
       }
     }
 
