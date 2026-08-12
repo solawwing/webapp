@@ -275,14 +275,14 @@ function spawnDeathParticles(x, y, color, count, maxSpeed) {
     });
   }
 }
-function spawnBossExplosion(x, y) {
-  // huge central burst
-  spawnDeathParticles(x, y, '#ff2e6b', 140, 480);
+function spawnBossExplosion(x, y, color) {
+  // huge central burst, colored to match the boss that was destroyed
+  spawnDeathParticles(x, y, color, 140, 480);
   spawnDeathParticles(x, y, '#ffffff', 60, 380);
   // secondary bursts scattered across the whole screen for a big finale feel
   for (let k = 0; k < 10; k++) {
     const px = rand(0, W), py = rand(0, H * 0.7);
-    spawnDeathParticles(px, py, k % 2 === 0 ? '#ff2e6b' : '#ffd23f', 14, 260);
+    spawnDeathParticles(px, py, k % 2 === 0 ? color : '#ffffff', 14, 260);
   }
 }
 
@@ -994,7 +994,7 @@ const BOSS_TYPES = {
   Z: { color: '#fff01a', sides: 5 },
 };
 function makeBossEnemy() {
-  const bossHp = 1000;
+  const bossHp = 600;
   const key = choice(['X', 'Y', 'Z']);
   const bossType = BOSS_TYPES[key];
   const t = { hp: bossHp, score: 100, color: bossType.color, r: 120, sides: bossType.sides };
@@ -1015,6 +1015,7 @@ function makeBossEnemy() {
 let starReverse = false;
 let bossDefeated = false;
 let bossExplosionBurstTimer = 0;
+let lastBossColor = '#ff2e6b';
 
 // 10-position cycle: wave1, wave2, ASTEROID, wave3, wave4, ASTEROID+enemies, wave5, wave6, ASTEROID+fast, BOSS
 const CYCLE_LEN = 10;
@@ -1372,8 +1373,11 @@ function fireByTier(e) {
 }
 
 function fireBossBarrage(e) {
-  // bullets fired in all directions (omnidirectional), pattern varies by boss type
-  const n = e.bossKey === 'Z' ? 24 : 12; // Z: finer angle steps, more bullets per volley
+  // bullets fired in all directions (omnidirectional), pattern varies by boss type;
+  // bullet count also scales up as the boss's HP drops
+  const tier = e.hp >= 400 ? 0 : e.hp >= 200 ? 1 : 2;
+  const counts = { X: [12, 20, 28], Y: [6, 12, 18], Z: [16, 20, 24] };
+  const n = (counts[e.bossKey] || counts.X)[tier];
   const spd = 220 * (2 / 3);
   const offset = e.barrageAngle || 0;
   for (let k = 0; k < n; k++) {
@@ -1830,7 +1834,8 @@ function handleEnemyDeath(e) {
   killCount += 1;
   if (e.countsForPattern) { activeEnterCount--; e.countsForPattern = false; }
   if (e.type === 'GIANTBOSS') {
-    spawnBossExplosion(e.x, e.y);
+    spawnBossExplosion(e.x, e.y, e.def.color);
+    lastBossColor = e.def.color;
     globalSpeedBonus += 0.2;
     bossDefeated = true;
     bossExplosionBurstTimer = 0.3;
@@ -1988,7 +1993,7 @@ function checkWaveClear() {
       bossExplosionBurstTimer -= 1/60;
       if (bossExplosionBurstTimer <= 0) {
         const px = rand(0, W), py = rand(0, H * 0.7);
-        spawnDeathParticles(px, py, Math.random() < 0.5 ? '#ff2e6b' : '#ffd23f', 20, 300);
+        spawnDeathParticles(px, py, Math.random() < 0.5 ? lastBossColor : '#ffffff', 20, 300);
         bossExplosionBurstTimer = rand(0.3, 0.6);
       }
     }
