@@ -213,12 +213,12 @@
   .mapModeBtn:active{ background:rgba(57,255,20,.15); }
 
   .grayToggleBtn{
-    position:absolute; top:72px; right:14px; z-index:500;
-    width:50px; height:50px; border-radius:50%;
+    position:absolute; top:78px; right:26px; z-index:500;
+    width:25px; height:25px; border-radius:50%;
     background:#000000; border:1px solid #39FF14;
     color:#39FF14; display:none; align-items:center; justify-content:center;
     font-family: var(--mono);
-    font-size:18px; line-height:1; text-align:center;
+    font-size:9px; line-height:1; text-align:center;
     -webkit-appearance:none; cursor:pointer;
   }
   .grayToggleBtn:active{ background:rgba(57,255,20,.15); }
@@ -1714,7 +1714,7 @@
 
   // 端末に保存されている全駅を地図上に表示する。cachedStations(現在取得中の10km圏、通常の色分け)と
   // 重複する駅は除外し、それ以外を表示する。10km以内は通常の距離別配色、10kmを超えるものはグレーにする。
-  let showGrayStations = true; // 10kmを超える保存済み駅(グレー)の表示ON/OFF
+  let showGrayStations = false; // 10kmを超える保存済み駅(グレー)の表示ON/OFF(初期は非表示)
 
   function renderStoredStationsOnMap(origin){
     clearStoredStationMarkers();
