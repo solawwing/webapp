@@ -221,11 +221,25 @@
   let running = false;
   let mode = 'bar';
   let maxHoldDb = -Infinity;
+  let barCount = 64;      // number of spectrum bars, cycles via subtitle tap
   let peakBars = [];      // per-bar peak-hold heights (0..1)
   let peakBarsVel = [];   // decay velocity
   let vuPeak = 0;         // 0..1 smoothed
   let vuPeakHold = 0;
   let vuPeakHoldTimer = 0;
+
+  const BAR_COUNT_CYCLE = [64, 32, 16];
+  let barCountStage = 0;
+  const t2El = document.querySelector('.t2');
+  if (t2El){
+    t2El.style.cursor = 'pointer';
+    t2El.addEventListener('click', ()=>{
+      barCountStage = (barCountStage + 1) % BAR_COUNT_CYCLE.length;
+      barCount = BAR_COUNT_CYCLE[barCountStage];
+      peakBars = new Array(barCount).fill(0);
+      peakBarsVel = new Array(barCount).fill(0);
+    });
+  }
 
   function resize(){
     for (const [cv, ctx] of [[specCanvas, specCtx],[vuCanvas, vuCtx]]){
@@ -269,8 +283,8 @@
       sourceNode.connect(analyser);
       dataFreq = new Uint8Array(analyser.frequencyBinCount);
       dataTime = new Uint8Array(analyser.fftSize);
-      peakBars = new Array(64).fill(0);
-      peakBarsVel = new Array(64).fill(0);
+      peakBars = new Array(barCount).fill(0);
+      peakBarsVel = new Array(barCount).fill(0);
       running = true;
       startBtn.textContent = '■ STOP';
       startBtn.classList.add('on');
