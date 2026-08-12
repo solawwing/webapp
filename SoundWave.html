@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>SOUND BAR // SPECTRUM MONITOR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#050a0f;
+    --panel:#0a131a;
+    --grid:#123044;
+    --cyan:#22f0ff;
+    --cyan-dim:#0d5f6b;
+    --magenta:#ff2f9e;
+    --amber:#ffcf3a;
+    --red:#ff3b3b;
+    --text:#bfeef2;
+    --text-dim:#4f7d87;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    background:var(--bg); overflow:hidden;
+    font-family:'JetBrains Mono', monospace;
+    color:var(--text);
+    touch-action:none;
+    -webkit-user-select:none; user-select:none;
+  }
+  #app{
+    position:fixed; inset:0;
+    display:flex; flex-direction:column;
+    padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+  }
+
+  /* ---------- background texture ---------- */
+  #bgGrid{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 28px 28px;
+    opacity:0.28;
+    mask-image: radial-gradient(ellipse at 50% 40%, black 40%, transparent 85%);
+  }
+  #scanlines{
+    position:fixed; inset:0; z-index:5; pointer-events:none;
+    background: repeating-linear-gradient(
+      to bottom, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px,
+      rgba(0,0,0,0.12) 3px, rgba(0,0,0,0) 4px
+    );
+    opacity:0.5;
+  }
+  #vignette{
+    position:fixed; inset:0; z-index:6; pointer-events:none;
+    box-shadow: inset 0 0 18vw 4vw rgba(0,0,0,0.75);
+  }
+
+  /* ---------- header ---------- */
+  header{
+    position:relative; z-index:2;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    flex-shrink:0;
+  }
+  .brand{ line-height:1; }
+  .brand .t1{
+    font-size:clamp(20px, 6vw, 30px); font-weight:800; letter-spacing:4px;
+    color:var(--cyan); text-shadow:0 0 10px rgba(34,240,255,0.55);
+  }
+  .brand .t2{
+    margin-top:5px; font-size:10px; letter-spacing:3px; color:var(--text-dim);
+  }
+  .clock{
+    text-align:right; font-size:11px; letter-spacing:1px; color:var(--text-dim);
+  }
+  .clock .status{
+    margin-top:4px; font-size:11px; letter-spacing:2px; font-weight:700;
+  }
+  .status.live{ color:var(--cyan); text-shadow:0 0 8px rgba(34,240,255,.6);}
+  .status.idle{ color:var(--text-dim); }
+  .status.err{ color:var(--red); }
+
+  /* ---------- main stage ---------- */
+  main{
+    position:relative; z-index:2;
+    flex:1; min-height:0;
+    display:flex; gap:10px; margin-top:12px;
+  }
+  #stage{
+    position:relative; flex:1; min-width:0;
+    border:1px solid var(--grid);
+    background:linear-gradient(180deg, rgba(18,48,68,0.18), rgba(18,48,68,0.02));
+    border-radius:2px;
+    overflow:hidden;
+  }
+  #specCanvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+
+  /* side VU meter (peak level) */
+  #vu{
+    width:46px; flex-shrink:0;
+    border:1px solid var(--grid);
+    background:rgba(18,48,68,0.08);
+    display:flex; flex-direction:column; align-items:center;
+    padding:6px 0;
+    position:relative;
+  }
+  #vuLabel{ font-size:9px; letter-spacing:2px; color:var(--text-dim); margin-bottom:6px; }
+  #vuCanvas{ width:100%; flex:1; }
+  #vuDb{ margin-top:6px; font-size:11px; font-weight:700; color:var(--cyan); }
+
+  /* ---------- readouts ---------- */
+  .readouts{
+    position:relative; z-index:2;
+    display:flex; gap:10px; margin-top:10px; flex-shrink:0;
+  }
+  .card{
+    flex:1; border:1px solid var(--grid);
+    background:rgba(18,48,68,0.1);
+    padding:8px 10px; border-radius:2px;
+  }
+  .card .lbl{ font-size:9px; letter-spacing:2px; color:var(--text-dim); }
+  .card .val{ margin-top:4px; font-size:clamp(16px,4.5vw,22px); font-weight:700; color:var(--cyan); text-shadow:0 0 8px rgba(34,240,255,.4); }
+  .card .val small{ font-size:11px; color:var(--text-dim); font-weight:500; margin-left:3px;}
+
+  /* ---------- controls ---------- */
+  .controls{
+    position:relative; z-index:2;
+    margin-top:10px; flex-shrink:0;
+    display:flex; gap:10px; align-items:center;
+  }
+  #startBtn{
+    flex:1;
+    font-family:inherit; font-size:14px; font-weight:800; letter-spacing:3px;
+    padding:15px 10px;
+    background:linear-gradient(180deg, rgba(34,240,255,0.16), rgba(34,240,255,0.04));
+    border:1px solid var(--cyan);
+    color:var(--cyan);
+    border-radius:3px;
+    text-shadow:0 0 8px rgba(34,240,255,.5);
+    letter-spacing:3px;
+  }
+  #startBtn:active{ background:rgba(34,240,255,0.3); }
+  #startBtn.on{
+    border-color:var(--magenta); color:var(--magenta);
+    background:linear-gradient(180deg, rgba(255,47,158,0.16), rgba(255,47,158,0.04));
+    text-shadow:0 0 8px rgba(255,47,158,.5);
+  }
+  .modeBtn{
+    font-family:inherit; font-size:10px; letter-spacing:1px; font-weight:700;
+    padding:15px 12px; background:transparent; color:var(--text-dim);
+    border:1px solid var(--grid); border-radius:3px;
+  }
+  .modeBtn.active{ color:var(--amber); border-color:var(--amber); }
+
+  #errMsg{
+    position:relative; z-index:2; margin-top:8px; font-size:11px; color:var(--red);
+    display:none; letter-spacing:0.5px;
+  }
+</style>
+</head>
+<body>
+<div id="bgGrid"></div>
+<div id="scanlines"></div>
+<div id="vignette"></div>
+
+<div id="app">
+  <header>
+    <div class="brand">
+      <div class="t1">SOUND BAR</div>
+      <div class="t2">SPECTRUM MONITOR / MIC INPUT</div>
+    </div>
+    <div class="clock">
+      <div id="clockTime">--:--:--</div>
+      <div class="status idle" id="statusText">● STANDBY</div>
+    </div>
+  </header>
+
+  <main>
+    <div id="stage"><canvas id="specCanvas"></canvas></div>
+    <div id="vu">
+      <div id="vuLabel">PEAK</div>
+      <canvas id="vuCanvas"></canvas>
+      <div id="vuDb">-∞ dB</div>
+    </div>
+  </main>
+
+  <div class="readouts">
+    <div class="card">
+      <div class="lbl">PEAK FREQ</div>
+      <div class="val" id="peakFreq">--- <small>Hz</small></div>
+    </div>
+    <div class="card">
+      <div class="lbl">AVG LEVEL</div>
+      <div class="val" id="avgLevel">--- <small>dB</small></div>
+    </div>
+    <div class="card">
+      <div class="lbl">MAX HOLD</div>
+      <div class="val" id="maxHold">--- <small>dB</small></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="startBtn">▶ マイク開始</button>
+    <button class="modeBtn active" id="modeBar" data-mode="bar">BAR</button>
+    <button class="modeBtn" id="modeWave" data-mode="wave">WAVE</button>
+  </div>
+  <div id="errMsg"></div>
+</div>
+
+<script>
+(function(){
+  const startBtn = document.getElementById('startBtn');
+  const statusText = document.getElementById('statusText');
+  const errMsg = document.getElementById('errMsg');
+  const specCanvas = document.getElementById('specCanvas');
+  const vuCanvas = document.getElementById('vuCanvas');
+  const specCtx = specCanvas.getContext('2d');
+  const vuCtx = vuCanvas.getContext('2d');
+  const peakFreqEl = document.getElementById('peakFreq');
+  const avgLevelEl = document.getElementById('avgLevel');
+  const maxHoldEl = document.getElementById('maxHold');
+  const vuDbEl = document.getElementById('vuDb');
+  const modeBar = document.getElementById('modeBar');
+  const modeWave = document.getElementById('modeWave');
+
+  let audioCtx, analyser, sourceNode, dataFreq, dataTime, rafId;
+  let running = false;
+  let mode = 'bar';
+  let maxHoldDb = -Infinity;
+  let peakBars = [];      // per-bar peak-hold heights (0..1)
+  let peakBarsVel = [];   // decay velocity
+  let vuPeak = 0;         // 0..1 smoothed
+  let vuPeakHold = 0;
+  let vuPeakHoldTimer = 0;
+
+  function resize(){
+    for (const [cv, ctx] of [[specCanvas, specCtx],[vuCanvas, vuCtx]]){
+      const rect = cv.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      cv.width = Math.max(1, Math.round(rect.width * dpr));
+      cv.height = Math.max(1, Math.round(rect.height * dpr));
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+    }
+  }
+  window.addEventListener('resize', resize);
+
+  function setStatus(text, cls){
+    statusText.className = 'status ' + cls;
+    statusText.textContent = text;
+  }
+
+  function tickClock(){
+    const d = new Date();
+    const p = n => String(n).padStart(2,'0');
+    document.getElementById('clockTime').textContent = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  }
+  setInterval(tickClock, 1000); tickClock();
+
+  async function startMic(){
+    errMsg.style.display = 'none';
+    try{
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: {
+        echoCancellation:false, noiseSuppression:false, autoGainControl:false
+      }});
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      sourceNode = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 1024;
+      analyser.smoothingTimeConstant = 0.75;
+      sourceNode.connect(analyser);
+      dataFreq = new Uint8Array(analyser.frequencyBinCount);
+      dataTime = new Uint8Array(analyser.fftSize);
+      peakBars = new Array(64).fill(0);
+      peakBarsVel = new Array(64).fill(0);
+      running = true;
+      startBtn.textContent = '■ 停止';
+      startBtn.classList.add('on');
+      setStatus('● LIVE', 'live');
+      resize();
+      loop();
+    }catch(e){
+      setStatus('● ERROR', 'err');
+      errMsg.style.display = 'block';
+      errMsg.textContent = 'マイクにアクセスできません: ' + (e.message || e.name || '不明なエラー');
+    }
+  }
+
+  function stopMic(){
+    running = false;
+    if (rafId) cancelAnimationFrame(rafId);
+    if (audioCtx){ audioCtx.close(); audioCtx = null; }
+    startBtn.textContent = '▶ マイク開始';
+    startBtn.classList.remove('on');
+    setStatus('● STANDBY', 'idle');
+    specCtx.clearRect(0,0,specCanvas.width,specCanvas.height);
+    vuCtx.clearRect(0,0,vuCanvas.width,vuCanvas.height);
+    vuDbEl.textContent = '-∞ dB';
+    peakFreqEl.innerHTML = '--- <small>Hz</small>';
+    avgLevelEl.innerHTML = '--- <small>dB</small>';
+  }
+
+  startBtn.addEventListener('click', ()=> running ? stopMic() : startMic());
+  modeBar.addEventListener('click', ()=> setMode('bar'));
+  modeWave.addEventListener('click', ()=> setMode('wave'));
+  function setMode(m){
+    mode = m;
+    modeBar.classList.toggle('active', m==='bar');
+    modeWave.classList.toggle('active', m==='wave');
+  }
+
+  function drawBars(w,h){
+    analyser.getByteFrequencyData(dataFreq);
+    const N = peakBars.length;
+    const usable = Math.floor(dataFreq.length * 0.55); // ignore ultra-high empty tail
+    const step = usable / N;
+    const gap = w * 0.006;
+    const barW = (w - gap*(N-1)) / N;
+
+    specCtx.clearRect(0,0,w,h);
+
+    // grid baseline
+    specCtx.strokeStyle = 'rgba(18,48,68,0.9)';
+    specCtx.lineWidth = 1;
+    for (let g=1; g<4; g++){
+      const y = h - (h*g/4);
+      specCtx.beginPath(); specCtx.moveTo(0,y); specCtx.lineTo(w,y); specCtx.stroke();
+    }
+
+    let sumSq = 0, peakVal = 0, peakIdx = 0;
+    for (let i=0;i<dataFreq.length;i++){
+      const v = dataFreq[i]/255;
+      sumSq += v*v;
+      if (v > peakVal){ peakVal = v; peakIdx = i; }
+    }
+
+    for (let i=0;i<N;i++){
+      const start = Math.floor(i*step);
+      const end = Math.max(start+1, Math.floor((i+1)*step));
+      let sum = 0, cnt=0;
+      for (let j=start;j<end && j<dataFreq.length;j++){ sum += dataFreq[j]; cnt++; }
+      const v = cnt ? (sum/cnt)/255 : 0;
+      const barH = Math.max(2, v*h*0.98);
+      const x = i*(barW+gap);
+      const y = h - barH;
+
+      const t = i/N;
+      const grad = specCtx.createLinearGradient(0,h,0,0);
+      grad.addColorStop(0, 'rgba(34,240,255,0.9)');
+      grad.addColorStop(0.6, `rgba(${34+ t*180},${240-t*90},${255-t*60},0.9)`);
+      grad.addColorStop(1, 'rgba(255,47,158,0.95)');
+      specCtx.fillStyle = grad;
+      specCtx.fillRect(x,y,barW,barH);
+
+      // peak-hold cap
+      if (v >= peakBars[i]){ peakBars[i] = v; peakBarsVel[i] = 0; }
+      else { peakBarsVel[i] += 0.0009; peakBars[i] = Math.max(0, peakBars[i]-peakBarsVel[i]); }
+      const capY = h - peakBars[i]*h*0.98;
+      specCtx.fillStyle = peakBars[i] > 0.85 ? '#ffcf3a' : 'rgba(191,238,242,0.85)';
+      specCtx.fillRect(x, capY-2, barW, 2);
+    }
+
+    const rms = Math.sqrt(sumSq/dataFreq.length);
+    const db = rms>0 ? (20*Math.log10(rms)).toFixed(1) : '-∞';
+    avgLevelEl.innerHTML = db + ' <small>dB</small>';
+    const nyquist = (audioCtx.sampleRate/2);
+    const freqHz = Math.round(peakIdx/dataFreq.length * nyquist);
+    peakFreqEl.innerHTML = (peakVal>0.03 ? freqHz : '---') + ' <small>Hz</small>';
+
+    const dbNum = rms>0 ? 20*Math.log10(rms) : -Infinity;
+    if (dbNum > maxHoldDb){ maxHoldDb = dbNum; }
+    maxHoldEl.innerHTML = (maxHoldDb===-Infinity?'---':maxHoldDb.toFixed(1)) + ' <small>dB</small>';
+
+    return rms;
+  }
+
+  function drawWave(w,h){
+    analyser.getByteTimeDomainData(dataTime);
+    specCtx.clearRect(0,0,w,h);
+    specCtx.strokeStyle = 'rgba(18,48,68,0.9)';
+    specCtx.beginPath(); specCtx.moveTo(0,h/2); specCtx.lineTo(w,h/2); specCtx.stroke();
+
+    specCtx.lineWidth = 2;
+    specCtx.strokeStyle = '#22f0ff';
+    specCtx.shadowColor = 'rgba(34,240,255,0.8)';
+    specCtx.shadowBlur = 8;
+    specCtx.beginPath();
+    const sliceW = w / dataTime.length;
+    let sumSq = 0;
+    for (let i=0;i<dataTime.length;i++){
+      const norm = (dataTime[i]-128)/128;
+      sumSq += norm*norm;
+      const x = i*sliceW;
+      const y = h/2 + norm*h*0.45;
+      i===0 ? specCtx.moveTo(x,y) : specCtx.lineTo(x,y);
+    }
+    specCtx.stroke();
+    specCtx.shadowBlur = 0;
+
+    const rms = Math.sqrt(sumSq/dataTime.length);
+    const db = rms>0 ? (20*Math.log10(rms)).toFixed(1) : '-∞';
+    avgLevelEl.innerHTML = db + ' <small>dB</small>';
+    peakFreqEl.innerHTML = '--- <small>Hz</small>';
+    const dbNum = rms>0 ? 20*Math.log10(rms) : -Infinity;
+    if (dbNum > maxHoldDb) maxHoldDb = dbNum;
+    maxHoldEl.innerHTML = (maxHoldDb===-Infinity?'---':maxHoldDb.toFixed(1)) + ' <small>dB</small>';
+    return rms;
+  }
+
+  function drawVU(rms){
+    const w = vuCanvas.getBoundingClientRect().width;
+    const h = vuCanvas.getBoundingClientRect().height;
+    vuCtx.clearRect(0,0,w,h);
+
+    const target = Math.min(1, rms*3.2);
+    vuPeak += (target - vuPeak) * (target>vuPeak ? 0.6 : 0.06);
+    if (vuPeak > vuPeakHold){ vuPeakHold = vuPeak; vuPeakHoldTimer = 30; }
+    else if (vuPeakHoldTimer > 0){ vuPeakHoldTimer--; }
+    else { vuPeakHold = Math.max(0, vuPeakHold - 0.01); }
+
+    const segs = 22;
+    const segH = h/segs;
+    for (let i=0;i<segs;i++){
+      const frac = i/segs;
+      const lit = frac < vuPeak;
+      const y = h - (i+1)*segH + 1;
+      let color = 'rgba(20,50,60,0.6)';
+      if (lit){
+        color = frac < 0.6 ? '#22f0ff' : frac < 0.85 ? '#ffcf3a' : '#ff3b3b';
+      }
+      vuCtx.fillStyle = color;
+      vuCtx.fillRect(3, y, w-6, segH-2);
+    }
+    const holdY = h - vuPeakHold*h;
+    vuCtx.fillStyle = '#ffffff';
+    vuCtx.fillRect(2, holdY-1, w-4, 2);
+
+    const db = rms>0 ? 20*Math.log10(rms) : -Infinity;
+    vuDbEl.textContent = (db===-Infinity ? '-∞' : db.toFixed(1)) + ' dB';
+  }
+
+  function loop(){
+    if (!running) return;
+    const rect = specCanvas.getBoundingClientRect();
+    const w = rect.width, h = rect.height;
+    const rms = mode==='bar' ? drawBars(w,h) : drawWave(w,h);
+    drawVU(rms);
+    rafId = requestAnimationFrame(loop);
+  }
+
+  resize();
+})();
+</script>
+</body>
+</html>
