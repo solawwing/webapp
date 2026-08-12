@@ -1173,6 +1173,7 @@
     // 表示中の一覧・電光掲示・単一駅欄・地図上のマーカー/矢印も、古い言語のまま残らないよう
     // 一度クリアしてから始める
     clearStations();
+    clearStoredStationMarkers();
     // 「HELLO/こんにちは」の演出(2.5秒)と表示が重ならないよう、待機表示は演出が終わってから出す。
     // ただし演出の間に取得が終わっていれば(cachedStationsが埋まっていれば)不要なので出さない
     setTimeout(()=>{
@@ -1673,6 +1674,7 @@
 
   // --- station labels via Overpass API ---
   let stationMarkers = [];
+  let storedStationMarkers = []; // 保存済み駅(全件)専用のマーカー。10kmを超えるものも含めて全て表示する
   let stationFetchTimer = null;
   let stationRetryTimer = null;
   let stationFailCount = 0; // 連続失敗回数(バックオフ間隔の計算に使用)
@@ -1681,6 +1683,28 @@
   function clearStations(){
     stationMarkers.forEach(m => map.removeLayer(m));
     stationMarkers = [];
+  }
+
+  function clearStoredStationMarkers(){
+    storedStationMarkers.forEach(m => map.removeLayer(m));
+    storedStationMarkers = [];
+  }
+
+  // 端末に保存されている全駅を地図上に表示する。cachedStations(現在取得中の10km圏、通常の色分け)と
+  // 重複する駅は除外し、それ以外を表示する。10km以内は通常の距離別配色、10kmを超えるものはグレーにする。
+  function renderStoredStationsOnMap(origin){
+    clearStoredStationMarkers();
+    if(!origin) return;
+    const stored = loadStoredStations();
+    if(stored.length === 0) return;
+    const activeIds = new Set(cachedStations.map(s => s.id));
+    stored.forEach(s=>{
+      if(activeIds.has(s.id)) return; // 既にcachedStations側のマーカーで表示済み
+      const dist = origin.distanceTo([s.lat, s.lng]);
+      const color = dist <= STATION_RADIUS_XFAR ? colorForStationDistance(dist) : COLOR_STORED_FAR;
+      const m = L.marker([s.lat, s.lng], { icon: stationIcon(s.name, color, s.lines), interactive:false }).addTo(map);
+      storedStationMarkers.push(m);
+    });
   }
 
   // 駅名が1件でも取得できていれば「文字表示」ボタンを表示・有効化する。取得できていなければ隠す。
@@ -1858,6 +1882,7 @@
   const COLOR_NEAR = '#ff3b3b'; // 蛍光赤
   const COLOR_FAR  = '#ff9d1f'; // 蛍光オレンジ
   const COLOR_XFAR = '#25A2FF'; // 蛍光ブルー(2001m〜5000m)
+  const COLOR_STORED_FAR = '#888888'; // グレー(保存済み駅のうち10kmを超えるもの)
 
   function colorForStationDistance(dist){
     if(dist <= STATION_RADIUS_NEAR) return COLOR_NEAR;
@@ -2243,6 +2268,7 @@
         if(addedCount > 0){
           mapOverlay.textContent = t('stationCount', cachedStations.length);
           saveStoredStations(cachedStations); // 通信削減のため端末に蓄積しておく
+          renderStoredStationsOnMap(origin); // 保存済み駅(10km超も含め全件)を地図上に表示
           try{ refreshTickerDistances(); }catch(e){ console.warn('refreshTickerDistances failed (non-critical):', e); }
         }
         hasFetchedExtended = true; // 拡張取得(2〜10km圏)に成功
@@ -2461,6 +2487,7 @@
         updateNearestArrow(origin, L.latLng(nearest.lat, nearest.lng));
       }
     }catch(arrowErr){ console.warn('updateNearestArrow failed (non-critical):', arrowErr); }
+    renderStoredStationsOnMap(origin); // 10kmを超える保存済み駅もグレーで併せて表示
     return true;
   }
 
@@ -2550,6 +2577,7 @@
           mapOverlay.textContent = count > 0 ? t('stationCount', count) : 'MAP VIEW';
           hideMapWaitOverlay(); // 駅名取得(基本)が完了したので待機表示を消す
           saveStoredStations(cachedStations); // 通信削減のため端末に蓄積しておく
+          renderStoredStationsOnMap(origin); // 保存済み駅(10km超も含め全件)を地図上に表示
           setFetchStatus(t('fsBasicToExtended'));
           updateMapModeBtnVisibility();
           try{ updateTicker(nearby); }catch(tickerErr){ console.warn('updateTicker failed (non-critical):', tickerErr); }
