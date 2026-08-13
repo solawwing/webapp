@@ -2032,7 +2032,7 @@
     // 速度が取得できない場合、または0〜5km/hはとくにゆっくりにする
     let speedScale;
     if(currentSpeedKmh == null || currentSpeedKmh < 5){
-      speedScale = 1.2;
+      speedScale = 2.4; // 最低速度(今までの1.2の倍遅く)。最高速度側(minScale)は変更しない
     } else {
       const MAX_BRACKET = 19; // 5km刻みで100km/hまで(95〜100km/hがbracket=19)
       const bracket = Math.min(Math.floor(currentSpeedKmh / 5), MAX_BRACKET);
@@ -2040,8 +2040,8 @@
       const minScale = 0.25;  // 100km/h以上の下限
       speedScale = startScale - (startScale - minScale) * ((bracket - 1) / (MAX_BRACKET - 1));
     }
-    // speedScaleが小さいほど(速く移動しているほど)残像を長く伸ばす(3px〜13px)
-    const trailPx = (3 + (1.2 - speedScale) * 12).toFixed(1) + 'px';
+    // speedScaleが小さいほど(速く移動しているほど)残像を長く伸ばす
+    const trailPx = (3 + (2.4 - speedScale) * 6).toFixed(1) + 'px';
     for(let i = 0; i < TOTAL_STARS; i++){
       const layer = i % LAYERS;
       const star = document.createElement('div');
