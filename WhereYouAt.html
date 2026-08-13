@@ -2005,7 +2005,7 @@
   function computeStarSpeedScaleAndBracket(){
     let speedScale, speedBracket = 0;
     if(currentSpeedKmh == null || currentSpeedKmh < 5){
-      speedScale = 2.4; // 最低速度(値なし・0〜5km/hはとくにゆっくり)
+      speedScale = 3.6; // 最低速度(今までの2.4の1.5倍遅く)
     } else {
       const MAX_BRACKET = 19; // 5km刻みで100km/hまで
       speedBracket = Math.min(Math.floor(currentSpeedKmh / 5), MAX_BRACKET);
@@ -2050,7 +2050,7 @@
     const dx = Math.sin(rad);
     const dy = -Math.cos(rad); // 北(0度)=画面上方向
     const moveX = -dx, moveY = -dy; // 星は方角の方から流れてくる(移動方向は方角ベクトルの逆)
-    const trailPx = 3 + (2.4 - dirStarSpeedScale) * 6;
+    const trailPx = 3 + (3.6 - dirStarSpeedScale) * 6;
     const shadowAlpha = [0.35, 0.2, 0.1];
 
     dirStars.forEach(star=>{
