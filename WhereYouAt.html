@@ -2009,7 +2009,7 @@
     if(currentSpeedKmh == null || currentSpeedKmh < 5){
       speedScale = 1.06; // 最低速度(速さを今の0.5倍に)
     } else {
-      const MAX_BRACKET = 19; // 5km刻みで100km/hまで
+      const MAX_BRACKET = 23; // 5km刻みで120km/hまで
       speedBracket = Math.min(Math.floor(currentSpeedKmh / 5), MAX_BRACKET);
       const startScale = 1.0;
       const minScale = 0.25;
@@ -2023,7 +2023,7 @@
     dirStarFieldEl.innerHTML = '';
     dirStars = [];
     const { speedBracket } = computeStarSpeedScaleAndBracket();
-    const starSize = 3 + speedBracket;
+    const starSize = 5 + speedBracket;
     const w = dirStarFieldEl.clientWidth || 300;
     const h = dirStarFieldEl.clientHeight || 300;
     for(let i = 0; i < DIR_STAR_TOTAL; i++){
@@ -2098,7 +2098,7 @@
     if(dirStars.length === 0){
       initDirStars();
     } else {
-      const starSize = 3 + speedBracket;
+      const starSize = 5 + speedBracket;
       dirStars.forEach(star=>{
         star.el.style.width = starSize + 'px';
         star.el.style.height = starSize + 'px';
