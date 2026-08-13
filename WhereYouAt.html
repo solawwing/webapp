@@ -2023,7 +2023,7 @@
     dirStarFieldEl.innerHTML = '';
     dirStars = [];
     const { speedBracket } = computeStarSpeedScaleAndBracket();
-    const starSize = 5 + speedBracket;
+    const starSize = 5 + speedBracket * 2;
     const w = dirStarFieldEl.clientWidth || 300;
     const h = dirStarFieldEl.clientHeight || 300;
     for(let i = 0; i < DIR_STAR_TOTAL; i++){
@@ -2098,7 +2098,7 @@
     if(dirStars.length === 0){
       initDirStars();
     } else {
-      const starSize = 5 + speedBracket;
+      const starSize = 5 + speedBracket * 2;
       dirStars.forEach(star=>{
         star.el.style.width = starSize + 'px';
         star.el.style.height = starSize + 'px';
