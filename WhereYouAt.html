@@ -503,10 +503,12 @@
     position:absolute;
     top:0; left:0;
     will-change: transform, opacity;
+    background:transparent;
+    box-sizing:border-box;
   }
-  .dirStar-l0{ background:#FFFFFF; }
-  .dirStar-l1{ background:rgba(255,255,255,.55); }
-  .dirStar-l2{ background:rgba(255,255,255,.25); }
+  .dirStar-l0{ border:1px solid #FFFFFF; }
+  .dirStar-l1{ border:1px solid rgba(255,255,255,.55); }
+  .dirStar-l2{ border:1px solid rgba(255,255,255,.25); }
   .singleStationDirText{
     font-size:20px;
     color:#FFFFFF;
@@ -2050,8 +2052,6 @@
     const dx = Math.sin(rad);
     const dy = -Math.cos(rad); // 北(0度)=画面上方向
     const moveX = -dx, moveY = -dy; // 星は方角の方から流れてくる(移動方向は方角ベクトルの逆)
-    const trailPx = 3 + (3.6 - dirStarSpeedScale) * 6;
-    const shadowAlpha = [0.35, 0.2, 0.1];
 
     dirStars.forEach(star=>{
       const speedPxPerSec = DIR_STAR_BASE_SPEED[star.layer] / dirStarSpeedScale;
@@ -2064,7 +2064,6 @@
         star.y = h/2 + dy * 60 + (Math.random() - 0.5) * h * 0.7;
       }
       star.el.style.transform = `translate(${star.x.toFixed(1)}px, ${star.y.toFixed(1)}px)`;
-      star.el.style.boxShadow = `${(dx*trailPx).toFixed(1)}px ${(dy*trailPx).toFixed(1)}px 0 0 rgba(255,255,255,${shadowAlpha[star.layer]})`;
     });
 
     dirStarRafId = requestAnimationFrame(dirStarTick);
