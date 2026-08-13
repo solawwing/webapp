@@ -622,6 +622,12 @@ function fireWeapon() {
   } else if (player.weapon === 'LASER') {
     const spec = LASER_SPECS[lvl];
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -700, r: 3, laser: true, length: spec.length, pierceLeft: spec.pierce, hitSet: new Set(), power: 10 });
+    // sub-lasers fire from both sides, one level below the main beam (Lv1 uses Lv1 too, since there's no Lv0)
+    const subLvl = lvl === 1 ? 1 : lvl - 1;
+    const subSpec = LASER_SPECS[subLvl];
+    [-15, 15].forEach(ox => {
+      playerBullets.push({ x: bx + ox, y: by, vx: 0, vy: -700, r: 3, laser: true, length: subSpec.length, pierceLeft: subSpec.pierce, hitSet: new Set(), power: 10, subLaser: true });
+    });
   } else if (player.weapon === 'GRAVITY') {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, power: 2, gravity: true, gravityRadius: lvl * 50 });
   } else if (player.weapon === 'BUBBLE') {
@@ -1023,13 +1029,13 @@ let bossExplosionBurstTimer = 0;
 let lastBossColor = '#ff2e6b';
 
 // 10-position cycle: wave1, wave2, ASTEROID, wave3, wave4, ASTEROID+enemies, wave5, wave6, ASTEROID+fast, BOSS
-const CYCLE_LEN = 11;
-const CYCLE_KIND = ['ENEMY', 'ENEMY', 'ASTEROID', 'ENEMY', 'CRYSTAL', 'ENEMY', 'ASTEROID_FAST', 'ENEMY', 'ENEMY', 'ASTEROID_FASTER', 'BOSS'];
+const CYCLE_LEN = 12;
+const CYCLE_KIND = ['ENEMY', 'ENEMY', 'ASTEROID', 'ENEMY', 'CRYSTAL', 'ENEMY', 'ASTEROID_FAST', 'ENEMY', 'CRYSTAL_FAST', 'ENEMY', 'ASTEROID_FASTER', 'BOSS'];
 function isAsteroidKind(kind) {
   return kind === 'ASTEROID' || kind === 'ASTEROID_FAST' || kind === 'ASTEROID_FASTER';
 }
 function isCrystalKind(kind) {
-  return kind === 'CRYSTAL';
+  return kind === 'CRYSTAL' || kind === 'CRYSTAL_FAST';
 }
 // for ENEMY positions, the sequential list of patterns to run (one at a time)
 const WAVE_PATTERN_LISTS = [
@@ -1132,18 +1138,19 @@ function makeHexagonVerts(halfW, halfH) {
 }
 
 function spawnCrystal() {
-  // elongated hexagon shard, falls straight down (no drift, no rotation); bullets that
-  // hit it are consumed (no piercing/chaining through), drops no items
-  const width = choice([50, 60]), height = rand(150, 300);
+  // elongated hexagon shard, falls straight down while spinning around its own vertical
+  // axis (simulated via horizontal scale, since the vertical axis itself stays fixed);
+  // bullets that hit it are consumed (no piercing/chaining through), drops no items
+  const width = choice([40, 50]), height = rand(150, 200);
   const halfW = width / 2, halfH = height / 2;
-  const fallSpeed = rand(110, 220);
+  const fallSpeed = rand(110, 220) * asteroidSpeedMul;
   asteroids.push({
     x: rand(80, W - 80), y: -halfH - 20,
     r: (halfW + halfH) / 2, // circular approximation splitting the difference between width/height for collision purposes
     isAsteroidObj: true, isCrystal: true,
     verts: makeHexagonVerts(halfW, halfH),
-    angle: 0,
-    spin: 0,
+    angle: rand(0, Math.PI * 2), // phase of the vertical-axis spin (used as a scaleX angle, not a 2D rotation)
+    spin: rand(2, 4) * (Math.random() < 0.5 ? -1 : 1),
     vx: 0,
     vy: fallSpeed,
     willSplit: false, hasSplit: true, splitY: null,
@@ -1221,8 +1228,8 @@ function activateWave(kind, m) {
     }
     const itemDropCount = Math.min(2, dropPool.length);
     for (let i = 0; i < itemDropCount; i++) dropPool[i].dropsItem = true;
-  } else if (isAsteroidKind(kind) || isCrystalKind(kind)) {
-    // Asteroid Belt: asteroids only, no enemies — dodge indestructible rotating asteroids for 60s
+  } else if (isAsteroidKind(kind)) {
+    // Asteroid Belt: asteroids only, no enemies — dodge indestructible rotating asteroids for 45s
     lastLayoutCount = 0;
     formationSlots = [];
     asteroidWaveTimer = 0;
@@ -1233,6 +1240,28 @@ function activateWave(kind, m) {
     asteroidHitCount = 0;
     asteroidBonusGiven = false;
     asteroidRapidGiven = false;
+  } else if (isCrystalKind(kind)) {
+    // Crystal Belt: falling crystal shards AND that cycle's wave1 enemy formation, together
+    formationSlots = [];
+    asteroidWaveTimer = 0;
+    asteroidSpawnTimer = 0;
+    asteroidItemTimer = 10;
+    asteroidSpeedMul = kind === 'CRYSTAL_FAST' ? 1.2 : 1;
+    asteroidTotalDamage = 0;
+    asteroidHitCount = 0;
+    asteroidBonusGiven = false;
+    asteroidRapidGiven = false;
+
+    const patternList = getWavePatternList(0); // reuse wave1's formation pattern
+    lastLayoutCount = patternList.length * 8;
+    wavePatternQueue = [...patternList];
+    waveTotalPatterns = patternList.length;
+    waveIsDoubled = false;
+    waveRowIndex = 0;
+    activeEnterCount = 0;
+    waveEnemyGlobalIndex = 0;
+    waveItemDropIndices = new Set(); // Crystal Belt drops no items, from enemies or otherwise
+    waveRapidDropIndex = -1;
   } else {
     const enemySlotIndex = CYCLE_KIND.slice(0, m - 1).filter(k => k === 'ENEMY').length;
     const patternList = getWavePatternList(enemySlotIndex);
@@ -1849,16 +1878,13 @@ function updateBullets(dt) {
         b.target = findTopmostEnemyAhead(claimed, player.y) || null;
       }
       if (b.target) {
-        const dx = b.target.x - b.x, dy = b.target.y - b.y;
-        const len = Math.max(0.0001, Math.hypot(dx, dy));
-        const spd = Math.hypot(b.vx, b.vy) || 540;
-        const dvx = dx / len * spd, dvy = dy / len * spd;
-        // turn rate: base 7.5, +1.0 for every 0.1s the beam has been alive
-        const curRate = b.turnRate + Math.floor(b.age / 0.1) * 1.0;
-        const turn = Math.min(1, curRate * dt);
-        b.vx += (dvx - b.vx) * turn;
-        b.vy += (dvy - b.vy) * turn;
-        if (b.vy > 0) b.vy = 0; // never turns to curve downward
+        // constant sideways acceleration toward the target (like sideways gravity) while
+        // vy stays put — traces a proper parabolic arc rather than a straight line or a
+        // smooth continuous turn
+        const dirSign = b.target.x >= b.x ? 1 : -1;
+        const curRate = b.turnRate + Math.floor(b.age / 0.1) * 1.0; // ramps up with age, as before
+        const lateralAccel = curRate * 40;
+        b.vx += dirSign * lateralAccel * dt;
       }
     }
     b.x += b.vx * dt; b.y += b.vy * dt;
@@ -2233,7 +2259,13 @@ function drawAsteroids() {
     ctx.fillStyle = a.isCrystal ? 'rgba(124,255,240,0.25)' : 'rgba(187,187,187,0.25)';
     ctx.save();
     ctx.translate(a.x, a.y);
-    ctx.rotate(a.angle);
+    if (a.isCrystal) {
+      // spins around its own vertical axis (which stays fixed/upright) rather than
+      // tumbling in the 2D plane — simulated with a horizontal-only scale
+      ctx.scale(Math.cos(a.angle), 1);
+    } else {
+      ctx.rotate(a.angle);
+    }
     ctx.beginPath();
     a.verts.forEach((v, i) => { if (i === 0) ctx.moveTo(v.x, v.y); else ctx.lineTo(v.x, v.y); });
     ctx.closePath();
@@ -2444,9 +2476,10 @@ function drawBullets() {
   playerBullets.forEach(b => {
     if (b.spawnDelay > 0) return; // not fired yet, stay invisible
     if (b.laser) {
+      const subMul = b.subLaser ? 0.3 : 1;
       if (b.trail) {
         b.trail.forEach((p, idx) => {
-          const alpha = ((idx + 1) / (b.trail.length + 1)) * 0.4;
+          const alpha = ((idx + 1) / (b.trail.length + 1)) * 0.4 * subMul;
           ctx.strokeStyle = `rgba(57,255,243,${alpha})`;
           ctx.beginPath();
           ctx.moveTo(p.x, p.y);
@@ -2454,7 +2487,7 @@ function drawBullets() {
           ctx.stroke();
         });
       }
-      ctx.strokeStyle = '#39fff3';
+      ctx.strokeStyle = b.subLaser ? 'rgba(57,255,243,0.3)' : '#39fff3';
       ctx.beginPath();
       ctx.moveTo(b.x, b.y);
       ctx.lineTo(b.x, b.y - b.length);
