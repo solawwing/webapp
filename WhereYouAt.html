@@ -1468,6 +1468,7 @@
   let radiusCircleFar = null;  // 半径2km
   let currentMarkerColor = null;
   let currentSpeedKmh = null; // 現在の速度(km/h)。GPSで取得できない場合はnull
+  let lastSpeedCalcPos = null; // { lat, lng, time } GPSのspeedが取得できない場合、位置の変化から自前で推定するために使う
   let deviceHeading = null; // 現在推定されているデバイスの向き(真北基準、度)。取得できていなければnull
   let compassPermissionGranted = false;
   const HEADING_SPEED_THRESHOLD = 5; // この速度(km/h)以上ならGPSのheadingを優先する
@@ -2874,7 +2875,20 @@
 
     accVal.innerHTML = (c.accuracy != null ? Math.round(c.accuracy) : '--') + '<span class="unit">m</span>';
     altVal.innerHTML = (c.altitude != null ? Math.round(c.altitude) : '--') + '<span class="unit">m</span>';
-    currentSpeedKmh = c.speed != null ? (c.speed * 3.6) : null;
+    // GPSのspeedフィールドは、ブラウザ・デバイスによって取得できないことが多いため、
+    // その場合は前回位置からの移動距離と経過時間から自前で速度を推定するフォールバックを設ける
+    const nowMs = Date.now();
+    if(c.speed != null){
+      currentSpeedKmh = c.speed * 3.6;
+    } else if(lastSpeedCalcPos){
+      const distM = L.latLng(smoothed.lat, smoothed.lng).distanceTo([lastSpeedCalcPos.lat, lastSpeedCalcPos.lng]);
+      const dtSec = (nowMs - lastSpeedCalcPos.time) / 1000;
+      // 極端に短い/長い間隔は測位ノイズの影響が大きく信頼できないため、算出対象から除外する
+      currentSpeedKmh = (dtSec >= 1 && dtSec <= 15) ? (distM / dtSec) * 3.6 : null;
+    } else {
+      currentSpeedKmh = null;
+    }
+    lastSpeedCalcPos = { lat: smoothed.lat, lng: smoothed.lng, time: nowMs };
     const kmh = currentSpeedKmh != null ? currentSpeedKmh.toFixed(1) : '--';
     spdVal.innerHTML = kmh + '<span class="unit">km/h</span>';
 
