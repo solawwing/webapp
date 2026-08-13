@@ -601,8 +601,14 @@ function fireWeapon() {
   const lvl = player.weaponLevel;
   if (player.weapon === 'DOUBLE') {
     const n = DOUBLE_COUNTS[lvl];
-    xOffsets(n, 20).forEach(ox => {
-      playerBullets.push({ x: bx + ox, y: by, vx: 0, vy: -540, r: 3, power: 1, lenMul: 0.5 });
+    const offsets = xOffsets(n, 20);
+    const minOx = Math.min(...offsets), maxOx = Math.max(...offsets);
+    offsets.forEach(ox => {
+      // the two outermost bullets angle 5 degrees outward; the rest fire straight
+      let rad = 0;
+      if (ox === minOx && ox !== maxOx) rad = -5 * Math.PI / 180;
+      else if (ox === maxOx && ox !== minOx) rad = 5 * Math.PI / 180;
+      playerBullets.push({ x: bx + ox, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 1, lenMul: 0.5 });
     });
   } else if (player.weapon === 'WIDE') {
     const n = WIDE_COUNTS[lvl];
