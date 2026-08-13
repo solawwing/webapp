@@ -499,39 +499,12 @@
   }
   .dirStar{
     position:absolute;
-    width:3px;
-    height:3px;
-    background:#FFFFFF;
-    opacity:0;
-    animation-name: dirStarMove;
-    animation-timing-function: linear;
-    animation-iteration-count: infinite;
+    top:0; left:0;
+    will-change: transform, opacity;
   }
-  .dirStar-l0{
-    background:#FFFFFF;
-    animation-duration:1.6s;
-    box-shadow:
-      calc(var(--dx) * var(--trail, 3px)) calc(var(--dy) * var(--trail, 3px)) 0 0 rgba(255,255,255,.35),
-      calc(var(--dx) * var(--trail, 3px) * 2) calc(var(--dy) * var(--trail, 3px) * 2) 0 0 rgba(255,255,255,.15);
-  }
-  .dirStar-l1{
-    background:rgba(255,255,255,.55);
-    animation-duration:2.6s;
-    box-shadow:
-      calc(var(--dx) * var(--trail, 3px)) calc(var(--dy) * var(--trail, 3px)) 0 0 rgba(255,255,255,.2),
-      calc(var(--dx) * var(--trail, 3px) * 2) calc(var(--dy) * var(--trail, 3px) * 2) 0 0 rgba(255,255,255,.08);
-  }
-  .dirStar-l2{
-    background:rgba(255,255,255,.25);
-    animation-duration:3.8s;
-    box-shadow:
-      calc(var(--dx) * var(--trail, 3px)) calc(var(--dy) * var(--trail, 3px)) 0 0 rgba(255,255,255,.1);
-  }
-  @keyframes dirStarMove{
-    0%   { opacity:0; transform:translate(calc(var(--dx) * var(--dist)), calc(var(--dy) * var(--dist))); }
-    15%  { opacity:1; }
-    100% { opacity:1; transform:translate(calc(var(--dx) * var(--dist) * -1), calc(var(--dy) * var(--dist) * -1)); }
-  }
+  .dirStar-l0{ background:#FFFFFF; }
+  .dirStar-l1{ background:rgba(255,255,255,.55); }
+  .dirStar-l2{ background:rgba(255,255,255,.25); }
   .singleStationDirText{
     font-size:20px;
     color:#FFFFFF;
@@ -1265,8 +1238,7 @@
     if(singleStationDistEl) singleStationDistEl.innerHTML = '--<span class="singleUnit">m</span>';
     if(singleStationTimeEl) singleStationTimeEl.innerHTML = '--<span class="singleUnit">' + t('minUnit') + '</span>';
     if(singleStationDirWrapEl) singleStationDirWrapEl.innerHTML = '';
-    if(dirStarFieldEl) dirStarFieldEl.innerHTML = '';
-    lastStarBearing = null;
+    stopDirStars();
     try{ updateMapModeBtnVisibility(); }catch(e){ console.warn('updateMapModeBtnVisibility failed (non-critical):', e); }
     try{ fetchStations(); }catch(e){ console.warn('fetchStations on language switch failed (non-critical):', e); }
 
@@ -1693,6 +1665,7 @@
   }
   function closeInfoModal(){
     infoModalOverlay.classList.remove('open');
+    stopDirStars(); // ウィンドウが閉じている間、無駄にアニメーションループを回さない
   }
   function toggleInfoModalMode(){
     infoModal.classList.toggle('singleMode');
@@ -2014,53 +1987,122 @@
   const singleStationSpeedEl = document.getElementById('singleStationSpeed');
   const singleStationDirWrapEl = document.getElementById('singleStationDirWrap');
   const dirStarFieldEl = document.getElementById('dirStarField');
-  let lastStarBearing = null; // 方角の星を最後に再生成した角度(頻繁な作り直しを防ぐため)
 
-  // 方角の星: ウィンドウ内のランダムな位置から発生し、駅の方角(displayBearing基準、北=0=画面上、時計回り)
-  // へ向けて流れる演出。3階層に分け、奥の階層ほど暗く・ゆっくり動かす。合計20個。
-  function renderDirStars(bearingDeg){
-    if(!dirStarFieldEl) return;
-    dirStarFieldEl.innerHTML = '';
-    if(bearingDeg == null) return;
-    const rad = bearingDeg * Math.PI / 180;
-    const dx = Math.sin(rad);
-    const dy = -Math.cos(rad); // 北(0度)=画面上方向(Yマイナス)
-    const TOTAL_STARS = 20;
-    const LAYERS = 3;
-    const baseDurations = [1.6, 2.6, 3.8]; // 各階層の基本秒数(静止時)
-    // 現在の移動速度に応じて、星の流れる速さを5km/h刻み(100km/hまで)の段階で変化させる。
-    // 速度が取得できない場合、または0〜5km/hはとくにゆっくりにする
-    let speedScale;
-    let speedBracket = 0; // 星の大きさ計算にも使う(0=0〜5km/hまたは値なし)
+  // 方角の星: 常に同じ星を保持したまま位置を毎フレーム更新し、方角・速度が変わっても
+  // その場から新しい方向へ移動を続けるようにする(全部作り直すとリセットされたように見えるため)
+  const DIR_STAR_TOTAL = 20;
+  const DIR_STAR_LAYERS = 3;
+  const DIR_STAR_BASE_SPEED = [70, 45, 28]; // 各階層の基準px/秒(手前ほど速い)
+  let dirStars = []; // { el, layer, x, y }
+  let dirStarBearingDeg = null;
+  let dirStarSpeedScale = 2.4;
+  let dirStarRafId = null;
+  let dirStarLastTime = null;
+
+  function computeStarSpeedScaleAndBracket(){
+    let speedScale, speedBracket = 0;
     if(currentSpeedKmh == null || currentSpeedKmh < 5){
-      speedScale = 2.4; // 最低速度(今までの1.2の倍遅く)。最高速度側(minScale)は変更しない
+      speedScale = 2.4; // 最低速度(値なし・0〜5km/hはとくにゆっくり)
     } else {
-      const MAX_BRACKET = 19; // 5km刻みで100km/hまで(95〜100km/hがbracket=19)
+      const MAX_BRACKET = 19; // 5km刻みで100km/hまで
       speedBracket = Math.min(Math.floor(currentSpeedKmh / 5), MAX_BRACKET);
-      const startScale = 1.0; // 5〜10km/hの時のスケール
-      const minScale = 0.25;  // 100km/h以上の下限
+      const startScale = 1.0;
+      const minScale = 0.25;
       speedScale = startScale - (startScale - minScale) * ((speedBracket - 1) / (MAX_BRACKET - 1));
     }
-    // speedScaleが小さいほど(速く移動しているほど)残像を長く伸ばす
-    const trailPx = (3 + (2.4 - speedScale) * 6).toFixed(1) + 'px';
-    // 速度の区切りが上がるごとに、星の大きさを1pxずつ大きくする(基本3px)
-    const starSizePx = (3 + speedBracket) + 'px';
-    for(let i = 0; i < TOTAL_STARS; i++){
-      const layer = i % LAYERS;
-      const star = document.createElement('div');
-      star.className = 'dirStar dirStar-l' + layer;
-      star.style.left = (Math.random() * 100) + '%';
-      star.style.top = (Math.random() * 100) + '%';
-      star.style.width = starSizePx;
-      star.style.height = starSizePx;
-      star.style.setProperty('--dx', dx.toFixed(4));
-      star.style.setProperty('--dy', dy.toFixed(4));
-      star.style.setProperty('--dist', (180 + Math.random() * 80).toFixed(0) + 'px');
-      star.style.setProperty('--trail', trailPx);
-      star.style.animationDuration = (baseDurations[layer] * speedScale).toFixed(2) + 's';
-      star.style.animationDelay = (Math.random() * baseDurations[layer] * speedScale).toFixed(2) + 's';
-      dirStarFieldEl.appendChild(star);
+    return { speedScale, speedBracket };
+  }
+
+  function initDirStars(){
+    if(!dirStarFieldEl) return;
+    dirStarFieldEl.innerHTML = '';
+    dirStars = [];
+    const { speedBracket } = computeStarSpeedScaleAndBracket();
+    const starSize = 3 + speedBracket;
+    const w = dirStarFieldEl.clientWidth || 300;
+    const h = dirStarFieldEl.clientHeight || 300;
+    for(let i = 0; i < DIR_STAR_TOTAL; i++){
+      const layer = i % DIR_STAR_LAYERS;
+      const el = document.createElement('div');
+      el.className = 'dirStar dirStar-l' + layer;
+      el.style.width = starSize + 'px';
+      el.style.height = starSize + 'px';
+      dirStarFieldEl.appendChild(el);
+      dirStars.push({ el, layer, x: Math.random() * w, y: Math.random() * h });
     }
+  }
+
+  function dirStarTick(now){
+    if(!dirStarFieldEl || dirStars.length === 0 || dirStarBearingDeg == null){
+      dirStarRafId = null;
+      return;
+    }
+    if(dirStarLastTime == null) dirStarLastTime = now;
+    const deltaSec = Math.min(0.1, (now - dirStarLastTime) / 1000);
+    dirStarLastTime = now;
+
+    const w = dirStarFieldEl.clientWidth || 300;
+    const h = dirStarFieldEl.clientHeight || 300;
+    const rad = dirStarBearingDeg * Math.PI / 180;
+    const dx = Math.sin(rad);
+    const dy = -Math.cos(rad); // 北(0度)=画面上方向
+    const moveX = -dx, moveY = -dy; // 星は方角の方から流れてくる(移動方向は方角ベクトルの逆)
+    const trailPx = 3 + (2.4 - dirStarSpeedScale) * 6;
+    const shadowAlpha = [0.35, 0.2, 0.1];
+
+    dirStars.forEach(star=>{
+      const speedPxPerSec = DIR_STAR_BASE_SPEED[star.layer] / dirStarSpeedScale;
+      star.x += moveX * speedPxPerSec * deltaSec;
+      star.y += moveY * speedPxPerSec * deltaSec;
+      const margin = 24;
+      if(star.x < -margin || star.x > w + margin || star.y < -margin || star.y > h + margin){
+        // 画面外に出たら、中心付近から方角寄りにオフセットした新しい位置から再度流れてくる
+        star.x = w/2 + dx * 60 + (Math.random() - 0.5) * w * 0.7;
+        star.y = h/2 + dy * 60 + (Math.random() - 0.5) * h * 0.7;
+      }
+      star.el.style.transform = `translate(${star.x.toFixed(1)}px, ${star.y.toFixed(1)}px)`;
+      star.el.style.boxShadow = `${(dx*trailPx).toFixed(1)}px ${(dy*trailPx).toFixed(1)}px 0 0 rgba(255,255,255,${shadowAlpha[star.layer]})`;
+    });
+
+    dirStarRafId = requestAnimationFrame(dirStarTick);
+  }
+
+  function startDirStarLoop(){
+    if(dirStarRafId != null) return;
+    dirStarLastTime = null;
+    dirStarRafId = requestAnimationFrame(dirStarTick);
+  }
+
+  function stopDirStars(){
+    if(dirStarRafId != null){
+      cancelAnimationFrame(dirStarRafId);
+      dirStarRafId = null;
+    }
+    dirStars = [];
+    if(dirStarFieldEl) dirStarFieldEl.innerHTML = '';
+    dirStarBearingDeg = null;
+  }
+
+  // 方角・速度を更新する。星自体は作り直さず、既存の位置から新しい方向・速度で動き続けさせる
+  function updateDirStars(bearingDeg){
+    if(!dirStarFieldEl) return;
+    if(bearingDeg == null){
+      stopDirStars();
+      return;
+    }
+    const { speedScale, speedBracket } = computeStarSpeedScaleAndBracket();
+    dirStarSpeedScale = speedScale;
+    dirStarBearingDeg = bearingDeg;
+    if(dirStars.length === 0){
+      initDirStars();
+    } else {
+      const starSize = 3 + speedBracket;
+      dirStars.forEach(star=>{
+        star.el.style.width = starSize + 'px';
+        star.el.style.height = starSize + 'px';
+      });
+    }
+    startDirStarLoop();
   }
   const singleStationAddressEl = document.getElementById('singleStationAddress');
 
@@ -2081,8 +2123,7 @@
       if(singleStationTimeEl) singleStationTimeEl.innerHTML = '‥<span class="singleUnit">' + t('minUnit') + '</span>';
       if(singleStationSpeedEl) singleStationSpeedEl.innerHTML = (currentSpeedKmh != null ? currentSpeedKmh.toFixed(1) : '‥') + '<span class="singleUnit">km/h</span>';
       if(singleStationDirWrapEl) singleStationDirWrapEl.innerHTML = '';
-      if(dirStarFieldEl) dirStarFieldEl.innerHTML = '';
-      lastStarBearing = null;
+      stopDirStars();
       return;
     }
     const top3 = nearby.slice().sort((a,b)=> a.dist - b.dist).slice(0, 9);
@@ -2111,17 +2152,11 @@
       if(singleStationDirWrapEl){
         singleStationDirWrapEl.innerHTML = `${nearestDirArrowHtml}<span class="singleStationDirText ${nearestDirClass}">${nearestDirText}</span>`;
       }
-      // 方角の星は、方角が大きく変わった時だけ再生成する(GPS更新のたびに作り直すとアニメーションが
-      // 常にリセットされ、星が流れて見えなくなるため)
+      // 方角の星: 位置は保持したまま、方角・速度だけを更新する
       if(nearestBearing != null){
-        const starDeg = displayBearing(nearestBearing);
-        if(lastStarBearing == null || Math.abs(((starDeg - lastStarBearing + 540) % 360) - 180) > 15){
-          renderDirStars(starDeg);
-          lastStarBearing = starDeg;
-        }
-      } else if(dirStarFieldEl && lastStarBearing != null){
-        dirStarFieldEl.innerHTML = '';
-        lastStarBearing = null;
+        updateDirStars(displayBearing(nearestBearing));
+      } else {
+        stopDirStars();
       }
     }
 
