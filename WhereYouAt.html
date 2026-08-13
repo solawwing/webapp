@@ -2028,14 +2028,20 @@
     const TOTAL_STARS = 20;
     const LAYERS = 3;
     const baseDurations = [1.6, 2.6, 3.8]; // 各階層の基本秒数(静止時)
-    // 現在の移動速度に応じて、星の流れる速さを10km/h刻みの段階で変化させる。
-    // 0〜10km/hは最もゆっくり、以降は10km/h上がるごとに段階的に速くする(下限0.3倍)
-    const speed = currentSpeedKmh || 0;
-    const SPEED_SCALE_STEPS = [1.0, 0.8, 0.6, 0.45, 0.35, 0.3];
-    const speedBracket = Math.min(Math.floor(speed / 10), SPEED_SCALE_STEPS.length - 1);
-    const speedScale = SPEED_SCALE_STEPS[speedBracket];
+    // 現在の移動速度に応じて、星の流れる速さを5km/h刻み(100km/hまで)の段階で変化させる。
+    // 速度が取得できない場合、または0〜5km/hはとくにゆっくりにする
+    let speedScale;
+    if(currentSpeedKmh == null || currentSpeedKmh < 5){
+      speedScale = 1.2;
+    } else {
+      const MAX_BRACKET = 19; // 5km刻みで100km/hまで(95〜100km/hがbracket=19)
+      const bracket = Math.min(Math.floor(currentSpeedKmh / 5), MAX_BRACKET);
+      const startScale = 1.0; // 5〜10km/hの時のスケール
+      const minScale = 0.25;  // 100km/h以上の下限
+      speedScale = startScale - (startScale - minScale) * ((bracket - 1) / (MAX_BRACKET - 1));
+    }
     // speedScaleが小さいほど(速く移動しているほど)残像を長く伸ばす(3px〜13px)
-    const trailPx = (3 + (1 - speedScale) * 14.3).toFixed(1) + 'px';
+    const trailPx = (3 + (1.2 - speedScale) * 12).toFixed(1) + 'px';
     for(let i = 0; i < TOTAL_STARS; i++){
       const layer = i % LAYERS;
       const star = document.createElement('div');
