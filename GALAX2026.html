@@ -720,7 +720,7 @@ function firePhantomFlash() {
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i];
     if (e.x >= left && e.x <= right && e.y >= top && e.y <= bottom) {
-      e.hp -= 2;
+      e.hp -= (e.type === 'GIANTBOSS' ? 5 : 2);
       score += 10; // +10 for dealing damage
       if (e.hp <= 0) {
         handleEnemyDeath(e);
@@ -937,6 +937,7 @@ function makeRowSlots(rowIndex, count, extraYOffset) {
 let wavePatternQueue = [];
 let waveRowIndex = 0;
 let waveTotalPatterns = 0;
+let waveIsDoubled = true;
 let activeEnterCount = 0;
 let waveEnemyGlobalIndex = 0;
 let waveItemDropIndices = new Set();
@@ -946,11 +947,11 @@ function spawnPatternGroup(patternName) {
   const def = PT_DEFS[patternName];
   const rowFrac = waveTotalPatterns > 1 ? waveRowIndex / (waveTotalPatterns - 1) : 0;
   const formationType = pickEnemyType(rowFrac);
-  // the wave's pattern list now runs twice; the 2nd pass reuses the SAME row band as
-  // the 1st pass (not stacked on top of it), just sitting a bit higher (about half an
-  // enemy's height) than the 1st pass's corresponding row
+  // the wave's pattern list runs twice for every wave except wave1; the 2nd pass reuses
+  // the SAME row band as the 1st pass (not stacked on top of it), just sitting a bit
+  // higher (about half an enemy's height) than the 1st pass's corresponding row
   const halfLen = waveTotalPatterns / 2;
-  const isSecondPass = waveRowIndex >= halfLen;
+  const isSecondPass = waveIsDoubled && waveRowIndex >= halfLen;
   const rowIndexForY = isSecondPass ? waveRowIndex - halfLen : waveRowIndex;
   const secondPassOffset = isSecondPass ? 8 : 0;
   const rowSlots = makeRowSlots(rowIndexForY, 8, secondPassOffset);
@@ -986,7 +987,7 @@ function tryAdvanceWavePattern() {
   if (wavePatternQueue.length === 0) return; // this wave's patterns are all done
   // right before the 2nd pass through the pattern list starts, send any still-idle
   // 1st-pass enemies into their dive attack rather than leaving them parked
-  if (waveTotalPatterns > 0 && waveRowIndex === waveTotalPatterns / 2) {
+  if (waveIsDoubled && waveRowIndex === waveTotalPatterns / 2) {
     forceAllFormationEnemiesToDive();
   }
   spawnPatternGroup(wavePatternQueue.shift());
@@ -998,7 +999,7 @@ const BOSS_TYPES = {
   Z: { color: '#fff01a', sides: 5 },
 };
 function makeBossEnemy() {
-  const bossHp = 600;
+  const bossHp = 400;
   const key = choice(['X', 'Y', 'Z']);
   const bossType = BOSS_TYPES[key];
   const t = { hp: bossHp, score: 100, color: bossType.color, r: 120, sides: bossType.sides };
@@ -1022,10 +1023,13 @@ let bossExplosionBurstTimer = 0;
 let lastBossColor = '#ff2e6b';
 
 // 10-position cycle: wave1, wave2, ASTEROID, wave3, wave4, ASTEROID+enemies, wave5, wave6, ASTEROID+fast, BOSS
-const CYCLE_LEN = 10;
-const CYCLE_KIND = ['ENEMY', 'ENEMY', 'ASTEROID', 'ENEMY', 'ENEMY', 'ASTEROID_FAST', 'ENEMY', 'ENEMY', 'ASTEROID_FASTER', 'BOSS'];
+const CYCLE_LEN = 11;
+const CYCLE_KIND = ['ENEMY', 'ENEMY', 'ASTEROID', 'ENEMY', 'CRYSTAL', 'ENEMY', 'ASTEROID_FAST', 'ENEMY', 'ENEMY', 'ASTEROID_FASTER', 'BOSS'];
 function isAsteroidKind(kind) {
   return kind === 'ASTEROID' || kind === 'ASTEROID_FAST' || kind === 'ASTEROID_FASTER';
+}
+function isCrystalKind(kind) {
+  return kind === 'CRYSTAL';
 }
 // for ENEMY positions, the sequential list of patterns to run (one at a time)
 const WAVE_PATTERN_LISTS = [
@@ -1039,7 +1043,7 @@ const WAVE_PATTERN_LISTS = [
 
 function getWavePatternList(enemySlotIndex) {
   const base = WAVE_PATTERN_LISTS[enemySlotIndex];
-  return [...base, ...base]; // each wave's defined pattern list now runs twice
+  return [...base]; // every wave's pattern list runs once (7 patterns/56 enemies)
 }
 
 function waveEnemyCount(w) {
@@ -1115,6 +1119,37 @@ function splitAsteroid(a, i) {
   }
 }
 
+function makeHexagonVerts(halfW, halfH) {
+  // elongated hexagon: pointy top/bottom, flat sides
+  return [
+    { x: 0, y: -halfH },
+    { x: halfW, y: -halfH * 0.5 },
+    { x: halfW, y: halfH * 0.5 },
+    { x: 0, y: halfH },
+    { x: -halfW, y: halfH * 0.5 },
+    { x: -halfW, y: -halfH * 0.5 },
+  ];
+}
+
+function spawnCrystal() {
+  // elongated hexagon shard, falls straight down (no drift, no rotation); bullets that
+  // hit it are consumed (no piercing/chaining through), drops no items
+  const width = choice([50, 60]), height = rand(150, 300);
+  const halfW = width / 2, halfH = height / 2;
+  const fallSpeed = rand(110, 220);
+  asteroids.push({
+    x: rand(80, W - 80), y: -halfH - 20,
+    r: (halfW + halfH) / 2, // circular approximation splitting the difference between width/height for collision purposes
+    isAsteroidObj: true, isCrystal: true,
+    verts: makeHexagonVerts(halfW, halfH),
+    angle: 0,
+    spin: 0,
+    vx: 0,
+    vy: fallSpeed,
+    willSplit: false, hasSplit: true, splitY: null,
+  });
+}
+
 function spawnRandomFormationDuringAsteroids() {
   // enemies during the Asteroid Belt always enter straight down from the top,
   // and can dive/attack right away (not gated behind the whole group settling)
@@ -1153,9 +1188,11 @@ function startWave() {
   diveTimer = rand(2.5, 4.5);
   waveAnnounce = isAsteroidKind(kind)
     ? { text: 'APPROACHING\nASTEROID BELT', t: 0, hold: 1.2, fade: 0.6 }
-    : kind === 'BOSS'
-      ? { text: 'APPROACHING\nENEMY BOSS', t: 0, hold: 1.2, fade: 0.6 }
-      : { text: 'WAVE ' + wave, t: 0, hold: 1.2, fade: 0.6 };
+    : isCrystalKind(kind)
+      ? { text: 'APPROACHING\nCRYSTAL BELT', t: 0, hold: 1.2, fade: 0.6 }
+      : kind === 'BOSS'
+        ? { text: 'APPROACHING\nENEMY BOSS', t: 0, hold: 1.2, fade: 0.6 }
+        : { text: 'WAVE ' + wave, t: 0, hold: 1.2, fade: 0.6 };
   pendingWaveActivation = { kind, m };
   waveStartDelayTimer = 1.0; // starts counting down only once the announce has fully finished
 }
@@ -1184,7 +1221,7 @@ function activateWave(kind, m) {
     }
     const itemDropCount = Math.min(2, dropPool.length);
     for (let i = 0; i < itemDropCount; i++) dropPool[i].dropsItem = true;
-  } else if (isAsteroidKind(kind)) {
+  } else if (isAsteroidKind(kind) || isCrystalKind(kind)) {
     // Asteroid Belt: asteroids only, no enemies — dodge indestructible rotating asteroids for 60s
     lastLayoutCount = 0;
     formationSlots = [];
@@ -1204,6 +1241,7 @@ function activateWave(kind, m) {
     // wait (via tryAdvanceWavePattern) until the current one finishes entering
     wavePatternQueue = [...patternList];
     waveTotalPatterns = patternList.length;
+    waveIsDoubled = false; // every wave runs its pattern list once now, no 2nd pass exists
     waveRowIndex = 0;
     activeEnterCount = 0;
     waveEnemyGlobalIndex = 0;
@@ -1776,7 +1814,7 @@ function updateBullets(dt) {
             registerAsteroidDamage(1);
             spawnDeathParticles(next.x, next.y, '#bbbbbb', 3);
           } else {
-            next.hp -= 1;
+            next.hp -= (next.type === 'GIANTBOSS' ? 5 : 1);
             score += 10; // +10 for dealing damage
             if (next.hp <= 0) {
               handleEnemyDeath(next);
@@ -1915,7 +1953,7 @@ function handleCollisions() {
         const rr = (e.def.r + b.r) * (e.def.r + b.r);
         if (dist2(e.x, e.y, b.x, b.y) < rr) {
           b.hitSet.add(e);
-          e.hp -= (b.power || 3);
+          e.hp -= (e.type === 'GIANTBOSS' ? 5 : (b.power || 3));
           score += 10; // +10 for dealing damage
           if (e.hp <= 0) {
             handleEnemyDeath(e);
@@ -1956,7 +1994,7 @@ function handleCollisions() {
         if (dist2(e.x, e.y, b.x, b.y) < rr) {
           playerBullets.splice(j, 1);
           const ex = e.x, ey = e.y;
-          e.hp -= (b.power || 1);
+          e.hp -= (b.gravity && e.type === 'GIANTBOSS' ? 5 : (b.power || 1));
           score += 10; // +10 for dealing damage
           if (e.hp <= 0) {
             handleEnemyDeath(e);
@@ -2011,7 +2049,7 @@ function checkWaveClear() {
   const kind = CYCLE_KIND[m - 1];
   const cleared = kind === 'BOSS'
     ? bossDefeated
-    : isAsteroidKind(kind)
+    : (isAsteroidKind(kind) || isCrystalKind(kind))
       ? asteroidWaveTimer >= 45
       : (enemies.length === 0 && spawnQueue.length === 0);
   if (cleared) {
@@ -2158,17 +2196,21 @@ function updateAsteroidWave(dt) {
   if (!waveActive) return;
   const m = ((wave - 1) % CYCLE_LEN) + 1;
   const kind = CYCLE_KIND[m - 1];
-  if (!isAsteroidKind(kind)) return;
+  const isCry = isCrystalKind(kind);
+  if (!isAsteroidKind(kind) && !isCry) return;
   asteroidWaveTimer += dt;
   asteroidSpawnTimer -= dt;
   if (asteroidSpawnTimer <= 0 && asteroidWaveTimer < 40) {
-    spawnAsteroid();
+    if (isCry) spawnCrystal(); else spawnAsteroid();
     asteroidSpawnTimer = rand(0.6, 1.2);
   }
-  asteroidItemTimer -= dt;
-  if (asteroidItemTimer <= 0 && asteroidWaveTimer < 45) {
-    spawnItem(rand(60, W - 60), -20);
-    asteroidItemTimer = 10;
+  if (!isCry) {
+    // Crystal Belt drops no items at all, unlike the Asteroid Belt's periodic item timer
+    asteroidItemTimer -= dt;
+    if (asteroidItemTimer <= 0 && asteroidWaveTimer < 45) {
+      spawnItem(rand(60, W - 60), -20);
+      asteroidItemTimer = 10;
+    }
   }
 }
 function updateAsteroids(dt) {
@@ -2185,10 +2227,10 @@ function updateAsteroids(dt) {
   }
 }
 function drawAsteroids() {
-  ctx.strokeStyle = '#bbbbbb';
-  ctx.fillStyle = 'rgba(187,187,187,0.25)';
   ctx.lineWidth = 1;
   asteroids.forEach(a => {
+    ctx.strokeStyle = a.isCrystal ? '#7CFFF0' : '#bbbbbb';
+    ctx.fillStyle = a.isCrystal ? 'rgba(124,255,240,0.25)' : 'rgba(187,187,187,0.25)';
     ctx.save();
     ctx.translate(a.x, a.y);
     ctx.rotate(a.angle);
@@ -2203,6 +2245,8 @@ function drawAsteroids() {
 function registerAsteroidDamage(amount) {
   score += 10; // +10 for dealing damage, on top of any per-weapon score
   asteroidHitCount += 1;
+  const m = ((wave - 1) % CYCLE_LEN) + 1;
+  if (isCrystalKind(CYCLE_KIND[m - 1])) return; // Crystal Belt: no item/RAPID/life bonuses at all
   if (asteroidHitCount % 50 === 0) {
     spawnItem(rand(60, W - 60), -20);
   }
@@ -2238,8 +2282,9 @@ function handleAsteroidCollisions() {
           b.hitSet.add(a);
           score += wave * 20;
           registerAsteroidDamage(b.power || 1);
-          spawnDeathParticles(a.x, a.y, '#bbbbbb', 10);
+          spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
           b.pierceLeft -= 1;
+          if (a.isCrystal) b.pierceLeft = 0; // crystals consume the bullet outright, no piercing through
           if (b.pierceLeft <= 0) break;
         }
       }
@@ -2251,11 +2296,16 @@ function handleAsteroidCollisions() {
         if (dist2(a.x, a.y, b.x, b.y) < rr) {
           score += wave * 20;
           registerAsteroidDamage(b.power || 3);
-          spawnDeathParticles(a.x, a.y, '#bbbbbb', 10);
-          // starts the same chain-lightning hop into nearby enemies as a direct enemy hit would
-          b.chaining = true;
-          b.chainPath = [{ x: a.x, y: a.y }];
-          b.chainTimer = 0.05;
+          spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
+          if (a.isCrystal) {
+            // crystals consume the bullet outright, no chain-lightning triggered
+            playerBullets.splice(j, 1);
+          } else {
+            // starts the same chain-lightning hop into nearby enemies as a direct enemy hit would
+            b.chaining = true;
+            b.chainPath = [{ x: a.x, y: a.y }];
+            b.chainTimer = 0.05;
+          }
           break;
         }
       }
@@ -2265,11 +2315,13 @@ function handleAsteroidCollisions() {
         if (b.hitSet.has(a)) continue;
         const rr = (a.r + b.r) * (a.r + b.r);
         if (dist2(a.x, a.y, b.x, b.y) < rr) {
-          // incidental hit like a non-target enemy: registers, doesn't end the beam's journey
+          // incidental hit like a non-target enemy: registers, doesn't end the beam's journey —
+          // except crystals, which consume the beam outright
           b.hitSet.add(a);
           score += wave * 20;
           registerAsteroidDamage(2);
-          spawnDeathParticles(a.x, a.y, '#bbbbbb', 10);
+          spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
+          if (a.isCrystal) b.dying = true;
           break;
         }
       }
@@ -2281,7 +2333,7 @@ function handleAsteroidCollisions() {
           playerBullets.splice(j, 1);
           score += wave * 20;
           registerAsteroidDamage(b.power || 1);
-          spawnDeathParticles(a.x, a.y, '#bbbbbb', 10);
+          spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
           if (b.gravity) applyGravitySplash(a.x, a.y, b.gravityRadius, null);
           break;
         }
@@ -2536,8 +2588,8 @@ function drawStarfield(dt) {
   const dir = starReverse ? -1 : 1;
   let speedFactor = starReverse ? 3 : 1;
   const cycleM = ((wave - 1) % CYCLE_LEN) + 1;
-  if (isAsteroidKind(CYCLE_KIND[cycleM - 1])) {
-    speedFactor *= 4; // asteroid belt: much faster starfield for a sense of speed
+  if (isAsteroidKind(CYCLE_KIND[cycleM - 1]) || isCrystalKind(CYCLE_KIND[cycleM - 1])) {
+    speedFactor *= 4; // asteroid/crystal belt: much faster starfield for a sense of speed
   }
   if (player.warping) {
     // ramp up alongside the player's accelerating warp speed
@@ -2677,9 +2729,9 @@ function drawHUD() {
   ctx.textAlign = 'left';
   ctx.fillText('WAVE ' + wave, 12, 10);
 
-  // asteroid belt countdown
+  // asteroid/crystal belt countdown
   const cycleM = ((wave - 1) % CYCLE_LEN) + 1;
-  if (isAsteroidKind(CYCLE_KIND[cycleM - 1])) {
+  if (isAsteroidKind(CYCLE_KIND[cycleM - 1]) || isCrystalKind(CYCLE_KIND[cycleM - 1])) {
     const remaining = Math.max(0, Math.ceil(45 - asteroidWaveTimer));
     ctx.textAlign = 'center';
     ctx.fillText(remaining + '  ' + asteroidHitCount, W / 2, 28); // debug: hit count next to the seconds
