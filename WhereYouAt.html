@@ -2031,23 +2031,28 @@
     // 現在の移動速度に応じて、星の流れる速さを5km/h刻み(100km/hまで)の段階で変化させる。
     // 速度が取得できない場合、または0〜5km/hはとくにゆっくりにする
     let speedScale;
+    let speedBracket = 0; // 星の大きさ計算にも使う(0=0〜5km/hまたは値なし)
     if(currentSpeedKmh == null || currentSpeedKmh < 5){
       speedScale = 2.4; // 最低速度(今までの1.2の倍遅く)。最高速度側(minScale)は変更しない
     } else {
       const MAX_BRACKET = 19; // 5km刻みで100km/hまで(95〜100km/hがbracket=19)
-      const bracket = Math.min(Math.floor(currentSpeedKmh / 5), MAX_BRACKET);
+      speedBracket = Math.min(Math.floor(currentSpeedKmh / 5), MAX_BRACKET);
       const startScale = 1.0; // 5〜10km/hの時のスケール
       const minScale = 0.25;  // 100km/h以上の下限
-      speedScale = startScale - (startScale - minScale) * ((bracket - 1) / (MAX_BRACKET - 1));
+      speedScale = startScale - (startScale - minScale) * ((speedBracket - 1) / (MAX_BRACKET - 1));
     }
     // speedScaleが小さいほど(速く移動しているほど)残像を長く伸ばす
     const trailPx = (3 + (2.4 - speedScale) * 6).toFixed(1) + 'px';
+    // 速度の区切りが上がるごとに、星の大きさを1pxずつ大きくする(基本3px)
+    const starSizePx = (3 + speedBracket) + 'px';
     for(let i = 0; i < TOTAL_STARS; i++){
       const layer = i % LAYERS;
       const star = document.createElement('div');
       star.className = 'dirStar dirStar-l' + layer;
       star.style.left = (Math.random() * 100) + '%';
       star.style.top = (Math.random() * 100) + '%';
+      star.style.width = starSizePx;
+      star.style.height = starSizePx;
       star.style.setProperty('--dx', dx.toFixed(4));
       star.style.setProperty('--dy', dy.toFixed(4));
       star.style.setProperty('--dist', (180 + Math.random() * 80).toFixed(0) + 'px');
