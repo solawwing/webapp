@@ -292,13 +292,33 @@ function spawnBossExplosion(x, y, color) {
 // ---------- gravity shockwaves ----------
 let shockwaves = [];
 function spawnShockwave(x, y, maxR) {
-  shockwaves.push({ x, y, maxR, t: 0, duration: 0.6 });
+  shockwaves.push({ x, y, maxR, t: 0, duration: 3.0, hitSet: new Set() }); // 5x slower than before (was 0.6s)
 }
 function updateShockwaves(dt) {
   for (let i = shockwaves.length - 1; i >= 0; i--) {
     const s = shockwaves[i];
     s.t += dt;
-    if (s.t >= s.duration) shockwaves.splice(i, 1);
+    if (s.t >= s.duration) { shockwaves.splice(i, 1); continue; }
+    // while it's on screen, the expanding ring itself has a hitbox: 2dmg to any
+    // enemy it touches (once per enemy per shockwave)
+    const frac = s.t / s.duration;
+    const ringR = Math.max(2, s.maxR * frac);
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      const e = enemies[j];
+      if (s.hitSet.has(e)) continue;
+      const d = Math.hypot(e.x - s.x, e.y - s.y);
+      if (Math.abs(d - ringR) <= (e.def.r || 10)) {
+        s.hitSet.add(e);
+        e.hp -= 1;
+        score += 10; // +10 for dealing damage
+        if (e.hp <= 0) {
+          handleEnemyDeath(e);
+          enemies.splice(j, 1);
+        } else if (e.type !== 'GIANTBOSS') {
+          spawnDeathParticles(e.x, e.y, e.def.color, 3);
+        }
+      }
+    }
   }
 }
 function drawShockwaves() {
@@ -1625,7 +1645,7 @@ function showEquipSelect() {
   equipScreen.classList.remove('hidden');
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['DOUBLE', 'LASER', 'CURVE'];
+const EQUIP_UPDATED = ['DOUBLE', 'LASER', 'CURVE', 'GRAVITY'];
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -2612,9 +2632,30 @@ function drawBullets() {
       ctx.fillStyle = `rgba(255,233,58,${mainAlpha * twinkle})`;
       ctx.fillRect(-3.5, -3.5, 7, 7);
       ctx.restore();
+    } else if (b.gravity) {
+      // isosceles triangle bullet, base 3px / height 6px, pointing up
+      if (b.trail) {
+        b.trail.forEach((p, idx) => {
+          const alpha = ((idx + 1) / (b.trail.length + 1)) * 0.07;
+          ctx.strokeStyle = `rgba(186,255,201,${alpha})`;
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y - 4);
+          ctx.lineTo(p.x - 1.5, p.y + 2);
+          ctx.lineTo(p.x + 1.5, p.y + 2);
+          ctx.closePath();
+          ctx.stroke();
+        });
+      }
+      ctx.strokeStyle = '#baffc9';
+      ctx.beginPath();
+      ctx.moveTo(b.x, b.y - 4);
+      ctx.lineTo(b.x - 1.5, b.y + 2);
+      ctx.lineTo(b.x + 1.5, b.y + 2);
+      ctx.closePath();
+      ctx.stroke();
     } else {
       const half = b.r * 2 * (b.lenMul || 1);
-      const trailAlphaMul = (b.gravity || b.lenMul) ? 0.07 : 0.4;
+      const trailAlphaMul = b.lenMul ? 0.07 : 0.4;
       if (b.trail) {
         b.trail.forEach((p, idx) => {
           const alpha = ((idx + 1) / (b.trail.length + 1)) * trailAlphaMul;
