@@ -203,6 +203,8 @@ loadHighScore();
 // ---------- game state ----------
 const STATE = { TITLE: 0, PLAYING: 1, GAMEOVER: 2 };
 let state = STATE.TITLE;
+let paused = false;
+const PAUSE_BTN = { x: 22, y: 34, w: 16, h: 16 };
 let score = 0;
 let wave = 1;
 
@@ -374,9 +376,11 @@ function drawParticles() {
 }
 function pickItemType() {
   // lower weapon level -> more likely to see the same weapon again (helps reach max level);
-  // once maxed (Lv5), that weapon is excluded entirely so it doesn't drop wastefully
+  // once maxed (Lv5), that weapon is excluded entirely so it doesn't drop wastefully.
+  // SPARK is a special rare power-up: much lower weight than any other weapon.
   const lvl = player.weaponLevel;
   const weights = ITEM_TYPES.map(t => {
+    if (t === 'SPARK') return 0.15;
     if (t !== player.weapon) return 1;
     if (lvl >= 5) return 0;
     return 25 - 5 * lvl;
@@ -1078,6 +1082,7 @@ function spawnAsteroid() {
   const fallAngleDeg = rand(0, 10) * (Math.random() < 0.5 ? -1 : 1); // slight random drift, 0-10 degrees off vertical
   const fallAngleRad = fallAngleDeg * Math.PI / 180;
   const fallSpeed = rand(110, 220) * asteroidSpeedMul;
+  const willSplit = Math.random() < 0.15; // rare chance to split into two while above mid-screen
   asteroids.push({
     x: rand(80, W - 80), y: -90,
     r,
@@ -1087,7 +1092,27 @@ function spawnAsteroid() {
     spin: rand(0.5, 1.1) * (Math.random() < 0.5 ? -1 : 1),
     vx: Math.sin(fallAngleRad) * fallSpeed,
     vy: Math.cos(fallAngleRad) * fallSpeed, // each asteroid falls at its own speed, faster overall
+    willSplit, hasSplit: false, splitY: willSplit ? rand(20, H / 2) : null,
   });
+}
+
+function splitAsteroid(a, i) {
+  asteroids.splice(i, 1);
+  const newR = Math.max(30, a.r * 0.65);
+  for (let s = 0; s < 2; s++) {
+    const n = Math.floor(rand(4, 9));
+    asteroids.push({
+      x: a.x + (s === 0 ? -12 : 12), y: a.y,
+      r: newR,
+      isAsteroidObj: true,
+      verts: makeAsteroidVerts(newR, n),
+      angle: rand(0, Math.PI * 2),
+      spin: rand(0.5, 1.1) * (Math.random() < 0.5 ? -1 : 1),
+      vx: a.vx + (s === 0 ? -70 : 70),
+      vy: a.vy,
+      willSplit: false, hasSplit: true, splitY: null,
+    });
+  }
 }
 
 function spawnRandomFormationDuringAsteroids() {
@@ -1488,6 +1513,14 @@ canvas.addEventListener('pointerdown', e => {
   if (state === STATE.TITLE && !showingEquip) { showEquipSelect(); return; }
   if (state === STATE.TITLE) return; // waiting on an equipment tap, ignore other taps
   if (state === STATE.GAMEOVER) { goToTitle(); return; }
+  if (state === STATE.PLAYING) {
+    const p = pointerToXY(e.clientX, e.clientY);
+    if (p.x >= PAUSE_BTN.x && p.x <= PAUSE_BTN.x + PAUSE_BTN.w && p.y >= PAUSE_BTN.y && p.y <= PAUSE_BTN.y + PAUSE_BTN.h) {
+      paused = !paused;
+      return;
+    }
+    if (paused) return; // ignore other taps while paused — only the button resumes
+  }
   dragging = true;
   const p = pointerToXY(e.clientX, e.clientY);
   player.targetX = p.x; player.targetY = p.y - 50;
@@ -2144,6 +2177,10 @@ function updateAsteroids(dt) {
     a.x += (a.vx || 0) * dt;
     a.y += a.vy * dt;
     a.angle += a.spin * dt;
+    if (a.willSplit && !a.hasSplit && a.y >= a.splitY) {
+      splitAsteroid(a, i);
+      continue;
+    }
     if (a.y > H + 100) asteroids.splice(i, 1);
   }
 }
@@ -2599,6 +2636,34 @@ function drawLevelBar(name, level, maxLevel, rightX, y) {
   }
 }
 
+function drawPauseButton() {
+  ctx.strokeStyle = '#7CFFF0';
+  ctx.lineWidth = 1;
+  const { x, y, w, h } = PAUSE_BTN;
+  ctx.strokeRect(x, y, w, h);
+  if (paused) {
+    // play triangle
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.32, y + h * 0.22);
+    ctx.lineTo(x + w * 0.32, y + h * 0.78);
+    ctx.lineTo(x + w * 0.78, y + h * 0.5);
+    ctx.closePath();
+    ctx.stroke();
+  } else {
+    // two vertical bars
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.35, y + h * 0.2); ctx.lineTo(x + w * 0.35, y + h * 0.8);
+    ctx.moveTo(x + w * 0.65, y + h * 0.2); ctx.lineTo(x + w * 0.65, y + h * 0.8);
+    ctx.stroke();
+  }
+}
+
+function drawPausedOverlay() {
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(0, 0, W, H);
+  drawSpacedText('PAUSED', W / 2, H / 2, 20, 12);
+}
+
 function drawHUD() {
   ctx.fillStyle = '#7CFFF0';
   ctx.font = '12px "Montserrat", sans-serif';
@@ -2651,7 +2716,7 @@ function frame(now) {
   updateSpecialStars(dt);
   drawSpecialStars();
 
-  if (state === STATE.PLAYING) {
+  if (state === STATE.PLAYING && !paused) {
     updateSpawns(dt);
     updatePlayer(dt);
     updateEnemies(dt);
@@ -2666,9 +2731,11 @@ function frame(now) {
     handleAsteroidCollisions();
     checkWaveClear();
   }
-  updateParticles(dt);
-  updateShockwaves(dt);
-  updatePhantomFlashes(dt);
+  if (!(state === STATE.PLAYING && paused)) {
+    updateParticles(dt);
+    updateShockwaves(dt);
+    updatePhantomFlashes(dt);
+  }
 
   enemies.forEach(drawEnemy);
   drawAsteroids();
@@ -2679,7 +2746,8 @@ function frame(now) {
   drawPhantomFlashes();
   drawPlayer();
   drawPickupTexts();
-  if (state === STATE.PLAYING) { drawHUD(); drawWaveAnnounce(); }
+  if (state === STATE.PLAYING) { drawHUD(); drawWaveAnnounce(); drawPauseButton(); }
+  if (state === STATE.PLAYING && paused) drawPausedOverlay();
 
   requestAnimationFrame(frame);
 }
