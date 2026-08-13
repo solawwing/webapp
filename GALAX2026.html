@@ -70,6 +70,7 @@
     animation: spinIcon 4s linear infinite;
   }
   #equipRow .equip-name { font-size: 7px; letter-spacing: 1px; opacity: 0.85; }
+  #equipRow .equip-update-tag { font-size: 6px; letter-spacing: 1px; color: #ff1744; text-shadow: 0 0 6px #ff1744; margin-top: -4px; }
 </style>
 </head>
 <body>
@@ -1074,6 +1075,7 @@ let asteroidRapidGiven = false;
 let asteroidWaveTimer = 0;
 let asteroidSpawnTimer = 0;
 let asteroidItemTimer = 0;
+let crystalEnemyTimer = 0;
 let asteroidSpeedMul = 1;
 let asteroidEnemySpawnTimer = 0;
 const ASTEROID_ENEMY_TRIGGER_TIMES = [15, 30, 45];
@@ -1147,7 +1149,7 @@ function spawnCrystal() {
   // elongated hexagon shard, falls straight down while spinning around its own vertical
   // axis (simulated via horizontal scale, since the vertical axis itself stays fixed);
   // bullets that hit it are consumed (no piercing/chaining through), drops no items
-  const width = choice([40, 50]), height = rand(150, 200);
+  const width = rand(35, 40), height = rand(150, 200);
   const halfW = width / 2, halfH = height / 2;
   const fallSpeed = rand(110, 220) * asteroidSpeedMul;
   asteroids.push({
@@ -1161,6 +1163,28 @@ function spawnCrystal() {
     vy: fallSpeed,
     willSplit: false, hasSplit: true, splitY: null,
   });
+}
+
+function spawnCrystalEnemy(kind) {
+  // Crystal Belt: individual enemies spawn straight from the top of the screen, already
+  // diving/attacking (no formation entry at all). Type: E only for the normal Crystal
+  // Belt, random E/D/C for the faster one.
+  const typeKey = kind === 'CRYSTAL_FAST' ? choice(['E', 'D', 'C']) : 'E';
+  const t = TYPES[typeKey];
+  const x = rand(60, W - 60);
+  const e = {
+    type: typeKey, def: t, hp: t.hp, maxHp: t.hp,
+    slot: { x, y: H * 0.2, type: typeKey, filled: true },
+    state: 'formation',
+    x, y: -30,
+    diveCd: 0,
+    swayPhase: rand(0, Math.PI * 2),
+    angle: 0,
+    firstPass: true, // never settles back into formation once diving — loops forever until killed
+    dropsItem: false, dropsRapid: false,
+  };
+  startDive(e);
+  enemies.push(e);
 }
 
 function spawnRandomFormationDuringAsteroids() {
@@ -1247,27 +1271,18 @@ function activateWave(kind, m) {
     asteroidBonusGiven = false;
     asteroidRapidGiven = false;
   } else if (isCrystalKind(kind)) {
-    // Crystal Belt: falling crystal shards AND that cycle's wave1 enemy formation, together
+    // Crystal Belt: falling crystal shards + individually-spawned attacking enemies (every 2s)
     formationSlots = [];
+    lastLayoutCount = 0;
     asteroidWaveTimer = 0;
     asteroidSpawnTimer = 0;
     asteroidItemTimer = 10;
+    crystalEnemyTimer = 2.0;
     asteroidSpeedMul = kind === 'CRYSTAL_FAST' ? 1.2 : 1;
     asteroidTotalDamage = 0;
     asteroidHitCount = 0;
     asteroidBonusGiven = false;
     asteroidRapidGiven = false;
-
-    const patternList = getWavePatternList(0); // reuse wave1's formation pattern
-    lastLayoutCount = patternList.length * 8;
-    wavePatternQueue = [...patternList];
-    waveTotalPatterns = patternList.length;
-    waveIsDoubled = false;
-    waveRowIndex = 0;
-    activeEnterCount = 0;
-    waveEnemyGlobalIndex = 0;
-    waveItemDropIndices = new Set(); // Crystal Belt drops no items, from enemies or otherwise
-    waveRapidDropIndex = -1;
   } else {
     const enemySlotIndex = CYCLE_KIND.slice(0, m - 1).filter(k => k === 'ENEMY').length;
     const patternList = getWavePatternList(enemySlotIndex);
@@ -1610,6 +1625,7 @@ function showEquipSelect() {
   equipScreen.classList.remove('hidden');
 }
 const equipRow = document.getElementById('equipRow');
+const EQUIP_UPDATED = ['DOUBLE', 'LASER', 'CURVE'];
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -1621,6 +1637,12 @@ EQUIP_CHOICES.forEach(type => {
   name.textContent = type;
   item.appendChild(icon);
   item.appendChild(name);
+  if (EQUIP_UPDATED.includes(type)) {
+    const tag = document.createElement('span');
+    tag.className = 'equip-update-tag';
+    tag.textContent = 'UPDATE';
+    item.appendChild(tag);
+  }
   item.addEventListener('click', () => { debugStartWeapon = type; beginGame(); });
   item.addEventListener('touchend', () => { debugStartWeapon = type; beginGame(); });
   equipRow.appendChild(item);
@@ -2236,12 +2258,18 @@ function updateAsteroidWave(dt) {
     if (isCry) spawnCrystal(); else spawnAsteroid();
     asteroidSpawnTimer = rand(0.6, 1.2);
   }
-  if (!isCry) {
-    // Crystal Belt drops no items at all, unlike the Asteroid Belt's periodic item timer
-    asteroidItemTimer -= dt;
-    if (asteroidItemTimer <= 0 && asteroidWaveTimer < 45) {
-      spawnItem(rand(60, W - 60), -20);
-      asteroidItemTimer = 10;
+  asteroidItemTimer -= dt;
+  if (asteroidItemTimer <= 0 && asteroidWaveTimer < 45) {
+    spawnItem(rand(60, W - 60), -20);
+    asteroidItemTimer = 10;
+  }
+  if (isCry) {
+    // Crystal Belt also spawns individual enemies every 2s, straight from the top,
+    // already in their dive/attack state (no formation entry)
+    crystalEnemyTimer -= dt;
+    if (crystalEnemyTimer <= 0 && asteroidWaveTimer < 45) {
+      spawnCrystalEnemy(kind);
+      crystalEnemyTimer = 2.0;
     }
   }
 }
@@ -2283,11 +2311,6 @@ function drawAsteroids() {
 function registerAsteroidDamage(amount) {
   score += 10; // +10 for dealing damage, on top of any per-weapon score
   asteroidHitCount += 1;
-  const m = ((wave - 1) % CYCLE_LEN) + 1;
-  if (isCrystalKind(CYCLE_KIND[m - 1])) return; // Crystal Belt: no item/RAPID/life bonuses at all
-  if (asteroidHitCount % 50 === 0) {
-    spawnItem(rand(60, W - 60), -20);
-  }
   if (!asteroidRapidGiven && asteroidHitCount >= 250) {
     asteroidRapidGiven = true;
     spawnRapidItem(W / 2, -20);
