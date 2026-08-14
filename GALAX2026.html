@@ -307,7 +307,7 @@ function updateShockwaves(dt) {
       const e = enemies[j];
       if (s.hitSet.has(e)) continue;
       const d = Math.hypot(e.x - s.x, e.y - s.y);
-      if (Math.abs(d - ringR) <= (e.def.r || 10)) {
+      if (d <= ringR + (e.def.r || 10)) {
         s.hitSet.add(e);
         e.hp -= 1;
         score += 10; // +10 for dealing damage
@@ -691,8 +691,8 @@ function fireWeapon() {
   } else if (player.weapon === 'THUNDER') {
     playerBullets.push({
       x: bx, y: by, vx: 0, vy: -700, r: 3, power: 3, thunder: true,
-      length: 50, chaining: false, dying: false, hitSet: new Set(), chainPath: [], loopsLeft: THUNDER_LOOP_COUNTS[lvl],
-      chainTimer: 0,
+      length: 50, chaining: false, dying: false, finished: false, hitSet: new Set(), chainPath: [], loopsLeft: THUNDER_LOOP_COUNTS[lvl],
+      chainTimer: 0, family: { active: 1 },
     });
   } else {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, power: 5 });
@@ -1871,6 +1871,12 @@ function updateBullets(dt) {
       if (b.fullTrail.length === 0) playerBullets.splice(i, 1);
       continue;
     }
+    if (b.thunder && b.finished && !b.dying) {
+      // finished chaining, but waits for every branch in the family to finish too
+      // before any of them start fading — none disappear until the whole tree is done
+      if (b.family.active <= 0) b.dying = true;
+      continue;
+    }
     if (b.thunder && b.dying) {
       // erase the chain path from the front (origin) until it's fully gone
       const removeCount = Math.max(1, Math.ceil(b.chainPath.length * dt / 0.5));
@@ -1904,15 +1910,18 @@ function updateBullets(dt) {
           b.loopsLeft -= 1;
           b.chainTimer = 0.05;
           if (Math.random() < 0.5) {
-            // 50% chance this jump also spawns an independent branch chain
+            // 50% chance this jump also spawns an independent branch chain, part of the same family
+            b.family.active += 1;
             playerBullets.push({
               x: next.x, y: next.y, vx: 0, vy: 0, r: 3, power: b.power, thunder: true, noTrail: true,
-              chaining: true, dying: false, hitSet: b.hitSet, chainPath: [{ x: next.x, y: next.y }],
-              loopsLeft: b.loopsLeft, chainTimer: 0.05,
+              chaining: true, dying: false, finished: false, hitSet: b.hitSet, chainPath: [{ x: next.x, y: next.y }],
+              loopsLeft: b.loopsLeft, chainTimer: 0.05, family: b.family,
             });
           }
         } else {
-          b.dying = true;
+          b.chaining = false;
+          b.finished = true;
+          b.family.active -= 1;
         }
       }
       continue;
@@ -2107,7 +2116,10 @@ function handleCollisions() {
 function hitPlayer() {
   player.lives -= 1;
   player.invT = 2.0;
-  player.rapidLevel = 0; player.burstRemaining = 0;
+  player.rapidLevel = Math.max(0, player.rapidLevel - 1); player.burstRemaining = 0;
+  if (player.weapon !== 'NORMAL') {
+    player.weaponLevel = Math.max(1, player.weaponLevel - 1);
+  }
   player.targetX = W / 2; player.x = W / 2;
   player.targetY = H - 90; player.y = H - 90;
   if (player.lives <= 0) {
@@ -2526,6 +2538,7 @@ function drawBullets() {
     if (b.spawnDelay > 0) return; // not fired yet, stay invisible
     if (b.laser) {
       const subMul = b.subLaser ? 0.3 : 1;
+      ctx.lineWidth = b.subLaser ? 1 : 2;
       if (b.trail) {
         b.trail.forEach((p, idx) => {
           const alpha = ((idx + 1) / (b.trail.length + 1)) * 0.4 * subMul;
@@ -2541,6 +2554,7 @@ function drawBullets() {
       ctx.moveTo(b.x, b.y);
       ctx.lineTo(b.x, b.y - b.length);
       ctx.stroke();
+      ctx.lineWidth = 1;
     } else if (b.bubble) {
       // circle bullet, no afterimage trail, random opacity
       ctx.strokeStyle = hexToRgba('#fc0fc0', b.alpha === undefined ? 0.4 : b.alpha);
@@ -2548,7 +2562,7 @@ function drawBullets() {
       ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
       ctx.stroke();
     } else if (b.thunder) {
-      if (b.chaining || b.dying) {
+      if (b.chaining || b.dying || b.finished) {
         // chain lightning path from the first hit onward, erased from the origin when done;
         // gradient from a dull tail (origin) to a saturated fluorescent-yellow head (newest jump)
         ctx.lineWidth = 1;
@@ -2587,6 +2601,7 @@ function drawBullets() {
       // screen, then erased from the near (origin) end forward; the head (tip) is
       // brighter/more saturated, fading duller toward the tail (origin)
       if (b.fullTrail && b.fullTrail.length > 1) {
+        ctx.lineWidth = 2;
         const n = b.fullTrail.length;
         for (let k = 1; k < n; k++) {
           const t = k / (n - 1);
@@ -2596,6 +2611,7 @@ function drawBullets() {
           ctx.lineTo(b.fullTrail[k].x, b.fullTrail[k].y);
           ctx.stroke();
         }
+        ctx.lineWidth = 1;
       }
     } else if (b.homing) {
       // 3px square, with a subtle fading afterimage trail
@@ -2824,15 +2840,17 @@ function drawHUD() {
   ctx.font = '12px "Montserrat", sans-serif';
   ctx.textBaseline = 'top';
 
-  // SCORE: centered
-  ctx.textAlign = 'center';
-  ctx.fillText('SCORE ' + score, W / 2, 10);
-
-  // HI: right of SCORE
-  ctx.textAlign = 'left';
+  // SCORE + HI: centered together as one block
   const scoreText = 'SCORE ' + score;
-  const scoreHalfWidth = ctx.measureText(scoreText).width / 2;
-  ctx.fillText('HI ' + highScore, W / 2 + scoreHalfWidth + 14, 10);
+  const hiText = 'HI ' + highScore;
+  const gap = 14;
+  ctx.textAlign = 'left';
+  const scoreWidth = ctx.measureText(scoreText).width;
+  const hiWidth = ctx.measureText(hiText).width;
+  const totalWidth = scoreWidth + gap + hiWidth;
+  const startX = W / 2 - totalWidth / 2;
+  ctx.fillText(scoreText, startX, 10);
+  ctx.fillText(hiText, startX + scoreWidth + gap, 10);
 
   // WAVE: left-aligned
   ctx.textAlign = 'left';
