@@ -2828,6 +2828,12 @@ function drawHUD() {
   ctx.textAlign = 'center';
   ctx.fillText('SCORE ' + score, W / 2, 10);
 
+  // HI: right of SCORE
+  ctx.textAlign = 'left';
+  const scoreText = 'SCORE ' + score;
+  const scoreHalfWidth = ctx.measureText(scoreText).width / 2;
+  ctx.fillText('HI ' + highScore, W / 2 + scoreHalfWidth + 14, 10);
+
   // WAVE: left-aligned
   ctx.textAlign = 'left';
   ctx.fillText('WAVE ' + wave, 12, 10);
