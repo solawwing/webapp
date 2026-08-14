@@ -189,14 +189,16 @@ window.addEventListener('resize', resize);
 
 // ---------- persistent high score ----------
 let highScore = 0;
-async function loadHighScore() {
+function loadHighScore() {
+  // uses localStorage so it persists in the player's own browser when this file is
+  // downloaded and opened/hosted outside Claude (window.storage only exists there)
   try {
-    const res = await window.storage.get('galaga-wireframe-highscore', false);
-    if (res && res.value) highScore = parseInt(res.value, 10) || 0;
-  } catch (e) { /* no saved score yet */ }
+    const v = localStorage.getItem('galaga-wireframe-highscore');
+    if (v) highScore = parseInt(v, 10) || 0;
+  } catch (e) { /* storage unavailable (e.g. file:// in some browsers) */ }
 }
-async function saveHighScore() {
-  try { await window.storage.set('galaga-wireframe-highscore', String(highScore), false); }
+function saveHighScore() {
+  try { localStorage.setItem('galaga-wireframe-highscore', String(highScore)); }
   catch (e) { /* ignore storage failure */ }
 }
 loadHighScore();
