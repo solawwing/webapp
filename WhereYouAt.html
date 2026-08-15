@@ -851,6 +851,56 @@
   .stCol-lat, .stCol-lng{ color:#22e5e5; white-space:nowrap; font-variant-numeric: tabular-nums; }
   .stCol-lines{ color:#FF9D1F; white-space:normal; }
   .stCol-dist{ color:#22e5e5; text-align:right; white-space:nowrap; font-variant-numeric: tabular-nums; }
+
+  /* タイトルのダブルタップで開くQRコードモーダル */
+  .qrOverlay{
+    position:fixed;
+    inset:0;
+    z-index:2100;
+    background:rgba(0,0,0,0.55);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+    transition: opacity 0.35s ease, visibility 0.35s ease;
+  }
+  .qrOverlay.open{
+    opacity:1;
+    visibility:visible;
+    pointer-events:auto;
+  }
+  .qrModal{
+    background:rgba(20,25,21,0.95);
+    border:1px solid rgba(255,255,255,0.5);
+    border-radius:14px;
+    box-shadow:0 8px 30px rgba(0,0,0,0.5);
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:12px;
+    cursor:pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .qrCodeBox{
+    width:180px;
+    height:180px;
+    background:#FFFFFF;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:4px;
+  }
+  .qrUrlText{
+    font-family: var(--mono);
+    font-size:11px;
+    color:#39FF14;
+    letter-spacing:.02em;
+    text-align:center;
+    word-break:break-all;
+  }
 </style>
 </head>
 <body>
@@ -947,6 +997,13 @@
   <div class="langGimmickFace">Ｕ(｡╹ ꒳ ╹｡)Ｕ</div>
 </div>
 
+<div class="qrOverlay" id="qrOverlay">
+  <div class="qrModal" id="qrModal">
+    <div class="qrCodeBox" id="qrCodeBox"></div>
+    <div class="qrUrlText">solawwing.github.io/webapp/WhereYouAt.html</div>
+  </div>
+</div>
+
 <div class="storedListOverlay" id="storedListOverlay">
   <div class="storedListModal" id="storedListModal">
     <div class="storedListHeader">
@@ -958,6 +1015,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
   // ============================================================
   // 多言語対応(インバウンド向け英語モード)
@@ -1273,8 +1331,9 @@
     // touchend/dblclickではなくclickに統一する: モバイルブラウザではtouchendが確実に発火しない
     // 場合があるが、clickはタップ操作でもマウス操作でも共通して発火するため信頼性が高い
     document.addEventListener('click', (e)=>{
-      // 地図エリアと画面下部(フッター、保存済み駅一覧のダブルタップに使う)は対象外
-      if(e.target.closest('#map') || e.target.closest('.mapPane') || e.target.closest('.statusFoot')) return;
+      // 地図エリアと画面下部(フッター、保存済み駅一覧のダブルタップに使う)、
+      // タイトル(QRコード表示のダブルタップに使う)は対象外
+      if(e.target.closest('#map') || e.target.closest('.mapPane') || e.target.closest('.statusFoot') || e.target.closest('.title')) return;
       const now = Date.now();
       if(now - lastTapTime < DOUBLE_TAP_MS){
         switchLanguage();
@@ -1295,6 +1354,52 @@
       const now = Date.now();
       if(now - lastTapTime < DOUBLE_TAP_MS){
         openStoredListModal();
+        lastTapTime = 0;
+      } else {
+        lastTapTime = now;
+      }
+    });
+  })();
+
+  // タイトルのダブルタップで開くQRコードモーダル
+  const qrOverlayEl = document.getElementById('qrOverlay');
+  const qrCodeBoxEl = document.getElementById('qrCodeBox');
+  const QR_TARGET_URL = 'https://solawwing.github.io/webapp/WhereYouAt.html';
+
+  function openQrModal(){
+    if(!qrOverlayEl) return;
+    if(qrCodeBoxEl && qrCodeBoxEl.children.length === 0){
+      try{
+        new QRCode(qrCodeBoxEl, {
+          text: QR_TARGET_URL,
+          width: 160,
+          height: 160,
+          colorDark: '#000000',
+          colorLight: '#ffffff'
+        });
+      }catch(e){
+        console.warn('QRCode generation failed (non-critical):', e);
+      }
+    }
+    qrOverlayEl.classList.add('open');
+  }
+  function closeQrModal(){
+    if(qrOverlayEl) qrOverlayEl.classList.remove('open');
+  }
+  if(qrOverlayEl){
+    qrOverlayEl.addEventListener('click', ()=>{ closeQrModal(); });
+  }
+
+  (function setupTitleQrDoubleTap(){
+    let lastTapTime = 0;
+    const DOUBLE_TAP_MS = 500;
+    const titleEl = document.getElementById('titleText');
+    if(!titleEl) return;
+    titleEl.addEventListener('click', (ev)=>{
+      ev.stopPropagation(); // 言語切替のダブルタップ判定へ伝播させない
+      const now = Date.now();
+      if(now - lastTapTime < DOUBLE_TAP_MS){
+        openQrModal();
         lastTapTime = 0;
       } else {
         lastTapTime = now;
