@@ -227,6 +227,15 @@ function qbezier(p0, p1, p2, t) {
 function dist2(ax, ay, bx, by) { const dx = ax-bx, dy = ay-by; return dx*dx + dy*dy; }
 function rand(a, b) { return a + Math.random() * (b - a); }
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function weightedChoice(items, weights) {
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < items.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return items[i];
+  }
+  return items[items.length - 1];
+}
 function lerpAngle(a, b, t) {
   let diff = ((b - a + Math.PI) % (Math.PI * 2)) - Math.PI;
   if (diff < -Math.PI) diff += Math.PI * 2;
@@ -240,6 +249,7 @@ const player = {
   invT: 0, fireCd: 0, fireInterval: 0.28, weapon: 'NORMAL', weaponLevel: 0,
   rapidLevel: 0, burstRemaining: 0, burstTimer: 0,
   vulcanBurstRemaining: 0, vulcanBurstTimer: 0, vulcanShotInterval: 0.1, vulcanXOffset: 0,
+  laserSubCooldown: 0,
   phantomCooldown: 0,
   sparkCooldown: 0, sparkTimer: 0, prevWeapon: 'NORMAL', prevWeaponLevel: 0, prevRapidLevel: 0,
   weaponFireCooldown: 0,
@@ -253,6 +263,7 @@ function resetPlayer() {
   player.weaponLevel = debugStartWeapon ? 1 : 0;
   player.rapidLevel = 0; player.burstRemaining = 0; player.burstTimer = 0;
   player.vulcanBurstRemaining = 0; player.vulcanBurstTimer = 0; player.vulcanShotInterval = 0.1; player.vulcanXOffset = 0;
+  player.laserSubCooldown = 0;
   player.phantomCooldown = 0;
   player.sparkCooldown = 0; player.sparkTimer = debugStartWeapon === 'SPARK' ? 30.0 : 0;
   player.weaponFireCooldown = 0;
@@ -294,53 +305,79 @@ function spawnBossExplosion(x, y, color) {
 // ---------- gravity shockwaves ----------
 let shockwaves = [];
 function spawnShockwave(x, y, maxR) {
-  shockwaves.push({ x, y, maxR, t: 0, duration: 3.0, hitSet: new Set() }); // 5x slower than before (was 0.6s)
+  // grows for 1.0s, then holds at max size and jitters (shakes) for another 2.0s before vanishing
+  shockwaves.push({
+    x, y, maxR, t: 0, growDuration: 1.0, shakeDuration: 2.0, damageTimers: new Map(),
+    jitterX: 0, jitterY: 0, jitterTimer: 0,
+  });
 }
 function updateShockwaves(dt) {
   for (let i = shockwaves.length - 1; i >= 0; i--) {
     const s = shockwaves[i];
     s.t += dt;
-    if (s.t >= s.duration) { shockwaves.splice(i, 1); continue; }
-    // while it's on screen, the expanding ring itself has a hitbox: 2dmg to any
-    // enemy it touches (once per enemy per shockwave)
-    const frac = s.t / s.duration;
-    const ringR = Math.max(2, s.maxR * frac);
+    const totalDuration = s.growDuration + s.shakeDuration;
+    if (s.t >= totalDuration) { shockwaves.splice(i, 1); continue; }
+    const growing = s.t < s.growDuration;
+    const ringR = growing ? Math.max(2, s.maxR * (s.t / s.growDuration)) : s.maxR;
+    if (!growing) {
+      // shake phase: re-roll a +/-5px random offset every 0.01s
+      s.jitterTimer -= dt;
+      if (s.jitterTimer <= 0) {
+        s.jitterX = rand(-5, 5);
+        s.jitterY = rand(-5, 5);
+        s.jitterTimer = 0.01;
+      }
+    }
+    const cx = s.x + s.jitterX, cy = s.y + s.jitterY;
+    // while inside the shockwave's current radius, enemies/asteroids/crystals take
+    // 1 damage every 0.5s (repeating for as long as they stay inside, not a one-time hit)
+    const tickTarget = (target, tx, ty, tr, isAsteroid) => {
+      const d = Math.hypot(tx - cx, ty - cy);
+      if (d > ringR + tr) { s.damageTimers.delete(target); return; }
+      let timer = s.damageTimers.get(target);
+      if (timer === undefined) timer = 0; // damage immediately on entry
+      timer -= dt;
+      if (timer <= 0) {
+        if (isAsteroid) {
+          score += wave * 20;
+          registerAsteroidDamage(1);
+          spawnDeathParticles(tx, ty, target.isCrystal ? '#7CFFF0' : '#bbbbbb', 3);
+        } else {
+          target.hp -= 1;
+          score += 10; // +10 for dealing damage
+          if (target.hp <= 0) {
+            handleEnemyDeath(target);
+            const idx = enemies.indexOf(target);
+            if (idx >= 0) enemies.splice(idx, 1);
+          } else if (target.type !== 'GIANTBOSS') {
+            spawnDeathParticles(tx, ty, target.def.color, 3);
+          }
+        }
+        timer = 0.5;
+      }
+      s.damageTimers.set(target, timer);
+    };
     for (let j = enemies.length - 1; j >= 0; j--) {
       const e = enemies[j];
-      if (s.hitSet.has(e)) continue;
-      const d = Math.hypot(e.x - s.x, e.y - s.y);
-      if (d <= ringR + (e.def.r || 10)) {
-        s.hitSet.add(e);
-        e.hp -= 1;
-        score += 10; // +10 for dealing damage
-        if (e.hp <= 0) {
-          handleEnemyDeath(e);
-          enemies.splice(j, 1);
-        } else if (e.type !== 'GIANTBOSS') {
-          spawnDeathParticles(e.x, e.y, e.def.color, 3);
-        }
-      }
+      tickTarget(e, e.x, e.y, e.def.r || 10, false);
+    }
+    for (let j = asteroids.length - 1; j >= 0; j--) {
+      const a = asteroids[j];
+      tickTarget(a, a.x, a.y, a.r, true);
     }
   }
 }
 function drawShockwaves() {
   shockwaves.forEach(s => {
-    const frac = s.t / s.duration;
-    const r = Math.max(2, s.maxR * frac);
-    const alpha = Math.max(0, 1 - frac);
-    ctx.globalAlpha = alpha;
+    const growing = s.t < s.growDuration;
+    const r = growing ? Math.max(2, s.maxR * (s.t / s.growDuration)) : s.maxR;
+    const cx = s.x + s.jitterX, cy = s.y + s.jitterY;
+    ctx.globalAlpha = 1;
     ctx.strokeStyle = '#1f6bff';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
-    ctx.stroke();
-    // inner echo ring for extra visibility
-    ctx.globalAlpha = alpha * 0.6;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(s.x, s.y, Math.max(1, r * 0.6), 0, Math.PI * 2);
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.globalAlpha = 1;
     ctx.lineWidth = 1;
   });
 }
@@ -506,7 +543,7 @@ function drawPickupTexts() {
       alpha = 1 - fadeFrac;
     }
     ctx.globalAlpha = Math.max(0, alpha);
-    ctx.fillStyle = '#7CFFF0';
+    ctx.fillStyle = p.color || '#7CFFF0';
     ctx.font = `300 ${size}px "Montserrat", sans-serif`;
     ctx.textAlign = 'center';
     ctx.fillText(p.text, p.x, p.y - rise);
@@ -601,15 +638,15 @@ const SPARK_COOLDOWNS = [0, 0.3, 0.3, 0.3, 0.3, 0.3]; // fixed 0.3s regardless o
 // per-weapon fire cooldown (seconds between shots), replacing the old one-size-fits-all
 // "wait until the screen is clear of your own bullets" gate for these weapons
 const WEAPON_FIRE_COOLDOWNS = {
-  NORMAL: 0.3, DOUBLE: 0.3, WIDE: 0.3, HOMING: 0.5, LASER: 0.5,
-  GRAVITY: 0.5, BUBBLE: 0.5, CURVE: 0.5, THUNDER: 0.5,
+  NORMAL: 0.3, DOUBLE: 0.3, WIDE: 0.3, HOMING: 0.8, LASER: 1.0,
+  GRAVITY: 0.8, BUBBLE: 0.5, CURVE: 0.5, THUNDER: 0.5,
 };
 const LASER_SPECS = [null,
-  { length: 50, pierce: 2 },
-  { length: 75, pierce: 2 },
-  { length: 100, pierce: 3 },
-  { length: 200, pierce: 4 },
-  { length: 300, pierce: 10 },
+  { length: 200, pierce: 5, speed: 300 },
+  { length: 250, pierce: 5, speed: 350 },
+  { length: 300, pierce: 5, speed: 400 },
+  { length: 400, pierce: 10, speed: 450 },
+  { length: 500, pierce: 10, speed: 500 },
 ];
 const CURVE_SPECS = [null,
   { turn: 7.5 },
@@ -618,7 +655,7 @@ const CURVE_SPECS = [null,
   { turn: 7.5 },
   { turn: 7.5 },
 ];
-const THUNDER_LOOP_COUNTS = [0, 5, 9, 14, 20, 27];
+const THUNDER_LOOP_COUNTS = [0, 2, 4, 8, 16, 32];
 function fireWeapon() {
   const bx = player.x, by = player.y - player.r;
   const lvl = player.weaponLevel;
@@ -631,13 +668,13 @@ function fireWeapon() {
       let rad = 0;
       if (ox === minOx && ox !== maxOx) rad = -5 * Math.PI / 180;
       else if (ox === maxOx && ox !== minOx) rad = 5 * Math.PI / 180;
-      playerBullets.push({ x: bx + ox, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 1, lenMul: 0.5 });
+      playerBullets.push({ x: bx + ox, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 0.5, lenMul: 0.5 });
     });
   } else if (player.weapon === 'WIDE') {
     const n = WIDE_COUNTS[lvl];
     fanAngles(n, 7).forEach(a => {
       const rad = a * Math.PI / 180;
-      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 1, lenMul: 0.5 });
+      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 0.5, lenMul: 0.5 });
     });
   } else if (player.weapon === 'HOMING') {
     const n = HOMING_COUNTS[lvl];
@@ -646,29 +683,25 @@ function fireWeapon() {
       const rad = a * Math.PI / 180;
       const target = findNearestEnemyExcluding(bx, by, usedTargets) || findNearestEnemy(bx, by);
       if (target) usedTargets.add(target);
-      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, homing: true, target, power: 2 });
+      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 300, vy: -Math.cos(rad) * 300, r: 3, homing: true, target, power: 2, speed: 300 });
     });
   } else if (player.weapon === 'LASER') {
     const spec = LASER_SPECS[lvl];
-    playerBullets.push({ x: bx, y: by, vx: 0, vy: -700, r: 3, laser: true, length: spec.length, pierceLeft: spec.pierce, hitSet: new Set(), power: 10 });
-    // sub-lasers fire from both sides, one level below the main beam (Lv1 uses Lv1 too, since there's no Lv0)
-    const subLvl = lvl === 1 ? 1 : lvl - 1;
-    const subSpec = LASER_SPECS[subLvl];
-    [-15, 15].forEach(ox => {
-      playerBullets.push({ x: bx + ox, y: by, vx: 0, vy: -700, r: 3, laser: true, length: subSpec.length, pierceLeft: subSpec.pierce, hitSet: new Set(), power: 10, subLaser: true });
-    });
+    playerBullets.push({ x: bx, y: by, vx: 0, vy: -spec.speed, r: 3, laser: true, length: spec.length, pierceLeft: spec.pierce, hitSet: new Set(), power: 10 });
   } else if (player.weapon === 'GRAVITY') {
-    playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, power: 2, gravity: true, gravityRadius: lvl * 50 });
+    playerBullets.push({ x: bx, y: by, vx: 0, vy: -450, r: 3, power: 2, gravity: true, gravityRadius: lvl * 50 });
   } else if (player.weapon === 'BUBBLE') {
     const n = BUBBLE_COUNTS[lvl];
     const spd = 200; // slow-moving
     const maxTravelByAlpha = { 0.4: 200, 0.5: 300, 0.6: 400, 0.7: 500, 0.8: 600, 0.9: 700, 1.0: Infinity };
+    const bubbleDamageByAlpha = { 0.4: 0.5, 0.5: 0.5, 0.6: 1.0, 0.7: 1.0, 0.8: 1.5, 0.9: 2.0, 1.0: 3.0 };
     for (let k = 0; k < n; k++) {
       const rad = rand(-75, 75) * Math.PI / 180; // random angle within a 150-degree forward cone
-      const alpha = choice([1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4]);
+      // 40% opacity is the most common roll, 100% the rarest — weighted, not uniform
+      const alpha = weightedChoice([0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], [7, 6, 5, 4, 3, 2, 1]);
       playerBullets.push({
         x: bx, y: by, vx: Math.sin(rad) * spd, vy: -Math.cos(rad) * spd,
-        r: 1, power: 2, bubble: true, bubbleRadius: 50, traveled: 0,
+        r: 1, power: bubbleDamageByAlpha[alpha], bubble: true, bubbleRadius: 50, traveled: 0,
         alpha, maxTravel: maxTravelByAlpha[alpha],
       });
     }
@@ -699,6 +732,18 @@ function fireWeapon() {
   } else {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, power: 5 });
   }
+}
+
+function fireLaserSubs() {
+  // sub-lasers fire from both sides on their own independent 0.25s timer, one level
+  // below the main beam (Lv1 uses Lv1 too, since there's no Lv0), at reduced power
+  const bx = player.x, by = player.y - player.r;
+  const lvl = player.weaponLevel;
+  const subLvl = lvl === 1 ? 1 : lvl - 1;
+  const subSpec = LASER_SPECS[subLvl];
+  [-5, 5].forEach(ox => {
+    playerBullets.push({ x: bx + ox, y: by, vx: 0, vy: -subSpec.speed, r: 3, laser: true, length: subSpec.length, pierceLeft: subSpec.pierce, hitSet: new Set(), power: 0.5, subLaser: true });
+  });
 }
 
 function fireVulcanShot() {
@@ -803,7 +848,7 @@ function burstSpark(b) {
     const spd = rand(40, 200);
     const scatterRadius = rand(maxScatter * 0.3, maxScatter);
     playerBullets.push({
-      x: b.x, y: b.y, vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd, r: 1.5, power: 1, sparkFrag: true, noTrail: true,
+      x: b.x, y: b.y, vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd, r: 1.5, power: 0.51, sparkFrag: true, noTrail: true,
       rot: rand(0, Math.PI * 2), rotSpeed: 0,
       traveled: 0, scatterRadius,
     });
@@ -1176,11 +1221,11 @@ function spawnCrystal() {
   const fallSpeed = rand(110, 220) * asteroidSpeedMul;
   asteroids.push({
     x: rand(80, W - 80), y: -halfH - 20,
-    r: (halfW + halfH) / 2, // circular approximation splitting the difference between width/height for collision purposes
+    r: halfW, // collision radius matches the crystal's actual (narrow) width, not an average with its height
     isAsteroidObj: true, isCrystal: true,
     verts: makeHexagonVerts(halfW, halfH),
     angle: rand(0, Math.PI * 2), // phase of the vertical-axis spin (used as a scaleX angle, not a 2D rotation)
-    spin: rand(2, 4) * (Math.random() < 0.5 ? -1 : 1),
+    spin: rand(0.6, 1.2) * (Math.random() < 0.5 ? -1 : 1),
     vx: 0,
     vy: fallSpeed,
     willSplit: false, hasSplit: true, splitY: null,
@@ -1647,7 +1692,7 @@ function showEquipSelect() {
   equipScreen.classList.remove('hidden');
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['DOUBLE', 'LASER', 'CURVE', 'GRAVITY'];
+const EQUIP_UPDATED = ['HOMING', 'BUBBLE', 'LASER', 'THUNDER', 'GRAVITY'];
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -1780,6 +1825,15 @@ function updatePlayer(dt) {
     }
   }
 
+  // LASER sub-lasers: fire on their own independent 0.5s timer, decoupled from the main beam
+  if (player.weapon === 'LASER' && player.alive) {
+    player.laserSubCooldown -= dt;
+    if (player.laserSubCooldown <= 0) {
+      fireLaserSubs();
+      player.laserSubCooldown = 0.25;
+    }
+  }
+
   // rapid-fire burst: extra volleys fired quickly, bypassing the "screen clear" gate
   if (player.burstRemaining > 0) {
     player.burstTimer -= dt;
@@ -1860,7 +1914,8 @@ function updateBullets(dt) {
       if (b.target) {
         const dx = b.target.x - b.x, dy = b.target.y - b.y;
         const len = Math.max(0.0001, Math.hypot(dx, dy));
-        const dvx = dx / len * 540, dvy = dy / len * 540;
+        const spd = b.speed || Math.hypot(b.vx, b.vy) || 150;
+        const dvx = dx / len * spd, dvy = dy / len * spd;
         const turn = Math.min(1, 7 * dt);
         b.vx += (dvx - b.vx) * turn;
         b.vy += (dvy - b.vy) * turn;
@@ -1910,14 +1965,14 @@ function updateBullets(dt) {
           }
           b.chainPath.push({ x: next.x, y: next.y });
           b.loopsLeft -= 1;
-          b.chainTimer = 0.05;
+          b.chainTimer = 0.02;
           if (Math.random() < 0.5) {
             // 50% chance this jump also spawns an independent branch chain, part of the same family
             b.family.active += 1;
             playerBullets.push({
               x: next.x, y: next.y, vx: 0, vy: 0, r: 3, power: b.power, thunder: true, noTrail: true,
               chaining: true, dying: false, finished: false, hitSet: b.hitSet, chainPath: [{ x: next.x, y: next.y }],
-              loopsLeft: b.loopsLeft, chainTimer: 0.05, family: b.family,
+              loopsLeft: b.loopsLeft, chainTimer: 0.02, family: b.family,
             });
           }
         } else {
@@ -2048,7 +2103,7 @@ function handleCollisions() {
           }
           b.chaining = true;
           b.chainPath = [{ x: e.x, y: e.y }];
-          b.chainTimer = 0.05;
+          b.chainTimer = 0.02;
           break;
         }
       }
@@ -2119,8 +2174,9 @@ function hitPlayer() {
   player.lives -= 1;
   player.invT = 2.0;
   player.rapidLevel = Math.max(0, player.rapidLevel - 1); player.burstRemaining = 0;
-  if (player.weapon !== 'NORMAL') {
-    player.weaponLevel = Math.max(1, player.weaponLevel - 1);
+  if (player.weapon !== 'NORMAL' && player.weaponLevel > 1) {
+    player.weaponLevel -= 1;
+    pickupTexts.push({ text: 'POWER DOWN', x: player.x, y: player.y - player.r - 6, t: 0, duration: 2.0, color: '#fc0fc0' });
   }
   player.targetX = W / 2; player.x = W / 2;
   player.targetY = H - 90; player.y = H - 90;
@@ -2345,6 +2401,7 @@ function drawAsteroids() {
 function registerAsteroidDamage(amount) {
   score += 10; // +10 for dealing damage, on top of any per-weapon score
   asteroidHitCount += 1;
+  asteroidTotalDamage += amount;
   if (!asteroidRapidGiven && asteroidHitCount >= 250) {
     asteroidRapidGiven = true;
     spawnRapidItem(W / 2, -20);
@@ -2399,7 +2456,7 @@ function handleAsteroidCollisions() {
             // starts the same chain-lightning hop into nearby enemies as a direct enemy hit would
             b.chaining = true;
             b.chainPath = [{ x: a.x, y: a.y }];
-            b.chainTimer = 0.05;
+            b.chainTimer = 0.02;
           }
           break;
         }
@@ -2539,19 +2596,17 @@ function drawBullets() {
   playerBullets.forEach(b => {
     if (b.spawnDelay > 0) return; // not fired yet, stay invisible
     if (b.laser) {
-      const subMul = b.subLaser ? 0.3 : 1;
+      // gradient beam like CURVE's: dull at the tail (near origin), bright at the head (tip)
       ctx.lineWidth = b.subLaser ? 1 : 2;
-      if (b.trail) {
-        b.trail.forEach((p, idx) => {
-          const alpha = ((idx + 1) / (b.trail.length + 1)) * 0.4 * subMul;
-          ctx.strokeStyle = `rgba(57,255,243,${alpha})`;
-          ctx.beginPath();
-          ctx.moveTo(p.x, p.y);
-          ctx.lineTo(p.x, p.y - b.length);
-          ctx.stroke();
-        });
+      const grad = ctx.createLinearGradient(b.x, b.y, b.x, b.y - b.length);
+      if (b.subLaser) {
+        grad.addColorStop(0, 'rgba(20,60,58,0.3)');
+        grad.addColorStop(1, 'rgba(57,255,243,0.3)');
+      } else {
+        grad.addColorStop(0, darkenColor('#39fff3', 0.7));
+        grad.addColorStop(1, '#39fff3');
       }
-      ctx.strokeStyle = b.subLaser ? 'rgba(57,255,243,0.3)' : '#39fff3';
+      ctx.strokeStyle = grad;
       ctx.beginPath();
       ctx.moveTo(b.x, b.y);
       ctx.lineTo(b.x, b.y - b.length);
@@ -2616,16 +2671,37 @@ function drawBullets() {
         ctx.lineWidth = 1;
       }
     } else if (b.homing) {
-      // 3px square, with a subtle fading afterimage trail
+      // isosceles triangle (base 8px, height 12px, 1px thick), apex pointing toward the
+      // current travel direction (which itself points at whatever it's homing in on)
+      const ang = Math.atan2(b.vy, b.vx) + Math.PI / 2; // canvas apex is drawn pointing "up" by default, so offset by 90deg
+      ctx.lineWidth = 1;
       if (b.trail) {
         b.trail.forEach((p, idx) => {
           const alpha = ((idx + 1) / (b.trail.length + 1)) * 0.15;
           ctx.strokeStyle = `rgba(186,255,201,${alpha})`;
-          ctx.strokeRect(p.x - 1.5, p.y - 1.5, 3, 3);
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rot !== undefined ? p.rot : ang);
+          ctx.beginPath();
+          ctx.moveTo(0, -6);
+          ctx.lineTo(-4, 6);
+          ctx.lineTo(4, 6);
+          ctx.closePath();
+          ctx.stroke();
+          ctx.restore();
         });
       }
       ctx.strokeStyle = '#baffc9';
-      ctx.strokeRect(b.x - 1.5, b.y - 1.5, 3, 3);
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(ang);
+      ctx.beginPath();
+      ctx.moveTo(0, -6);
+      ctx.lineTo(-4, 6);
+      ctx.lineTo(4, 6);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
     } else if (b.vulcanLine) {
       // two parallel vertical lines "||", each 1x5px, 2px gap between them
       ctx.strokeStyle = '#ff9100';
@@ -2651,24 +2727,24 @@ function drawBullets() {
       ctx.fillRect(-3.5, -3.5, 7, 7);
       ctx.restore();
     } else if (b.gravity) {
-      // isosceles triangle bullet, base 3px / height 6px, pointing up
+      // isosceles triangle bullet, base 6px / height 8px, pointing up, 85% opacity
       if (b.trail) {
         b.trail.forEach((p, idx) => {
           const alpha = ((idx + 1) / (b.trail.length + 1)) * 0.07;
           ctx.strokeStyle = `rgba(186,255,201,${alpha})`;
           ctx.beginPath();
-          ctx.moveTo(p.x, p.y - 4);
-          ctx.lineTo(p.x - 1.5, p.y + 2);
-          ctx.lineTo(p.x + 1.5, p.y + 2);
+          ctx.moveTo(p.x, p.y - 5);
+          ctx.lineTo(p.x - 3, p.y + 3);
+          ctx.lineTo(p.x + 3, p.y + 3);
           ctx.closePath();
           ctx.stroke();
         });
       }
-      ctx.strokeStyle = '#baffc9';
+      ctx.strokeStyle = 'rgba(186,255,201,0.85)';
       ctx.beginPath();
-      ctx.moveTo(b.x, b.y - 4);
-      ctx.lineTo(b.x - 1.5, b.y + 2);
-      ctx.lineTo(b.x + 1.5, b.y + 2);
+      ctx.moveTo(b.x, b.y - 5);
+      ctx.lineTo(b.x - 3, b.y + 3);
+      ctx.lineTo(b.x + 3, b.y + 3);
       ctx.closePath();
       ctx.stroke();
     } else {
@@ -2863,7 +2939,8 @@ function drawHUD() {
   if (isAsteroidKind(CYCLE_KIND[cycleM - 1]) || isCrystalKind(CYCLE_KIND[cycleM - 1])) {
     const remaining = Math.max(0, Math.ceil(45 - asteroidWaveTimer));
     ctx.textAlign = 'center';
-    ctx.fillText(remaining + '  ' + asteroidHitCount, W / 2, 28); // debug: hit count next to the seconds
+    ctx.fillText('TIME ' + remaining, W / 2, 28);
+    ctx.fillText('TOTAL DAMAGE ' + asteroidTotalDamage, W / 2, 40);
   }
 
   // item status: right side, as name + level block bar (font 2px smaller than the rest of the HUD)
