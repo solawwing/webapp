@@ -71,6 +71,24 @@
   }
   #equipRow .equip-name { font-size: 7px; letter-spacing: 1px; opacity: 0.85; }
   #equipRow .equip-update-tag { font-size: 6px; letter-spacing: 1px; color: #ff1744; text-shadow: 0 0 6px #ff1744; margin-top: -4px; }
+  #equipDescBox { margin: 40px auto 0; max-width: 260px; width: 260px; }
+  #equipDescBox .item-header { display: flex; align-items: center; gap: 10px; }
+  #equipDescBox .item-name { font-size: clamp(10px, 2.8vw, 14px); letter-spacing: 1px; }
+  #equipDescBox .item-icon {
+    position: relative; width: 18px; height: 18px; flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 300; color: #fff;
+  }
+  #equipDescBox .item-icon::before {
+    content: ''; position: absolute; inset: 0;
+    border: 1px solid rgba(255,255,255,0.5);
+    animation: spinIcon 4s linear infinite;
+  }
+  #equipDescBox .item-desc {
+    font-size: clamp(8px, 2.2vw, 11px); opacity: 0.75; text-align: left;
+    line-height: 1.15; margin-top: 3px; margin-left: 28px; max-width: 220px;
+    white-space: pre-line;
+  }
 </style>
 </head>
 <body>
@@ -136,7 +154,7 @@
         <div class="item-desc">Chain lightning that jumps between nearby targets, sometimes branching further.</div>
       </div>
       <div class="item-entry" data-weapon="SPARK">
-        <div class="item-header"><span class="item-icon">S</span><span class="item-name">SPARK <span style="font-size:0.7em;">(SUMIDAGAWA HANABI FES.)</span></span></div>
+        <div class="item-header"><span class="item-icon">S</span><span class="item-name">SPARK <span style="font-size:6px;">(SUMIDAGAWA HANABI FES.)</span></span></div>
         <div class="item-desc">30s power-up: bursts of fireworks in ever-changing directions. No items drop while active.</div>
       </div>
       <hr style="width:100%; border:none; border-top:1px solid #39FF14; margin:8px 0;">
@@ -149,6 +167,10 @@
   <div id="equipScreen" class="hidden">
     <div class="sub" style="letter-spacing:2px; margin-bottom:18px;">SELECT YOUR EQUIPMENT</div>
     <div id="equipRow"></div>
+    <div id="equipDescBox">
+      <div class="item-header"><span class="item-icon" id="equipDescIcon"></span><span class="item-name" id="equipDescName"></span></div>
+      <div class="item-desc" id="equipDescText"></div>
+    </div>
   </div>
   <div id="overScreen" class="hidden">
     <div class="title" style="font-size:clamp(8px,3.5vw,18px);">GAME OVER</div>
@@ -704,7 +726,7 @@ function fireWeapon() {
     const spec = LASER_SPECS[lvl];
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -spec.speed, r: 3, laser: true, length: spec.length, pierceLeft: spec.pierce, hitSet: new Set(), power: 10 });
   } else if (player.weapon === 'GRAVITY') {
-    playerBullets.push({ x: bx, y: by, vx: 0, vy: -450, r: 3, power: 2, gravity: true, gravityRadius: lvl * 50 });
+    playerBullets.push({ x: bx, y: by, vx: 0, vy: -450, r: 3, power: 2, gravity: true, gravityRadius: lvl * 40 });
   } else if (player.weapon === 'BUBBLE') {
     const n = BUBBLE_COUNTS[lvl];
     const spd = 200; // slow-moving
@@ -840,11 +862,11 @@ function firePhantomFlash() {
 const SPARK_DIRECTION_CYCLE = [8, 10, 6, 12];
 function currentSparkBurstCount() {
   const elapsed = 30.0 - player.sparkTimer;
-  if (elapsed < 20) {
+  if (elapsed < 15) {
     const idx = Math.floor(elapsed / 5) % SPARK_DIRECTION_CYCLE.length;
     return SPARK_DIRECTION_CYCLE[idx];
   }
-  return choice([64, 256]); // final 10s: 64 or 256-direction bursts, randomly per trigger
+  return choice([64, 256]); // final 5s: 64 or 256-direction bursts, randomly per trigger
 }
 function fireSparkShot() {
   // built-in 2-shot: every trigger fires 2 sparks at once, sharing one burst height/point
@@ -1763,12 +1785,54 @@ canvas.addEventListener('pointerdown', e => {
 // "start" now leads into an equipment-select screen instead of launching straight into the game
 let showingEquip = false;
 let debugStartWeapon = null;
-const EQUIP_CHOICES = ['DOUBLE', 'WIDE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'THUNDER']; // no NORMAL, no SPARK
+const EQUIP_CHOICES = ['DOUBLE', 'WIDE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'THUNDER', 'SPARK']; // no NORMAL
 function showEquipSelect() {
   showingEquip = true;
   titleScreen.classList.add('hidden');
   itemsScreen.classList.add('hidden');
   equipScreen.classList.remove('hidden');
+  startEquipDescCycle();
+}
+const WEAPON_DESCRIPTIONS = {};
+document.querySelectorAll('#itemsScreen .item-entry[data-weapon]').forEach(el => {
+  const descEl = el.querySelector('.item-desc');
+  if (descEl) WEAPON_DESCRIPTIONS[el.dataset.weapon] = descEl.textContent;
+});
+// longer, more detailed write-ups (roughly 8-10 wrapped lines) used only on the
+// equipment-select screen, distinct from the item-legend panel's short 2-line blurbs
+const EQUIP_LONG_DESCRIPTIONS = {
+  DOUBLE: "Fires twin light-blue shots side by side, up to 10-way at higher levels. The outer two shots always angle five degrees outward for a touch of extra spread. Fast 0.3s fire rate makes this a reliable pickup that scales cleanly as you stack levels.\n\nLv1: 2 shots.\nLv2: 4 shots.\nLv3: 6 shots.\nLv4: 8 shots.\nLv5: 10 shots, max spread.",
+  WIDE: "Sprays a green fan of shots across a wide arc, from 3-way up to 11-way at max level with seven degrees between each shot. Great coverage against spread-out formations, though each individual shot is on the weaker side. Fires quickly at a 0.3s interval.\n\nLv1: 3-way fan.\nLv2: 5-way fan.\nLv3: 7-way fan.\nLv4: 9-way fan.\nLv5: 11-way, full coverage.",
+  HOMING: "Each shot locks onto its own distinct target, enemies, asteroids, and crystals all count. Shots launch from twenty pixels off the ship's tip, travel two hundred pixels dead straight, then curve in and accelerate toward whatever they are locked onto. Leveling up adds more shots at wider spread angles.\n\nLv1: 2 shots at ±20°.\nLv2: 4 shots, up to ±60°.\nLv3: 6 shots, up to ±100°.\nLv4: 8 shots, up to ±140°.\nLv5: 10 shots, up to ±180°.",
+  LASER: "A piercing cyan beam that cuts through several targets at once, plus two independent side beams firing on their own faster rhythm. Length, pierce count, and travel speed all increase together as you level up, turning this into a serious long range option late game.\n\nLv1: 200px, pierces 5.\nLv2: 250px, pierces 5.\nLv3: 300px, pierces 5.\nLv4: 400px, pierces 10.\nLv5: 500px, pierces 10, fastest.",
+  GRAVITY: "Every hit splashes nearby enemies for extra damage, and also kicks off a shockwave ring that lingers on screen for a few seconds. Anything caught inside the ring takes repeated damage over time and gets slowed down while trapped, making this a strong area control pickup.\n\nLv1: 40px splash radius.\nLv2: 80px radius.\nLv3: 120px radius.\nLv4: 160px radius.\nLv5: 200px radius, biggest shockwave.",
+  BUBBLE: "Launches a wide cone of drifting pink orbs ahead of the ship. Each orb's brightness is random and determines both how far it travels and how hard it hits. The brightest orbs fly the farthest and deal the most damage, while dimmer ones fizzle out quickly nearby.\n\nLv1: 6 orbs per shot.\nLv2: 10 orbs.\nLv3: 14 orbs.\nLv4: 18 orbs.\nLv5: 22 orbs, thickest cone.",
+  VULCAN: "A rapid fire burst of short orange bolts fired from the very tip of the ship, each one scattering slightly off true for an unpredictable spray. The whole burst always finishes within half a second no matter how many shots you have unlocked, and it stacks cleanly with RAPID.\n\nLv1: 2-shot burst.\nLv2: 4-shot burst.\nLv3: 6-shot burst.\nLv4: 8-shot burst.\nLv5: 10-shot burst, same 0.5s window.",
+  PHANTOM: "Instantly flashes a wide beam from the ship straight up to the top of the screen, damaging everything caught inside the flash the moment it fires. The cooldown between flashes gets shorter with each level, letting you flash more and more often as you power up.\n\nLv1: 100px wide, 1.2s cooldown.\nLv2: 120px wide, faster cooldown.\nLv3: 140px wide.\nLv4: 160px wide.\nLv5: 180px wide, 0.4s cooldown.",
+  CURVE: "Launches one violet beam per level, each one locking onto a different target near the top of the screen. Rather than turning sharply, it curves along a gentle parabolic arc toward its target, piercing anything else it passes through along the way for lesser damage.\n\nLv1: 1 beam.\nLv2: 2 beams.\nLv3: 3 beams.\nLv4: 4 beams.\nLv5: 5 beams, covers most of the top row.",
+  THUNDER: "A yellow bolt that, on its first hit, ignites a chain reaction, jumping rapidly between nearby untouched targets and sometimes branching into multiple simultaneous chains. Higher levels dramatically increase how many jumps the chain can make before it fizzles out.\n\nLv1: 2 jumps.\nLv2: 4 jumps.\nLv3: 8 jumps.\nLv4: 16 jumps.\nLv5: 32 jumps, huge chains.",
+  SPARK: "A rare thirty second power-up themed after a fireworks festival. Twin sparks rise and burst into scattering fragments, with the number of directions constantly changing throughout the duration for an ever shifting fireworks display. No items drop while it is active, so time your pickup carefully.\n\nLocked at Lv1 the whole time — picking it up again just refreshes the 30s timer instead of leveling up.",
+};
+let equipDescIndex = 0;
+let equipDescInterval = null;
+function updateEquipDesc() {
+  const type = EQUIP_CHOICES[equipDescIndex % EQUIP_CHOICES.length];
+  equipDescIndex++;
+  document.getElementById('equipDescIcon').textContent = ITEM_GLYPHS[type] || '';
+  const nameEl = document.getElementById('equipDescName');
+  if (type === 'SPARK') {
+    nameEl.textContent = '';
+    nameEl.innerHTML = 'SPARK <span style="font-size:6px;">(SUMIDAGAWA HANABI FES.)</span>';
+  } else {
+    nameEl.textContent = type;
+  }
+  document.getElementById('equipDescText').textContent = EQUIP_LONG_DESCRIPTIONS[type] || WEAPON_DESCRIPTIONS[type] || '';
+}
+function startEquipDescCycle() {
+  equipDescIndex = 0;
+  updateEquipDesc();
+  if (equipDescInterval) clearInterval(equipDescInterval);
+  equipDescInterval = setInterval(updateEquipDesc, 3000);
 }
 const equipRow = document.getElementById('equipRow');
 const EQUIP_UPDATED = ['HOMING', 'BUBBLE', 'LASER', 'THUNDER', 'GRAVITY'];
@@ -1837,6 +1901,7 @@ function beginGame() {
   titleScreen.classList.remove('hidden');
   itemsScreen.classList.add('hidden');
   equipScreen.classList.add('hidden');
+  if (equipDescInterval) { clearInterval(equipDescInterval); equipDescInterval = null; }
   score = 0; wave = 1; killCount = 0; starReverse = false; globalSpeedBonus = 0;
   resetPlayer();
   playerBullets = []; enemyBullets = []; items = []; pickupTexts = []; particles = []; shockwaves = []; phantomFlashes = [];
@@ -1858,6 +1923,7 @@ function goToTitle() {
   overScreen.classList.add('hidden');
   itemsScreen.classList.add('hidden');
   equipScreen.classList.add('hidden');
+  if (equipDescInterval) { clearInterval(equipDescInterval); equipDescInterval = null; }
   showingEquip = false;
   titleShowingItems = false;
   titleScreen.classList.remove('hidden');
