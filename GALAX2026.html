@@ -227,6 +227,7 @@ function qbezier(p0, p1, p2, t) {
 function dist2(ax, ay, bx, by) { const dx = ax-bx, dy = ay-by; return dx*dx + dy*dy; }
 function rand(a, b) { return a + Math.random() * (b - a); }
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function formatScore(n) { return Math.round(n).toLocaleString('en-US'); }
 function weightedChoice(items, weights) {
   const total = weights.reduce((a, b) => a + b, 0);
   let r = Math.random() * total;
@@ -340,7 +341,7 @@ function updateShockwaves(dt) {
       if (timer <= 0) {
         if (isAsteroid) {
           score += wave * 20;
-          registerAsteroidDamage(1);
+          registerAsteroidDamage(1, target);
           spawnDeathParticles(tx, ty, target.isCrystal ? '#7CFFF0' : '#bbbbbb', 3);
         } else {
           target.hp -= 1;
@@ -403,7 +404,7 @@ function applyGravitySplash(x, y, radius, excludeEnemy) {
     if (a === excludeEnemy) return;
     if (dist2(x, y, a.x, a.y) <= radius * radius) {
       score += wave * 20;
-      registerAsteroidDamage(5);
+      registerAsteroidDamage(5, a);
       spawnDeathParticles(a.x, a.y, '#bbbbbb', 3);
     }
   });
@@ -668,13 +669,13 @@ function fireWeapon() {
       let rad = 0;
       if (ox === minOx && ox !== maxOx) rad = -5 * Math.PI / 180;
       else if (ox === maxOx && ox !== minOx) rad = 5 * Math.PI / 180;
-      playerBullets.push({ x: bx + ox, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 0.5, lenMul: 0.5 });
+      playerBullets.push({ x: bx + ox, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 1, lenMul: 0.5 });
     });
   } else if (player.weapon === 'WIDE') {
     const n = WIDE_COUNTS[lvl];
     fanAngles(n, 7).forEach(a => {
       const rad = a * Math.PI / 180;
-      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 0.5, lenMul: 0.5 });
+      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 1, lenMul: 0.5 });
     });
   } else if (player.weapon === 'HOMING') {
     const n = HOMING_COUNTS[lvl];
@@ -749,7 +750,7 @@ function fireLaserSubs() {
 function fireVulcanShot() {
   // fixed center firing position, no offset
   const bx = player.x, by = player.y - player.r;
-  playerBullets.push({ x: bx, y: by, vx: 0, vy: -400, r: 1, power: 1, noTrail: true, vulcanLine: true });
+  playerBullets.push({ x: bx, y: by, vx: 0, vy: -400, r: 1, power: 2, noTrail: true, vulcanLine: true });
 }
 
 // ---------- PHANTOM: instant flash strike ----------
@@ -814,7 +815,7 @@ function firePhantomFlash() {
     const a = asteroids[i];
     if (a.x >= left && a.x <= right && a.y >= top && a.y <= bottom) {
       score += wave * 20;
-      registerAsteroidDamage(2);
+      registerAsteroidDamage(2, a);
       spawnDeathParticles(a.x, a.y, '#bbbbbb', 10);
     }
   }
@@ -1178,6 +1179,7 @@ function spawnAsteroid() {
     vx: Math.sin(fallAngleRad) * fallSpeed,
     vy: Math.cos(fallAngleRad) * fallSpeed, // each asteroid falls at its own speed, faster overall
     willSplit, hasSplit: false, splitY: willSplit ? rand(20, H / 2) : null,
+    damageTaken: 0,
   });
 }
 
@@ -1196,7 +1198,53 @@ function splitAsteroid(a, i) {
       vx: a.vx + (s === 0 ? -70 : 70),
       vy: a.vy,
       willSplit: false, hasSplit: true, splitY: null,
+      damageTaken: 0,
     });
+  }
+}
+
+// splits an asteroid or crystal that has taken 50 cumulative damage, regardless of
+// the random y-position split system asteroids also have
+function splitByDamage(target) {
+  const idx = asteroids.indexOf(target);
+  if (idx === -1) return;
+  asteroids.splice(idx, 1);
+  if (target.isCrystal) {
+    const origHalfW = target.r;
+    const origHalfH = Math.abs(target.verts[0].y);
+    const newHalfW = Math.max(10, origHalfW * 0.65);
+    const newHalfH = Math.max(40, origHalfH * 0.65);
+    for (let s = 0; s < 2; s++) {
+      asteroids.push({
+        x: target.x + (s === 0 ? -10 : 10), y: target.y,
+        r: newHalfW,
+        isAsteroidObj: true, isCrystal: true,
+        verts: makeHexagonVerts(newHalfW, newHalfH),
+        angle: rand(0, Math.PI * 2),
+        spin: rand(0.6, 1.2) * (Math.random() < 0.5 ? -1 : 1),
+        vx: (target.vx || 0) + (s === 0 ? -30 : 30),
+        vy: target.vy,
+        willSplit: false, hasSplit: true, splitY: null,
+        damageTaken: 0,
+      });
+    }
+  } else {
+    const newR = Math.max(30, target.r * 0.65);
+    for (let s = 0; s < 2; s++) {
+      const n = Math.floor(rand(4, 9));
+      asteroids.push({
+        x: target.x + (s === 0 ? -12 : 12), y: target.y,
+        r: newR,
+        isAsteroidObj: true,
+        verts: makeAsteroidVerts(newR, n),
+        angle: rand(0, Math.PI * 2),
+        spin: rand(0.5, 1.1) * (Math.random() < 0.5 ? -1 : 1),
+        vx: (target.vx || 0) + (s === 0 ? -70 : 70),
+        vy: target.vy,
+        willSplit: false, hasSplit: true, splitY: null,
+        damageTaken: 0,
+      });
+    }
   }
 }
 
@@ -1229,6 +1277,7 @@ function spawnCrystal() {
     vx: 0,
     vy: fallSpeed,
     willSplit: false, hasSplit: true, splitY: null,
+    damageTaken: 0,
   });
 }
 
@@ -1767,8 +1816,8 @@ function beginGame() {
 function endGame() {
   state = STATE.GAMEOVER;
   if (score > highScore) { highScore = score; saveHighScore(); }
-  finalScoreLine.textContent = 'SCORE: ' + score;
-  hiScoreLine2.textContent = 'HIGH SCORE: ' + highScore;
+  finalScoreLine.textContent = 'SCORE: ' + formatScore(score);
+  hiScoreLine2.textContent = 'HIGH SCORE: ' + formatScore(highScore);
   titleScreen.classList.add('hidden');
   overScreen.classList.remove('hidden');
   overlay.style.display = 'flex';
@@ -1951,7 +2000,7 @@ function updateBullets(dt) {
           b.hitSet.add(next);
           if (next.isAsteroidObj) {
             score += wave * 20;
-            registerAsteroidDamage(1);
+            registerAsteroidDamage(1, next);
             spawnDeathParticles(next.x, next.y, '#bbbbbb', 3);
           } else {
             next.hp -= (next.type === 'GIANTBOSS' ? 5 : 1);
@@ -2134,7 +2183,8 @@ function handleCollisions() {
         if (dist2(e.x, e.y, b.x, b.y) < rr) {
           playerBullets.splice(j, 1);
           const ex = e.x, ey = e.y;
-          e.hp -= (b.gravity && e.type === 'GIANTBOSS' ? 5 : (b.power || 1));
+          const isBoss = e.type === 'GIANTBOSS';
+          e.hp -= (b.gravity && isBoss) ? 5 : (b.lenMul && isBoss) ? 2 : (b.power || 1);
           score += 10; // +10 for dealing damage
           if (e.hp <= 0) {
             handleEnemyDeath(e);
@@ -2398,10 +2448,14 @@ function drawAsteroids() {
     ctx.restore();
   });
 }
-function registerAsteroidDamage(amount) {
+function registerAsteroidDamage(amount, target) {
   score += 10; // +10 for dealing damage, on top of any per-weapon score
   asteroidHitCount += 1;
   asteroidTotalDamage += amount;
+  if (target) {
+    target.damageTaken = (target.damageTaken || 0) + amount;
+    if (target.damageTaken >= 50) splitByDamage(target);
+  }
   if (!asteroidRapidGiven && asteroidHitCount >= 250) {
     asteroidRapidGiven = true;
     spawnRapidItem(W / 2, -20);
@@ -2433,7 +2487,7 @@ function handleAsteroidCollisions() {
         if (dist2(a.x, a.y, b.x, closestY) < rr) {
           b.hitSet.add(a);
           score += wave * 20;
-          registerAsteroidDamage(b.power || 1);
+          registerAsteroidDamage(b.power || 1, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
           b.pierceLeft -= 1;
           if (a.isCrystal) b.pierceLeft = 0; // crystals consume the bullet outright, no piercing through
@@ -2447,7 +2501,7 @@ function handleAsteroidCollisions() {
         const rr = (a.r + b.r) * (a.r + b.r);
         if (dist2(a.x, a.y, b.x, b.y) < rr) {
           score += wave * 20;
-          registerAsteroidDamage(b.power || 3);
+          registerAsteroidDamage(b.power || 3, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
           if (a.isCrystal) {
             // crystals consume the bullet outright, no chain-lightning triggered
@@ -2471,7 +2525,7 @@ function handleAsteroidCollisions() {
           // except crystals, which consume the beam outright
           b.hitSet.add(a);
           score += wave * 20;
-          registerAsteroidDamage(2);
+          registerAsteroidDamage(2, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
           if (a.isCrystal) b.dying = true;
           break;
@@ -2484,7 +2538,7 @@ function handleAsteroidCollisions() {
         if (dist2(a.x, a.y, b.x, b.y) < rr) {
           playerBullets.splice(j, 1);
           score += wave * 20;
-          registerAsteroidDamage(b.power || 1);
+          registerAsteroidDamage(b.power || 1, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
           if (b.gravity) applyGravitySplash(a.x, a.y, b.gravityRadius, null);
           break;
@@ -2919,8 +2973,8 @@ function drawHUD() {
   ctx.textBaseline = 'top';
 
   // SCORE + HI: centered together as one block
-  const scoreText = 'SCORE ' + score;
-  const hiText = 'HI ' + highScore;
+  const scoreText = 'SCORE ' + formatScore(score);
+  const hiText = 'HI ' + formatScore(highScore);
   const gap = 14;
   ctx.textAlign = 'left';
   const scoreWidth = ctx.measureText(scoreText).width;
@@ -2940,7 +2994,7 @@ function drawHUD() {
     const remaining = Math.max(0, Math.ceil(45 - asteroidWaveTimer));
     ctx.textAlign = 'center';
     ctx.fillText('TIME ' + remaining, W / 2, 28);
-    ctx.fillText('TOTAL DAMAGE ' + asteroidTotalDamage, W / 2, 40);
+    ctx.fillText('TOTAL DAMAGE ' + Math.round(asteroidTotalDamage), W / 2, 40);
   }
 
   // item status: right side, as name + level block bar (font 2px smaller than the rest of the HUD)
