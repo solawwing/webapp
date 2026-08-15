@@ -97,52 +97,52 @@
     <div class="item-list">
       <div class="item-entry" data-weapon="DOUBLE">
         <div class="item-header"><span class="item-icon">D</span><span class="item-name">DOUBLE</span></div>
-        <div class="item-desc">Fires twin parallel shots side by side. Stacking increases the shot count, up to 7-way fire.</div>
+        <div class="item-desc">Twin shots side by side, up to 10-way. The outer two always angle slightly outward.</div>
       </div>
       <div class="item-entry" data-weapon="WIDE">
         <div class="item-header"><span class="item-icon">W</span><span class="item-name">WIDE</span></div>
-        <div class="item-desc">Fires a fan-shaped spread of shots. Stacking widens the spread, up to 7 directions.</div>
+        <div class="item-desc">Fan-shaped spread of shots, up to 11-way at 7° apart.</div>
       </div>
       <div class="item-entry" data-weapon="HOMING">
         <div class="item-header"><span class="item-icon">H</span><span class="item-name">HOMING</span></div>
-        <div class="item-desc">Each shot locks onto a different enemy and tracks it automatically until impact.</div>
+        <div class="item-desc">Locks distinct targets, flies straight briefly, then curves in and speeds up.</div>
       </div>
       <div class="item-entry" data-weapon="LASER">
         <div class="item-header"><span class="item-icon">L</span><span class="item-name">LASER</span></div>
-        <div class="item-desc">A piercing beam that cuts straight through several enemies in a single pass.</div>
+        <div class="item-desc">A piercing beam plus two weaker side beams. Length and speed grow per level.</div>
       </div>
       <div class="item-entry" data-weapon="GRAVITY">
         <div class="item-header"><span class="item-icon">G</span><span class="item-name">GRAVITY</span></div>
-        <div class="item-desc">Destroying an enemy triggers a shockwave that also damages nearby enemies.</div>
+        <div class="item-desc">Splash damage plus a lingering shockwave that slows and repeatedly hurts anything inside.</div>
       </div>
       <div class="item-entry" data-weapon="BUBBLE">
         <div class="item-header"><span class="item-icon">B</span><span class="item-name">BUBBLE</span></div>
-        <div class="item-desc">Slow drifting orbs fired in a wide forward cone. Every hit splashes nearby enemies too.</div>
+        <div class="item-desc">A wide cone of drifting orbs. Brighter orbs fly farther and hit harder.</div>
       </div>
       <div class="item-entry" data-weapon="VULCAN">
         <div class="item-header"><span class="item-icon">V</span><span class="item-name">VULCAN</span></div>
-        <div class="item-desc">Fires a rapid 5-shot burst (0.2s apart), growing by 5 more shots per level. Stacks with RAPID.</div>
+        <div class="item-desc">Rapid burst from the ship's tip with a slight random spread. Stacks with RAPID.</div>
       </div>
       <div class="item-entry" data-weapon="PHANTOM">
         <div class="item-header"><span class="item-icon">P</span><span class="item-name">PHANTOM</span></div>
-        <div class="item-desc">Flashes a wide beam straight up, damaging everything caught in it. Cooldown shortens each level.</div>
+        <div class="item-desc">Instant flash beam to the top of the screen. Cooldown shortens each level.</div>
       </div>
       <div class="item-entry" data-weapon="CURVE">
         <div class="item-header"><span class="item-icon">C</span><span class="item-name">CURVE</span></div>
-        <div class="item-desc">A violet beam that bends to chase down enemies, piercing through several as it goes.</div>
+        <div class="item-desc">Locks the topmost targets and curves toward them, piercing anything else along the way.</div>
       </div>
       <div class="item-entry" data-weapon="THUNDER">
         <div class="item-header"><span class="item-icon">T</span><span class="item-name">THUNDER</span></div>
-        <div class="item-desc">A bright yellow bolt that chains from enemy to nearby enemy. More jumps per level.</div>
+        <div class="item-desc">Chain lightning that jumps between nearby targets, sometimes branching further.</div>
       </div>
       <div class="item-entry" data-weapon="SPARK">
         <div class="item-header"><span class="item-icon">S</span><span class="item-name">SPARK <span style="font-size:0.7em;">(SUMIDAGAWA HANABI FES.)</span></span></div>
-        <div class="item-desc">30s power-up: no items drop while active. Bursts cycle 8/10/6/12-way for 20s, then 32-way for 10s.</div>
+        <div class="item-desc">30s power-up: bursts of fireworks in ever-changing directions. No items drop while active.</div>
       </div>
       <hr style="width:100%; border:none; border-top:1px solid #39FF14; margin:8px 0;">
       <div class="item-entry">
         <div class="item-header"><span class="item-icon">^</span><span class="item-name">RAPID</span></div>
-        <div class="item-desc">Fires several extra shots in a quick burst before waiting for the next volley. Earn it by pushing hard through the Asteroid Belt.</div>
+        <div class="item-desc">Adds a quick extra burst to your current weapon. Found in the Asteroid/Crystal Belt.</div>
       </div>
     </div>
   </div>
@@ -675,7 +675,7 @@ function fireWeapon() {
       let rad = 0;
       if (ox === minOx && ox !== maxOx) rad = -5 * Math.PI / 180;
       else if (ox === maxOx && ox !== minOx) rad = 5 * Math.PI / 180;
-      playerBullets.push({ x: bx + ox, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 1, lenMul: 0.5 });
+      playerBullets.push({ x: bx + ox, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 1, double: true });
     });
   } else if (player.weapon === 'WIDE') {
     const n = WIDE_COUNTS[lvl];
@@ -766,7 +766,7 @@ function fireVulcanShot() {
   // firing angle is randomized between -10 and +10 degrees on every shot
   const bx = player.x, by = player.y - player.r * 1.9 * 1.4;
   const rad = rand(-10, 10) * Math.PI / 180;
-  playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 400, vy: -Math.cos(rad) * 400, r: 1, power: 2, noTrail: true, vulcanLine: true });
+  playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 400, vy: -Math.cos(rad) * 400, r: 1, power: 2, vulcanLine: true });
 }
 
 // ---------- PHANTOM: instant flash strike ----------
@@ -1980,7 +1980,7 @@ function updateBullets(dt) {
     if (!b.bubble && !b.noTrail) {
       if (!b.trail) b.trail = [];
       b.trail.push({ x: b.x, y: b.y, rot: b.rot });
-      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
+      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.wide ? 14 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
       if (b.trail.length > maxTrail) b.trail.shift();
     }
     if (b.homing) {
@@ -2105,7 +2105,7 @@ function updateBullets(dt) {
       let total = 0;
       for (let k = b.fullTrail.length - 1; k > 0; k--) {
         total += Math.hypot(b.fullTrail[k].x - b.fullTrail[k - 1].x, b.fullTrail[k].y - b.fullTrail[k - 1].y);
-        if (total > 300) { b.fullTrail.splice(0, k); break; }
+        if (total > 500) { b.fullTrail.splice(0, k); break; }
       }
     }
     if (b.bubble) {
@@ -2724,7 +2724,7 @@ function drawBullets() {
       if (b.chaining || b.dying || b.finished) {
         // chain lightning path from the first hit onward, erased from the origin when done;
         // gradient from a dull tail (origin) to a saturated fluorescent-yellow head (newest jump)
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 2;
         if (b.chainPath.length > 1) {
           const n = b.chainPath.length;
           for (let k = 1; k < n; k++) {
@@ -2755,6 +2755,7 @@ function drawBullets() {
         ctx.lineTo(b.x, b.y - b.length);
         ctx.stroke();
       }
+      ctx.lineWidth = 1;
     } else if (b.laserCurve) {
       // full path from origin to current tip, growing until it hits or leaves the
       // screen, then erased from the near (origin) end forward; the head (tip) is
@@ -2773,8 +2774,9 @@ function drawBullets() {
         ctx.lineWidth = 1;
       }
     } else if (b.homing) {
-      // isosceles triangle (base 8px, height 12px, 1px thick), apex pointing toward the
-      // current travel direction (which itself points at whatever it's homing in on)
+      // isosceles triangle (base 5.6px, height 8.4px — 70% of the original 8x12, 1px
+      // thick), apex pointing toward the current travel direction (which itself points
+      // at whatever it's homing in on)
       const ang = Math.atan2(b.vy, b.vx) + Math.PI / 2; // canvas apex is drawn pointing "up" by default, so offset by 90deg
       ctx.lineWidth = 1;
       if (b.trail) {
@@ -2785,32 +2787,64 @@ function drawBullets() {
           ctx.translate(p.x, p.y);
           ctx.rotate(p.rot !== undefined ? p.rot : ang);
           ctx.beginPath();
-          ctx.moveTo(0, -6);
-          ctx.lineTo(-4, 6);
-          ctx.lineTo(4, 6);
+          ctx.moveTo(0, -4.2);
+          ctx.lineTo(-2.8, 4.2);
+          ctx.lineTo(2.8, 4.2);
           ctx.closePath();
           ctx.stroke();
           ctx.restore();
         });
       }
-      ctx.strokeStyle = '#baffc9';
       ctx.save();
       ctx.translate(b.x, b.y);
       ctx.rotate(ang);
+      // two slanted sides at full opacity
+      ctx.strokeStyle = '#baffc9';
       ctx.beginPath();
-      ctx.moveTo(0, -6);
-      ctx.lineTo(-4, 6);
-      ctx.lineTo(4, 6);
-      ctx.closePath();
+      ctx.moveTo(0, -4.2);
+      ctx.lineTo(-2.8, 4.2);
+      ctx.moveTo(0, -4.2);
+      ctx.lineTo(2.8, 4.2);
       ctx.stroke();
+      // base edge at 50% opacity (thicker line so the opacity difference reads clearly
+      // at this small a scale)
+      ctx.strokeStyle = 'rgba(186,255,201,0.5)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-2.8, 4.2);
+      ctx.lineTo(2.8, 4.2);
+      ctx.stroke();
+      ctx.lineWidth = 1;
       ctx.restore();
     } else if (b.vulcanLine) {
-      // two parallel vertical lines "||", each 1x5px, 2px gap between them
-      ctx.strokeStyle = '#ff6a00';
-      ctx.beginPath();
-      ctx.moveTo(b.x - 1.5, b.y - 2.5); ctx.lineTo(b.x - 1.5, b.y + 2.5);
-      ctx.moveTo(b.x + 1.5, b.y - 2.5); ctx.lineTo(b.x + 1.5, b.y + 2.5);
-      ctx.stroke();
+      // two parallel bars "||", each 2x5px, 3px gap between them; afterimage trail
+      // rendered the same way enemy bullets' trails are (outline squares fading with
+      // distance), rather than filled shapes
+      if (b.trail) {
+        b.trail.forEach((p, idx) => {
+          const alpha = ((idx + 1) / (b.trail.length + 1)) * 0.4;
+          ctx.strokeStyle = `rgba(255,106,0,${alpha})`;
+          ctx.strokeRect(p.x - 3.5, p.y - 2.5, 2, 5);
+          ctx.strokeRect(p.x + 1.5, p.y - 2.5, 2, 5);
+        });
+      }
+      ctx.fillStyle = '#ff6a00';
+      ctx.fillRect(b.x - 3.5, b.y - 2.5, 2, 5);
+      ctx.fillRect(b.x + 1.5, b.y - 2.5, 2, 5);
+    } else if (b.wide || b.double) {
+      // single bar "|", 2x5px — just one of VULCAN's two bars; same enemy-bullet-style
+      // afterimage trail (outline squares fading with distance)
+      const barColor = b.wide ? '#39ff14' : '#4ef0ff';
+      const barColorRgb = b.wide ? '57,255,20' : '78,240,255';
+      if (b.trail) {
+        b.trail.forEach((p, idx) => {
+          const alpha = ((idx + 1) / (b.trail.length + 1)) * 0.4;
+          ctx.strokeStyle = `rgba(${barColorRgb},${alpha})`;
+          ctx.strokeRect(p.x - 1, p.y - 2.5, 2, 5);
+        });
+      }
+      ctx.fillStyle = barColor;
+      ctx.fillRect(b.x - 1, b.y - 2.5, 2, 5);
     } else if (b.spark && !b.burst) {
       // small rising spark, harmless until it bursts above mid-screen — 3x3px square
       ctx.strokeStyle = '#ffe93a';
@@ -2852,7 +2886,7 @@ function drawBullets() {
     } else {
       const half = b.r * 2 * (b.lenMul || 1);
       const trailAlphaMul = b.lenMul ? 0.07 : 0.4;
-      const trailColor = b.wide ? '57,255,20' : '186,255,201';
+      const trailColor = '186,255,201';
       if (b.trail) {
         b.trail.forEach((p, idx) => {
           const alpha = ((idx + 1) / (b.trail.length + 1)) * trailAlphaMul;
@@ -2863,8 +2897,8 @@ function drawBullets() {
           ctx.stroke();
         });
       }
-      ctx.strokeStyle = b.wide ? '#39ff14' : '#baffc9';
-      ctx.lineWidth = b.wide ? 2 : 1;
+      ctx.strokeStyle = '#baffc9';
+      ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(b.x, b.y - half);
       ctx.lineTo(b.x, b.y + half);
