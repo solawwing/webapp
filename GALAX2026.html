@@ -1137,6 +1137,7 @@ function waveEnemyCount(w) {
 
 let asteroids = [];
 let asteroidTotalDamage = 0;
+let beltDamageBonusApplied = false;
 let asteroidHitCount = 0;
 let asteroidBonusGiven = false;
 let asteroidRapidGiven = false;
@@ -1383,6 +1384,7 @@ function activateWave(kind, m) {
     asteroidItemTimer = 10;
     asteroidSpeedMul = kind === 'ASTEROID_FASTER' ? 1.5 : kind === 'ASTEROID_FAST' ? 1.2 : 1;
     asteroidTotalDamage = 0;
+    beltDamageBonusApplied = false;
     asteroidHitCount = 0;
     asteroidBonusGiven = false;
     asteroidRapidGiven = false;
@@ -1396,6 +1398,7 @@ function activateWave(kind, m) {
     crystalEnemyTimer = 2.0;
     asteroidSpeedMul = kind === 'CRYSTAL_FAST' ? 1.2 : 1;
     asteroidTotalDamage = 0;
+    beltDamageBonusApplied = false;
     asteroidHitCount = 0;
     asteroidBonusGiven = false;
     asteroidRapidGiven = false;
@@ -2248,6 +2251,10 @@ function checkWaveClear() {
       : (enemies.length === 0 && spawnQueue.length === 0);
   if (cleared) {
     // clean transition: clear anything left over regardless of wave kind
+    if ((isAsteroidKind(kind) || isCrystalKind(kind)) && !beltDamageBonusApplied) {
+      beltDamageBonusApplied = true;
+      score += Math.round(asteroidTotalDamage) * 100;
+    }
     enemies = [];
     spawnQueue = [];
     enemyBullets = [];
