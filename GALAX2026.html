@@ -251,6 +251,7 @@ const player = {
   rapidLevel: 0, burstRemaining: 0, burstTimer: 0,
   vulcanBurstRemaining: 0, vulcanBurstTimer: 0, vulcanShotInterval: 0.1, vulcanXOffset: 0,
   laserSubCooldown: 0,
+  vulcanAngle: 0, vulcanAngleDir: 1,
   phantomCooldown: 0,
   sparkCooldown: 0, sparkTimer: 0, prevWeapon: 'NORMAL', prevWeaponLevel: 0, prevRapidLevel: 0,
   weaponFireCooldown: 0,
@@ -265,6 +266,7 @@ function resetPlayer() {
   player.rapidLevel = 0; player.burstRemaining = 0; player.burstTimer = 0;
   player.vulcanBurstRemaining = 0; player.vulcanBurstTimer = 0; player.vulcanShotInterval = 0.1; player.vulcanXOffset = 0;
   player.laserSubCooldown = 0;
+  player.vulcanAngle = -45; player.vulcanAngleDir = 1;
   player.phantomCooldown = 0;
   player.sparkCooldown = 0; player.sparkTimer = debugStartWeapon === 'SPARK' ? 30.0 : 0;
   player.weaponFireCooldown = 0;
@@ -374,6 +376,10 @@ function drawShockwaves() {
     const r = growing ? Math.max(2, s.maxR * (s.t / s.growDuration)) : s.maxR;
     const cx = s.x + s.jitterX, cy = s.y + s.jitterY;
     ctx.globalAlpha = 1;
+    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
     ctx.strokeStyle = '#1f6bff';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -675,16 +681,24 @@ function fireWeapon() {
     const n = WIDE_COUNTS[lvl];
     fanAngles(n, 7).forEach(a => {
       const rad = a * Math.PI / 180;
-      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 1, lenMul: 0.5 });
+      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 1, lenMul: 0.5, wide: true });
     });
   } else if (player.weapon === 'HOMING') {
-    const n = HOMING_COUNTS[lvl];
+    // per level: angle pairs start at 20 degrees and step up by 40 degrees each, always
+    // including every lower level's angles too — Lv1=±20 (2 shots), Lv2=±20,60 (4),
+    // Lv3=up to ±100 (6), Lv4=up to ±140 (8), Lv5=up to ±180 (10) — one extra pair/level
+    const pairCount = lvl;
+    const angles = [];
+    for (let k = 1; k <= pairCount; k++) { const a = 20 + 40 * (k - 1); angles.push(-a, a); }
     const usedTargets = new Set();
-    fanAngles(n, 20).forEach(a => {
+    angles.forEach(a => {
       const rad = a * Math.PI / 180;
       const target = findNearestEnemyExcluding(bx, by, usedTargets) || findNearestEnemy(bx, by);
       if (target) usedTargets.add(target);
-      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 300, vy: -Math.cos(rad) * 300, r: 3, homing: true, target, power: 2, speed: 300 });
+      // spawns 20px from ship center in the firing direction, then flies straight for
+      // 200px before it starts homing in on its target
+      const hx = player.x + Math.sin(rad) * 20, hy = player.y - Math.cos(rad) * 20;
+      playerBullets.push({ x: hx, y: hy, vx: Math.sin(rad) * 60, vy: -Math.cos(rad) * 60, r: 3, homing: true, target, power: 2, speed: 60, maxSpeed: 300, homingAge: 0, straightDist: 200, homingTraveled: 0 });
     });
   } else if (player.weapon === 'LASER') {
     const spec = LASER_SPECS[lvl];
@@ -748,9 +762,11 @@ function fireLaserSubs() {
 }
 
 function fireVulcanShot() {
-  // fixed center firing position, no offset
-  const bx = player.x, by = player.y - player.r;
-  playerBullets.push({ x: bx, y: by, vx: 0, vy: -400, r: 1, power: 2, noTrail: true, vulcanLine: true });
+  // fires from the ship's apex (its topmost/frontmost point), not just above center;
+  // firing angle is randomized between -10 and +10 degrees on every shot
+  const bx = player.x, by = player.y - player.r * 1.9 * 1.4;
+  const rad = rand(-10, 10) * Math.PI / 180;
+  playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 400, vy: -Math.cos(rad) * 400, r: 1, power: 2, noTrail: true, vulcanLine: true });
 }
 
 // ---------- PHANTOM: instant flash strike ----------
@@ -1623,10 +1639,11 @@ function fireBossBarrage(e) {
 }
 
 function updateEnemies(dt) {
-  formationOffsetT += dt;
+  const fullDt = dt; // preserved before any per-enemy slow-down shadowing below
+  formationOffsetT += fullDt;
   formationOffsetX = Math.sin(formationOffsetT * 0.35) * 26;
 
-  diveTimer -= dt;
+  diveTimer -= fullDt;
   if (diveTimer <= 0 && enemies.some(e => e.state === 'formation')) {
     pickDivers();
     diveTimer = rand(2.2, 4.0);
@@ -1635,6 +1652,16 @@ function updateEnemies(dt) {
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i];
     const ox = e.x, oy = e.y;
+    // GRAVITY shockwave slow effect: enemies inside an active shockwave move/act at half speed
+    let slowedByShockwave = false;
+    for (let si = 0; si < shockwaves.length; si++) {
+      const s = shockwaves[si];
+      const growingS = s.t < s.growDuration;
+      const ringR = growingS ? Math.max(2, s.maxR * (s.t / s.growDuration)) : s.maxR;
+      const scx = s.x + s.jitterX, scy = s.y + s.jitterY;
+      if (Math.hypot(e.x - scx, e.y - scy) <= ringR + (e.def.r || 10)) { slowedByShockwave = true; break; }
+    }
+    const dt = slowedByShockwave ? fullDt * 0.5 : fullDt;
     if (e.state === 'enter') {
       e.t += dt / e.duration;
       if (e.t >= 1) {
@@ -1957,20 +1984,34 @@ function updateBullets(dt) {
       if (b.trail.length > maxTrail) b.trail.shift();
     }
     if (b.homing) {
-      if (targetIsGone(b.target)) {
-        const targeted = new Set(
-          playerBullets.filter(o => o !== b && o.homing && o.target).map(o => o.target)
-        );
-        b.target = findNearestEnemyExcluding(b.x, b.y, targeted) || findNearestEnemy(b.x, b.y);
+      // gradually accelerates from its spawn speed up to maxSpeed over ~0.6s
+      if (b.maxSpeed) {
+        b.homingAge = (b.homingAge || 0) + dt;
+        b.speed = Math.min(b.maxSpeed, 60 + (b.maxSpeed - 60) * Math.min(1, b.homingAge / 0.6));
       }
-      if (b.target) {
-        const dx = b.target.x - b.x, dy = b.target.y - b.y;
-        const len = Math.max(0.0001, Math.hypot(dx, dy));
-        const spd = b.speed || Math.hypot(b.vx, b.vy) || 150;
-        const dvx = dx / len * spd, dvy = dy / len * spd;
-        const turn = Math.min(1, 7 * dt);
-        b.vx += (dvx - b.vx) * turn;
-        b.vy += (dvy - b.vy) * turn;
+      b.homingTraveled = (b.homingTraveled || 0) + Math.hypot(b.vx, b.vy) * dt;
+      if (b.homingTraveled < (b.straightDist || 0)) {
+        // still in its initial straight-line phase: keep the same heading, just apply the speed ramp
+        const curLen = Math.max(0.0001, Math.hypot(b.vx, b.vy));
+        const spd = b.speed || curLen;
+        b.vx = b.vx / curLen * spd;
+        b.vy = b.vy / curLen * spd;
+      } else {
+        if (targetIsGone(b.target)) {
+          const targeted = new Set(
+            playerBullets.filter(o => o !== b && o.homing && o.target).map(o => o.target)
+          );
+          b.target = findNearestEnemyExcluding(b.x, b.y, targeted) || findNearestEnemy(b.x, b.y);
+        }
+        if (b.target) {
+          const dx = b.target.x - b.x, dy = b.target.y - b.y;
+          const len = Math.max(0.0001, Math.hypot(dx, dy));
+          const spd = b.speed || Math.hypot(b.vx, b.vy) || 150;
+          const dvx = dx / len * spd, dvy = dy / len * spd;
+          const turn = Math.min(1, 7 * dt);
+          b.vx += (dvx - b.vx) * turn;
+          b.vy += (dvy - b.vy) * turn;
+        }
       }
     }
     if (b.laserCurve && b.dying) {
@@ -2187,7 +2228,7 @@ function handleCollisions() {
           playerBullets.splice(j, 1);
           const ex = e.x, ey = e.y;
           const isBoss = e.type === 'GIANTBOSS';
-          e.hp -= (b.gravity && isBoss) ? 5 : (b.lenMul && isBoss) ? 2 : (b.power || 1);
+          e.hp -= (b.gravity && isBoss) ? 5 : (b.lenMul && isBoss) ? 2 : (b.homing && isBoss) ? 3 : (b.power || 1);
           score += 10; // +10 for dealing damage
           if (e.hp <= 0) {
             handleEnemyDeath(e);
@@ -2765,7 +2806,7 @@ function drawBullets() {
       ctx.restore();
     } else if (b.vulcanLine) {
       // two parallel vertical lines "||", each 1x5px, 2px gap between them
-      ctx.strokeStyle = '#ff9100';
+      ctx.strokeStyle = '#ff6a00';
       ctx.beginPath();
       ctx.moveTo(b.x - 1.5, b.y - 2.5); ctx.lineTo(b.x - 1.5, b.y + 2.5);
       ctx.moveTo(b.x + 1.5, b.y - 2.5); ctx.lineTo(b.x + 1.5, b.y + 2.5);
@@ -2811,21 +2852,24 @@ function drawBullets() {
     } else {
       const half = b.r * 2 * (b.lenMul || 1);
       const trailAlphaMul = b.lenMul ? 0.07 : 0.4;
+      const trailColor = b.wide ? '57,255,20' : '186,255,201';
       if (b.trail) {
         b.trail.forEach((p, idx) => {
           const alpha = ((idx + 1) / (b.trail.length + 1)) * trailAlphaMul;
-          ctx.strokeStyle = `rgba(186,255,201,${alpha})`;
+          ctx.strokeStyle = `rgba(${trailColor},${alpha})`;
           ctx.beginPath();
           ctx.moveTo(p.x, p.y - half);
           ctx.lineTo(p.x, p.y + half);
           ctx.stroke();
         });
       }
-      ctx.strokeStyle = '#baffc9';
+      ctx.strokeStyle = b.wide ? '#39ff14' : '#baffc9';
+      ctx.lineWidth = b.wide ? 2 : 1;
       ctx.beginPath();
       ctx.moveTo(b.x, b.y - half);
       ctx.lineTo(b.x, b.y + half);
       ctx.stroke();
+      ctx.lineWidth = 1;
     }
   });
   ctx.lineWidth = 1;
