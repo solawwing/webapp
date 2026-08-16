@@ -230,7 +230,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-08-16 18:09';
+const LAST_UPDATED = '2026-08-16 18:29';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1160,7 +1160,7 @@ const BOSS_TYPES = {
   Z: { color: '#fff01a', sides: 5 },
 };
 function makeBossEnemy() {
-  const bossHp = 400;
+  const bossHp = 800;
   const key = choice(['X', 'Y', 'Z']);
   const bossType = BOSS_TYPES[key];
   const t = { hp: bossHp, score: 100, color: bossType.color, r: 120, sides: bossType.sides };
@@ -1458,10 +1458,12 @@ function activateWave(kind, m) {
   if (kind === 'BOSS') {
     starReverse = true;
     specialStars = [];
+    enemies.push(makeBossEnemy());
+    // no formation-based escorts anymore; instead, random-tier (A-E) enemies keep
+    // spawning from the top every 2s (like Crystal Belt) for as long as the boss lives
     lastLayoutCount = 0;
     formationSlots = [];
     spawnQueue = [];
-    bossPoolHp = bossPoolMaxHp;
     bossMinionTimer = 2.0;
   } else if (isAsteroidKind(kind)) {
     // Asteroid Belt: asteroids only, no enemies — dodge indestructible rotating asteroids for 45s
@@ -2339,18 +2341,6 @@ function handleEnemyDeath(e) {
   } else {
     spawnDeathParticles(e.x, e.y, e.def.color, 18);
   }
-  if (e.isBossMinion && !bossDefeated) {
-    bossPoolHp -= e.maxHp;
-    if (bossPoolHp <= 0) {
-      bossPoolHp = 0;
-      bossDefeated = true;
-      lastBossColor = '#ff2e2e';
-      globalSpeedBonus += 0.2;
-      score += wave * 100; // boss-defeat bonus, same as the old giant-boss kill score
-      spawnBossExplosion(e.x, e.y, lastBossColor);
-      bossExplosionBurstTimer = 0.3;
-    }
-  }
   if (e.dropsItem) spawnItem(e.x, e.y);
   if (e.dropsRapid) spawnRapidItem(e.x + 20, e.y);
 }
@@ -2647,6 +2637,8 @@ function drawPolygonDown(cx, cy, r, sides) {
 
 // ---------- asteroid belt wave ----------
 function updateBossWave(dt) {
+  // random-tier (A-E) enemies keep streaming in from the top every 2s, alongside the
+  // giant boss, for as long as it's alive — replaces the old one-time escort formation
   if (!waveActive) return;
   const m = ((wave - 1) % CYCLE_LEN) + 1;
   const kind = CYCLE_KIND[m - 1];
@@ -3375,17 +3367,6 @@ function drawHUD() {
     ctx.textAlign = 'center';
     ctx.fillText('TIME ' + remaining, W / 2, 28);
     ctx.fillText('TOTAL DAMAGE ' + Math.round(asteroidTotalDamage), W / 2, 40);
-  } else if (CYCLE_KIND[cycleM - 1] === 'BOSS' && waveActive && !bossDefeated) {
-    // boss HP bar: no single giant boss entity anymore, tracked as a shared pool
-    // depleted by killing the randomly-spawned minion enemies
-    const barW = W / 2, barH = 3;
-    const barX = W / 2 - barW / 2, barY = 26;
-    const frac = Math.max(0, bossPoolHp / bossPoolMaxHp);
-    ctx.strokeStyle = 'rgba(255,46,90,0.5)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(barX, barY, barW, barH);
-    ctx.fillStyle = 'rgba(255,46,90,0.5)';
-    ctx.fillRect(barX, barY, barW * frac, barH);
   }
 
   // item status: right side, as name + level block bar (font 2px smaller than the rest of the HUD)
