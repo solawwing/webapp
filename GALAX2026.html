@@ -115,6 +115,7 @@
       <path d="M 5 22 A 265 26 0 0 1 355 22" stroke="url(#titleArcFade)" stroke-width="1" fill="none" stroke-linecap="round"/>
     </svg>
     <div class="sub blink" style="margin-top:24px;">TAP TO START</div>
+    <div class="sub" id="updatedLine" style="margin-top:14px; font-size:8px; letter-spacing:1px; opacity:0.5;"></div>
   </div>
   <div id="itemsScreen" class="hidden">
     <div class="title" style="font-size:clamp(8px,3.5vw,18px);">ITEMS</div>
@@ -199,6 +200,17 @@ const equipScreen = document.getElementById('equipScreen');
 const overScreen = document.getElementById('overScreen');
 const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
+// shows when this file was last saved/downloaded, based on the file's own last-modified
+// timestamp — updates automatically every time a new version of the file is saved, no
+// manual editing needed
+(function () {
+  try {
+    const d = new Date(document.lastModified);
+    const pad = n => String(n).padStart(2, '0');
+    const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    document.getElementById('updatedLine').textContent = 'UPDATED ' + stamp;
+  } catch (e) { /* ignore */ }
+})();
 
 let W = 0, H = 0, DPR = Math.max(1, window.devicePixelRatio || 1);
 let lastLayoutCount = 20;
