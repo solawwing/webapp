@@ -20,13 +20,13 @@
     align-items: center; justify-content: center; color: #0ff;
     font-family: 'Montserrat', sans-serif; text-align: center;
     pointer-events: none; text-shadow: 0 0 8px #0ff;
-    transform: translateY(-100px);
+    transform: translateY(-50px);
   }
   #overlay .title {
     font-size: clamp(28px, 8vw, 56px); letter-spacing: 20px; font-weight: normal;
     margin-bottom: 12px; margin-right: -20px;
   }
-  #overlay #itemsScreen { transform: translateY(100px); } /* cancels the parent's -100px shift, unchanged as requested */
+  #overlay #itemsScreen { transform: translateY(50px); } /* cancels the parent's -50px shift, unchanged as requested */
   #overlay .sub { font-size: clamp(12px, 3.2vw, 16px); letter-spacing: 2px; opacity: 0.85; margin: 4px 0; margin-right: -2px; }
   #overlay .item-list { margin-top: 14px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; width: 100%; max-width: 260px; }
   #overlay .item-entry { display: flex; flex-direction: column; align-items: flex-start; width: 100%; }
@@ -230,7 +230,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-08-16 18:49';
+const LAST_UPDATED = '2026-08-16 23:58';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -314,6 +314,7 @@ const player = {
   rapidLevel: 0, burstRemaining: 0, burstTimer: 0,
   vulcanBurstRemaining: 0, vulcanBurstTimer: 0, vulcanShotInterval: 0.1, vulcanXOffset: 0,
   laserSubCooldown: 0,
+  options: [], // DOUBLE's trailing follower orbs, populated in updatePlayer
   tilt: 0,
   vulcanAngle: 0, vulcanAngleDir: 1,
   phantomCooldown: 0,
@@ -336,6 +337,7 @@ function resetPlayer() {
   player.weaponFireCooldown = 0;
   player.prevWeapon = 'NORMAL'; player.prevWeaponLevel = 0; player.prevRapidLevel = 0;
   player.warping = false; player.warpT = 0; player.warpTrail = [];
+  player.options = [];
 }
 
 // ---------- items ----------
@@ -704,7 +706,7 @@ const WIDE_COUNTS = [0, 3, 5, 7, 9, 11];
 const HOMING_COUNTS = [0, 1, 2, 3, 4, 5];
 const BUBBLE_COUNTS = [0, 6, 10, 14, 18, 22]; // linear, +4 per level
 const VULCAN_COUNTS = [0, 2, 4, 6, 8, 10]; // +2 shots per level
-const PHANTOM_COOLDOWNS = [0, 1.2, 1.0, 0.8, 0.6, 0.4]; // -0.2s per level
+const PHANTOM_COOLDOWNS = [0, 1.0, 0.8, 0.6, 0.4, 0.2]; // -0.2s per level
 const SPARK_COOLDOWNS = [0, 0.3, 0.3, 0.3, 0.3, 0.3]; // fixed 0.3s regardless of level
 // per-weapon fire cooldown (seconds between shots), replacing the old one-size-fits-all
 // "wait until the screen is clear of your own bullets" gate for these weapons
@@ -731,21 +733,25 @@ function fireWeapon() {
   const bx = player.x, by = player.y - player.r;
   const lvl = player.weaponLevel;
   if (player.weapon === 'DOUBLE') {
-    const n = DOUBLE_COUNTS[lvl];
-    const offsets = xOffsets(n, 20);
-    const minOx = Math.min(...offsets), maxOx = Math.max(...offsets);
-    offsets.forEach(ox => {
-      // the two outermost bullets angle 5 degrees outward; the rest fire straight
-      let rad = 0;
-      if (ox === minOx && ox !== maxOx) rad = -5 * Math.PI / 180;
-      else if (ox === maxOx && ox !== minOx) rad = 5 * Math.PI / 180;
-      playerBullets.push({ x: bx + ox, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 1, double: true });
+    // always 2 shots regardless of level, 20px spacing, both angled 3 degrees outward
+    const doubleOffsets = [-10, 10];
+    const fireDoublePattern = (originX, originY) => {
+      doubleOffsets.forEach(ox => {
+        const rad = (ox < 0 ? -3 : 3) * Math.PI / 180;
+        playerBullets.push({ x: originX + ox, y: originY, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 2, double: true });
+      });
+    };
+    fireDoublePattern(bx, by);
+    // trailing options fire the exact same 2-shot pattern from their own position,
+    // alongside the main ship's volley
+    player.options.forEach(opt => {
+      fireDoublePattern(opt.x, opt.y - player.r);
     });
   } else if (player.weapon === 'WIDE') {
     const n = WIDE_COUNTS[lvl];
     fanAngles(n, 7).forEach(a => {
       const rad = a * Math.PI / 180;
-      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 1, lenMul: 0.5, wide: true });
+      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 2, lenMul: 0.5, wide: true });
     });
   } else if (player.weapon === 'HOMING') {
     // per level: angle pairs start at 20 degrees and step up by 40 degrees each, always
@@ -766,7 +772,7 @@ function fireWeapon() {
     });
   } else if (player.weapon === 'LASER') {
     const spec = LASER_SPECS[lvl];
-    playerBullets.push({ x: bx, y: by, vx: 0, vy: -spec.speed, r: 3, laser: true, length: spec.length, pierceLeft: spec.pierce, hitSet: new Set(), power: 10 });
+    playerBullets.push({ x: bx, y: by, vx: 0, vy: -spec.speed, r: 3, laser: true, length: spec.length, pierceLeft: spec.pierce, hitSet: new Set(), power: 10, laserLevel: lvl });
   } else if (player.weapon === 'GRAVITY') {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -450, r: 3, power: 2, gravity: true, gravityRadius: lvl * 40 });
   } else if (player.weapon === 'BUBBLE') {
@@ -830,7 +836,8 @@ function fireVulcanShot() {
   // firing angle is randomized between -10 and +10 degrees on every shot
   const bx = player.x, by = player.y - player.r * 1.9 * 1.4;
   const rad = rand(-10, 10) * Math.PI / 180;
-  playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 400, vy: -Math.cos(rad) * 400, r: 1, power: 2, vulcanLine: true });
+  const power = Math.floor(rand(1, 6)); // random 1-5 per shot
+  playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 400, vy: -Math.cos(rad) * 400, r: 1, power, vulcanLine: true });
 }
 
 // ---------- PHANTOM: instant flash strike ----------
@@ -1455,6 +1462,10 @@ function startWave() {
 
 function activateWave(kind, m) {
   waveActive = true;
+  // reset DOUBLE's trailing options to overlap the ship exactly at the start of every wave
+  if (player.options && player.options.length) {
+    player.options.forEach(opt => { opt.x = player.x; opt.y = player.y; });
+  }
   if (kind === 'BOSS') {
     starReverse = true;
     specialStars = [];
@@ -1777,7 +1788,14 @@ function updateEnemies(dt) {
       const scx = s.x + s.jitterX, scy = s.y + s.jitterY;
       if (Math.hypot(e.x - scx, e.y - scy) <= ringR + (e.def.r || 10)) { slowedByShockwave = true; break; }
     }
-    const dt = slowedByShockwave ? fullDt * 0.5 : fullDt;
+    // PHANTOM flash slow effect: enemies caught inside an active flash zone also move/act
+    // at half speed for as long as the flash is still visually on screen
+    let slowedByPhantom = false;
+    for (let pi = 0; pi < phantomFlashes.length; pi++) {
+      const f = phantomFlashes[pi];
+      if (e.x >= f.x && e.x <= f.x + f.w && e.y >= f.y && e.y <= f.y + f.h) { slowedByPhantom = true; break; }
+    }
+    const dt = (slowedByShockwave || slowedByPhantom) ? fullDt * 0.5 : fullDt;
     if (e.state === 'enter') {
       e.t += dt / e.duration;
       if (e.t >= 1) {
@@ -1958,7 +1976,7 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 5000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['HOMING', 'BUBBLE', 'LASER', 'THUNDER', 'GRAVITY'];
+const EQUIP_UPDATED = ['DOUBLE', 'LASER'];
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -2078,7 +2096,7 @@ function updatePlayer(dt) {
   if (keys['ArrowDown'] || keys['KeyS']) player.targetY += 380 * dt;
   player.targetX = clamp(player.targetX, player.r + 4, W - player.r - 4);
   player.targetY = clamp(player.targetY, player.r + 4, H - player.r - 4);
-  const prevX = player.x;
+  const prevX = player.x, prevY = player.y;
   player.x += (player.targetX - player.x) * Math.min(1, dt * 14);
   player.y += (player.targetY - player.y) * Math.min(1, dt * 14);
   // tilt slightly in the direction of horizontal movement
@@ -2086,6 +2104,35 @@ function updatePlayer(dt) {
   const vx = dt > 0 ? dx / dt : 0;
   const targetTilt = clamp(vx * 0.0015, -0.35, 0.35);
   player.tilt = (player.tilt || 0) + (targetTilt - (player.tilt || 0)) * Math.min(1, dt * 10);
+
+  // DOUBLE's trailing options: each smoothly follows the one ahead of it (the first
+  // follows the ship itself), stopping once a 20px gap is reached so they stay spaced
+  // apart rather than clustering together; POSITION freezes whenever the ship itself
+  // isn't actively being moved toward a live target, but rotation always keeps spinning
+  const shipMoving = Math.hypot(player.targetX - player.x, player.targetY - player.y) > 1;
+  const OPTION_GAP = 60;
+  if (player.weapon === 'DOUBLE') {
+    const optionCount = Math.max(0, player.weaponLevel - 1);
+    player.options.length = optionCount;
+    let leaderX = player.x, leaderY = player.y;
+    for (let oi = 0; oi < optionCount; oi++) {
+      if (!player.options[oi]) player.options[oi] = { x: leaderX, y: leaderY - OPTION_GAP * (oi + 1), angle: 0 };
+      const opt = player.options[oi];
+      if (shipMoving) {
+        const ddx = leaderX - opt.x, ddy = leaderY - opt.y;
+        const dist = Math.hypot(ddx, ddy);
+        if (dist > OPTION_GAP) {
+          const t = ((dist - OPTION_GAP) / dist) * Math.min(1, dt * 8);
+          opt.x += ddx * t;
+          opt.y += ddy * t;
+        }
+      }
+      opt.angle = (opt.angle || 0) + dt * 5; // rotation never stops, even while frozen in place
+      leaderX = opt.x; leaderY = opt.y;
+    }
+  } else {
+    player.options.length = 0;
+  }
 
   if (player.invT > 0) player.invT -= dt;
 
@@ -2123,7 +2170,7 @@ function updatePlayer(dt) {
     if (player.phantomCooldown > 0) player.phantomCooldown -= dt;
     if (player.alive && player.phantomCooldown <= 0) {
       firePhantomFlash();
-      player.phantomCooldown = PHANTOM_COOLDOWNS[player.weaponLevel] || 1.2;
+      player.phantomCooldown = PHANTOM_COOLDOWNS[player.weaponLevel] || 1.0;
       const rapidCount = player.rapidLevel === 1 ? 2 : player.rapidLevel === 2 ? 3 : player.rapidLevel === 3 ? 5 : 1;
       player.burstRemaining = rapidCount - 1;
       player.burstTimer = 0.25; // brief delay before the rapid burst kicks in
@@ -2345,6 +2392,45 @@ function handleEnemyDeath(e) {
   if (e.dropsRapid) spawnRapidItem(e.x + 20, e.y);
 }
 
+function handleOptionCollisions() {
+  // DOUBLE's trailing options: touching an enemy/boss/asteroid/crystal deals 1dmg
+  // (option itself is unaffected/indestructible), touching an enemy bullet destroys it
+  if (!player.options || player.options.length === 0) return;
+  const optR = 6; // half of the 12x12 square
+  player.options.forEach(opt => {
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const e = enemies[i];
+      const rr = (e.def.r + optR) * (e.def.r + optR);
+      if (dist2(opt.x, opt.y, e.x, e.y) < rr) {
+        e.hp -= 1;
+        score += 10;
+        if (e.hp <= 0) {
+          handleEnemyDeath(e);
+          enemies.splice(i, 1);
+        } else if (e.type !== 'GIANTBOSS') {
+          spawnDeathParticles(e.x, e.y, e.def.color, 3);
+        }
+      }
+    }
+    for (let i = asteroids.length - 1; i >= 0; i--) {
+      const a = asteroids[i];
+      const rr = (a.r + optR) * (a.r + optR);
+      if (dist2(opt.x, opt.y, a.x, a.y) < rr) {
+        score += wave * 20;
+        registerAsteroidDamage(1, a);
+        spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 5);
+      }
+    }
+    for (let i = enemyBullets.length - 1; i >= 0; i--) {
+      const b = enemyBullets[i];
+      const rr = (optR + b.r) * (optR + b.r);
+      if (dist2(opt.x, opt.y, b.x, b.y) < rr) {
+        enemyBullets.splice(i, 1);
+      }
+    }
+  });
+}
+
 function handleCollisions() {
   // player bullets vs enemies
   for (let j = playerBullets.length - 1; j >= 0; j--) {
@@ -2399,8 +2485,10 @@ function handleCollisions() {
       for (let i = enemies.length - 1; i >= 0; i--) {
         const e = enemies[i];
         if (b.hitSet.has(e)) continue;
-        const rr = (e.def.r + b.r) * (e.def.r + b.r);
-        if (dist2(e.x, e.y, b.x, b.y) < rr) {
+        // widened hitbox: reaches 10px to either side of the bullet horizontally, in
+        // addition to the normal radius-based vertical reach (applies to pierce hits too)
+        const dx = Math.abs(e.x - b.x), dy = Math.abs(e.y - b.y);
+        if (dx <= e.def.r + 20 && dy <= e.def.r + b.r) {
           const wasTarget = e === b.target;
           b.hitSet.add(e);
           e.hp -= (wasTarget ? 5 : 2); // locked target takes 5, incidental pierced enemies take 2
@@ -2531,6 +2619,17 @@ function drawPlayer() {
     player.warpTrail.forEach((p, idx) => {
       const alpha = ((idx + 1) / (player.warpTrail.length + 1)) * 0.5;
       drawPlayerShape(p.x, p.y, `rgba(124,255,240,${alpha})`);
+    });
+  } else if (player.weapon === 'DOUBLE') {
+    // DOUBLE's trailing options: small rotating cyan squares (10x10)
+    ctx.strokeStyle = '#4ef0ff';
+    ctx.lineWidth = 1;
+    player.options.forEach(opt => {
+      ctx.save();
+      ctx.translate(opt.x, opt.y);
+      ctx.rotate(opt.angle || 0);
+      ctx.strokeRect(-6, -6, 12, 12);
+      ctx.restore();
     });
   }
   drawPlayerShape(player.x, player.y, '#7CFFF0');
@@ -2783,8 +2882,10 @@ function handleAsteroidCollisions() {
       for (let i = 0; i < asteroids.length; i++) {
         const a = asteroids[i];
         if (b.hitSet.has(a)) continue;
-        const rr = (a.r + b.r) * (a.r + b.r);
-        if (dist2(a.x, a.y, b.x, b.y) < rr) {
+        // widened hitbox: reaches 10px to either side of the bullet horizontally, in
+        // addition to the normal radius-based vertical reach (applies to pierce hits too)
+        const dx = Math.abs(a.x - b.x), dy = Math.abs(a.y - b.y);
+        if (dx <= a.r + 20 && dy <= a.r + b.r) {
           // incidental hit like a non-target enemy: registers, doesn't end the beam's journey —
           // except crystals, which consume the beam outright
           b.hitSet.add(a);
@@ -2898,7 +2999,7 @@ function drawEnemy(e) {
     // no longer visualizes remaining HP via nested inner triangles
     const grad = ctx.createLinearGradient(0, r * 1.1, 0, -r * 0.65);
     grad.addColorStop(0, hexToRgba(e.def.color, 1));
-    grad.addColorStop(0.2, darkenColor(e.def.color, 0.3, 1));
+    grad.addColorStop(0.4, hexToRgba(e.def.color, 1));
     grad.addColorStop(1, darkenColor(e.def.color, 0.3, 1));
     ctx.beginPath();
     drawEnemyTriangle(0, 0, r);
@@ -2927,6 +3028,12 @@ function drawEnemy(e) {
     else if (e.type === 'B') { baseCenters = [-3, 3]; sideCenters = [-2, 2]; }
     else if (e.type === 'A') { baseCenters = [-3, 3]; sideCenters = [-2, 0, 2]; }
     baseCenters.forEach(cx => {
+      // reversed triangle: apex (bright point) is at baseY-6, its flat base (dark) is
+      // at baseY — own local gradient so the apex reads bright, matching the main body
+      const bGrad = ctx.createLinearGradient(0, baseY, 0, baseY - 6);
+      bGrad.addColorStop(0, darkenColor(e.def.color, 0.3, 1));
+      bGrad.addColorStop(0.8, hexToRgba(e.def.color, 1));
+      bGrad.addColorStop(1, hexToRgba(e.def.color, 1));
       ctx.beginPath();
       ctx.moveTo(cx - 2, baseY);
       ctx.lineTo(cx + 2, baseY);
@@ -2934,11 +3041,19 @@ function drawEnemy(e) {
       ctx.closePath();
       ctx.fillStyle = fillHp;
       ctx.fill();
-      ctx.strokeStyle = grad;
+      ctx.strokeStyle = bGrad;
       ctx.stroke();
     });
     sideCenters.forEach(cx => {
       const isACenter = e.type === 'A' && cx === 0;
+      const apexY = isACenter ? baseY + 14 : baseY + 12;
+      const cornerY = isACenter ? baseY + 6 : baseY - 4;
+      // apex (bright point) is the lower point (larger y) — own local gradient so the
+      // apex reads bright, matching the main body
+      const sGrad = ctx.createLinearGradient(0, cornerY, 0, apexY);
+      sGrad.addColorStop(0, darkenColor(e.def.color, 0.3, 1));
+      sGrad.addColorStop(0.8, hexToRgba(e.def.color, 1));
+      sGrad.addColorStop(1, hexToRgba(e.def.color, 1));
       ctx.beginPath();
       if (isACenter) {
         // tier A's center side-triangle: shifted up a further 2px
@@ -2955,7 +3070,7 @@ function drawEnemy(e) {
       ctx.closePath();
       ctx.fillStyle = fillHp;
       ctx.fill();
-      ctx.strokeStyle = grad;
+      ctx.strokeStyle = sGrad;
       ctx.stroke();
     });
   }
@@ -2980,7 +3095,7 @@ function drawBullets() {
     if (b.spawnDelay > 0) return; // not fired yet, stay invisible
     if (b.laser) {
       // gradient beam like CURVE's: dull at the tail (near origin), bright at the head (tip)
-      ctx.lineWidth = b.subLaser ? 1 : 2;
+      ctx.lineWidth = b.subLaser ? 1 : (1 + (b.laserLevel || 1)); // main beam grows +1px per level
       const grad = ctx.createLinearGradient(b.x, b.y, b.x, b.y - b.length);
       if (b.subLaser) {
         grad.addColorStop(0, 'rgba(20,60,58,0.3)');
@@ -3415,6 +3530,7 @@ function frame(now) {
     updateAsteroids(dt);
     handleCollisions();
     handleAsteroidCollisions();
+    handleOptionCollisions();
     checkWaveClear();
   }
   if (!(state === STATE.PLAYING && paused)) {
