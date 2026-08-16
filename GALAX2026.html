@@ -200,16 +200,11 @@ const equipScreen = document.getElementById('equipScreen');
 const overScreen = document.getElementById('overScreen');
 const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
-// shows when this file was last saved/downloaded, based on the file's own last-modified
-// timestamp — updates automatically every time a new version of the file is saved, no
-// manual editing needed
+// this timestamp is hardcoded in the source and updated by hand every time a code
+// change is made — not derived from the browser/file's own save time
+const LAST_UPDATED = '2026-08-16 12:35';
 (function () {
-  try {
-    const d = new Date(document.lastModified);
-    const pad = n => String(n).padStart(2, '0');
-    const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    document.getElementById('updatedLine').textContent = 'UPDATED ' + stamp;
-  } catch (e) { /* ignore */ }
+  document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
 
 let W = 0, H = 0, DPR = Math.max(1, window.devicePixelRatio || 1);
