@@ -116,6 +116,34 @@
     </svg>
     <div class="sub blink" style="margin-top:24px;">TAP TO START</div>
     <div class="sub" id="updatedLine" style="margin-top:14px; font-size:8px; letter-spacing:1px; opacity:0.5;"></div>
+    <div id="tierLegend" style="margin-top:112px; display:flex; gap:14px; justify-content:center; align-items:center;">
+      <svg width="28" height="31" viewBox="0 0 28 31"><polygon points="14,30 6,12.5 22,12.5" fill="none" stroke="#ff0044" stroke-width="1"/>
+        <polygon points="6,24.5 4,8.5 8,8.5" fill="none" stroke="#ff0044" stroke-width="1"/>
+        <polygon points="14,26.5 12,18.5 16,18.5" fill="none" stroke="#ff0044" stroke-width="1"/>
+        <polygon points="22,24.5 20,8.5 24,8.5" fill="none" stroke="#ff0044" stroke-width="1"/>
+        <polygon points="9,12.5 13,12.5 11,6.5" fill="none" stroke="#ff0044" stroke-width="1"/>
+        <polygon points="15,12.5 19,12.5 17,6.5" fill="none" stroke="#ff0044" stroke-width="1"/>
+      </svg>
+      <svg width="28" height="31" viewBox="0 0 28 31"><polygon points="14,30 6,12.5 22,12.5" fill="none" stroke="#ff6d00" stroke-width="1"/>
+        <polygon points="6,24.5 4,8.5 8,8.5" fill="none" stroke="#ff6d00" stroke-width="1"/>
+        <polygon points="22,24.5 20,8.5 24,8.5" fill="none" stroke="#ff6d00" stroke-width="1"/>
+        <polygon points="9,12.5 13,12.5 11,6.5" fill="none" stroke="#ff6d00" stroke-width="1"/>
+        <polygon points="15,12.5 19,12.5 17,6.5" fill="none" stroke="#ff6d00" stroke-width="1"/>
+      </svg>
+      <svg width="28" height="31" viewBox="0 0 28 31"><polygon points="14,30 6,12.5 22,12.5" fill="none" stroke="#eeff00" stroke-width="1"/>
+        <polygon points="6,24.5 4,8.5 8,8.5" fill="none" stroke="#eeff00" stroke-width="1"/>
+        <polygon points="22,24.5 20,8.5 24,8.5" fill="none" stroke="#eeff00" stroke-width="1"/>
+        <polygon points="12,12.5 16,12.5 14,6.5" fill="none" stroke="#eeff00" stroke-width="1"/>
+      </svg>
+      <svg width="28" height="31" viewBox="0 0 28 31"><polygon points="14,30 6,12.5 22,12.5" fill="none" stroke="#39ff14" stroke-width="1"/>
+        <polygon points="9,12.5 13,12.5 11,6.5" fill="none" stroke="#39ff14" stroke-width="1"/>
+        <polygon points="15,12.5 19,12.5 17,6.5" fill="none" stroke="#39ff14" stroke-width="1"/>
+      </svg>
+      <svg width="28" height="31" viewBox="0 0 28 31"><polygon points="14,30 6,12.5 22,12.5" fill="none" stroke="#ffffff" stroke-width="1"/>
+        <polygon points="12,12.5 16,12.5 14,6.5" fill="none" stroke="#ffffff" stroke-width="1"/>
+      </svg>
+    </div>
+    <div class="sub" style="margin-top:10px; font-size:8px; letter-spacing:0.5px; opacity:0.6;">Honestly, we just want to be friends with you...</div>
   </div>
   <div id="itemsScreen" class="hidden">
     <div class="title" style="font-size:clamp(8px,3.5vw,18px);">ITEMS</div>
@@ -202,7 +230,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-08-16 12:35';
+const LAST_UPDATED = '2026-08-16 18:09';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -914,7 +942,7 @@ let enemyBullets = [];
 
 // ---------- enemy types ----------
 const TYPES = {
-  A: { hp: 10, score: 25, color: '#ff1744', r: 10, speedMul: 1.0 },
+  A: { hp: 10, score: 25, color: '#ff0044', r: 10, speedMul: 1.0 },
   B: { hp: 8,  score: 15, color: '#ff6d00', r: 10, speedMul: 1.0 },
   C: { hp: 6,  score: 10, color: '#eeff00', r: 10, speedMul: 1.0 },
   D: { hp: 4,  score: 5,  color: '#39ff14', r: 10, speedMul: 1.0 },
@@ -1152,6 +1180,28 @@ function makeBossEnemy() {
 
 let starReverse = false;
 let bossDefeated = false;
+let bossPoolHp = 0, bossPoolMaxHp = 800, bossMinionTimer = 0;
+function spawnBossWaveMinion() {
+  // boss wave: individual enemies (random tier A-E) spawn straight from the top of the
+  // screen every 2s, already diving/attacking — no giant boss shape, no formation entry
+  const typeKey = choice(['A', 'B', 'C', 'D', 'E']);
+  const t = TYPES[typeKey];
+  const x = rand(60, W - 60);
+  const e = {
+    type: typeKey, def: t, hp: t.hp, maxHp: t.hp,
+    slot: { x, y: H * 0.2, type: typeKey, filled: true },
+    state: 'formation',
+    x, y: -30,
+    diveCd: 0,
+    swayPhase: rand(0, Math.PI * 2),
+    angle: 0,
+    firstPass: true,
+    dropsItem: false, dropsRapid: false,
+    isBossMinion: true,
+  };
+  startDive(e);
+  enemies.push(e);
+}
 let bossExplosionBurstTimer = 0;
 let lastBossColor = '#ff2e6b';
 
@@ -1408,25 +1458,11 @@ function activateWave(kind, m) {
   if (kind === 'BOSS') {
     starReverse = true;
     specialStars = [];
-    enemies.push(makeBossEnemy());
-    // escort enemies: 10 total, all tier A, half entering from the top, half from left/right
-    const escortCount = 10;
-    lastLayoutCount = escortCount;
-    layoutFormation(escortCount, 'A');
-    formationSlots.forEach(s => s.filled = false);
-    spawnQueue = formationSlots.map((s, i) => ({
-      slot: s, delay: i * 0.08,
-      fromLeft: i % 2 === 0,
-      entryMode: i % 2 === 0 ? 'TOP' : 'LEFTRIGHT',
-    }));
-    // item drops for the boss escorts
-    const dropPool = [...spawnQueue];
-    for (let i = dropPool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [dropPool[i], dropPool[j]] = [dropPool[j], dropPool[i]];
-    }
-    const itemDropCount = Math.min(2, dropPool.length);
-    for (let i = 0; i < itemDropCount; i++) dropPool[i].dropsItem = true;
+    lastLayoutCount = 0;
+    formationSlots = [];
+    spawnQueue = [];
+    bossPoolHp = bossPoolMaxHp;
+    bossMinionTimer = 2.0;
   } else if (isAsteroidKind(kind)) {
     // Asteroid Belt: asteroids only, no enemies — dodge indestructible rotating asteroids for 45s
     lastLayoutCount = 0;
@@ -1672,6 +1708,48 @@ function fireBossBarrage(e) {
     // Y: continuous barrage, rotate slightly each volley for a spinning coverage effect
     e.barrageAngle = offset + 0.2;
   }
+  // mini-bosses stationed at each vertex fire the same pattern too, at 1/4 the bullet count
+  const miniN = Math.max(1, Math.round(n / 4));
+  const sides = e.def.sides;
+  for (let vk = 0; vk < sides; vk++) {
+    const pos = bossVertexWorldPos(e, vk);
+    for (let mk = 0; mk < miniN; mk++) {
+      const a = offset + (mk / miniN) * Math.PI * 2;
+      enemyBullets.push({ x: pos.x, y: pos.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, r: 4 });
+    }
+  }
+}
+
+function bossVertexWorldPos(e, k) {
+  const sides = e.def.sides;
+  const theta = (k * 2 * Math.PI) / sides;
+  const vx = e.def.r * Math.sin(theta), vy = e.def.r * Math.cos(theta);
+  return {
+    x: e.x + vx * Math.cos(e.angle) - vy * Math.sin(e.angle),
+    y: e.y + vx * Math.sin(e.angle) + vy * Math.cos(e.angle),
+  };
+}
+
+function checkMiniBossHits(e) {
+  // mini-bosses have their own hit detection extending beyond the main boss's
+  // collision radius, but any damage they take is applied to the main boss's HP
+  const miniR = e.def.r / 6;
+  const sides = e.def.sides;
+  for (let vk = 0; vk < sides; vk++) {
+    const pos = bossVertexWorldPos(e, vk);
+    for (let j = playerBullets.length - 1; j >= 0; j--) {
+      const b = playerBullets[j];
+      if (b.spawnDelay > 0) continue;
+      const br = b.r || 3;
+      const rr = (miniR + br) * (miniR + br);
+      if (dist2(pos.x, pos.y, b.x, b.y) < rr) {
+        e.hp -= (b.power || 1);
+        score += 10;
+        spawnDeathParticles(pos.x, pos.y, e.def.color, 3);
+        if (!b.laser && !b.thunder && !b.laserCurve) playerBullets.splice(j, 1);
+      }
+    }
+  }
 }
 
 function updateEnemies(dt) {
@@ -1729,6 +1807,8 @@ function updateEnemies(dt) {
       // wanders up/down/left/right across the top of the screen (Lissajous-style)
       e.x = W / 2 + Math.sin(e.bossT * 0.4) * (W * 0.32);
       e.y = H * 0.22 + Math.sin(e.bossT * 0.65 + 1.3) * (H * 0.13);
+      e.miniAngle = (e.miniAngle || 0) + dt * 2.0; // mini-bosses at each vertex spin continuously
+      checkMiniBossHits(e);
       e.fireTimer -= dt;
       if (e.fireTimer <= 0) {
         fireBossBarrage(e);
@@ -2259,6 +2339,18 @@ function handleEnemyDeath(e) {
   } else {
     spawnDeathParticles(e.x, e.y, e.def.color, 18);
   }
+  if (e.isBossMinion && !bossDefeated) {
+    bossPoolHp -= e.maxHp;
+    if (bossPoolHp <= 0) {
+      bossPoolHp = 0;
+      bossDefeated = true;
+      lastBossColor = '#ff2e2e';
+      globalSpeedBonus += 0.2;
+      score += wave * 100; // boss-defeat bonus, same as the old giant-boss kill score
+      spawnBossExplosion(e.x, e.y, lastBossColor);
+      bossExplosionBurstTimer = 0.3;
+    }
+  }
   if (e.dropsItem) spawnItem(e.x, e.y);
   if (e.dropsRapid) spawnRapidItem(e.x + 20, e.y);
 }
@@ -2554,6 +2646,18 @@ function drawPolygonDown(cx, cy, r, sides) {
 }
 
 // ---------- asteroid belt wave ----------
+function updateBossWave(dt) {
+  if (!waveActive) return;
+  const m = ((wave - 1) % CYCLE_LEN) + 1;
+  const kind = CYCLE_KIND[m - 1];
+  if (kind !== 'BOSS') return;
+  if (bossDefeated) return;
+  bossMinionTimer -= dt;
+  if (bossMinionTimer <= 0) {
+    spawnBossWaveMinion();
+    bossMinionTimer = 2.0;
+  }
+}
 function updateAsteroidWave(dt) {
   if (!waveActive) return;
   const m = ((wave - 1) % CYCLE_LEN) + 1;
@@ -2630,7 +2734,7 @@ function registerAsteroidDamage(amount, target) {
   }
   if (!asteroidBonusGiven && asteroidHitCount >= 500) {
     asteroidBonusGiven = true;
-    player.lives += 1;
+    player.lives = Math.min(7, player.lives + 1);
     waveAnnounce = { text: 'GOOD JOB!\nBONUS 1up', t: 0, hold: 1.2, fade: 0.6 };
   }
 }
@@ -2771,13 +2875,32 @@ function drawEnemy(e) {
     ctx.beginPath();
     drawPolygonDown(0, 0, r, e.def.sides);
     const bossHpFrac = e.maxHp ? Math.max(0, e.hp) / e.maxHp : 1;
-    if (bossHpFrac >= 0.75) ctx.fillStyle = hexToRgba(e.def.color, 0.75);
-    else if (bossHpFrac >= 0.5) ctx.fillStyle = hexToRgba(e.def.color, 0.5);
-    else if (bossHpFrac >= 0.25) ctx.fillStyle = hexToRgba(e.def.color, 0.25);
-    else ctx.fillStyle = '#000000';
+    let bossFillStyle;
+    if (bossHpFrac >= 0.75) bossFillStyle = hexToRgba(e.def.color, 0.75);
+    else if (bossHpFrac >= 0.5) bossFillStyle = hexToRgba(e.def.color, 0.5);
+    else if (bossHpFrac >= 0.25) bossFillStyle = hexToRgba(e.def.color, 0.25);
+    else bossFillStyle = '#000000';
+    ctx.fillStyle = bossFillStyle;
     ctx.fill();
     ctx.strokeStyle = e.def.color;
     ctx.stroke();
+    // mini-bosses stationed at each vertex: same shape, 1/6 the size, spinning
+    // continuously; drawn in this same local (translated+rotated) coordinate frame
+    const miniR = r / 6;
+    for (let vk = 0; vk < e.def.sides; vk++) {
+      const theta = (vk * 2 * Math.PI) / e.def.sides;
+      const vx = r * Math.sin(theta), vy = r * Math.cos(theta);
+      ctx.save();
+      ctx.translate(vx, vy);
+      ctx.rotate(e.miniAngle || 0);
+      ctx.beginPath();
+      drawPolygonDown(0, 0, miniR, e.def.sides);
+      ctx.fillStyle = bossFillStyle;
+      ctx.fill();
+      ctx.strokeStyle = e.def.color;
+      ctx.stroke();
+      ctx.restore();
+    }
   } else {
     // single fixed-size triangle stroked with a gradient (apex bright, base darker) —
     // no longer visualizes remaining HP via nested inner triangles
@@ -2797,6 +2920,51 @@ function drawEnemy(e) {
     ctx.fill();
     ctx.strokeStyle = grad;
     ctx.stroke();
+    // per-tier extra small triangles. "base" triangles sit centered on the main
+    // triangle's base line, now REVERSED (flat edge touching the base, apex
+    // pointing away/up), 4 wide x 6 tall. "side" triangles flank the base corners,
+    // same orientation as the main triangle (apex down), 4 wide x 8 tall, shifted
+    // 4px further up than before.
+    const baseY = -r * 0.65;
+    const fillHp = hpFrac >= 0.75 ? hexToRgba(e.def.color, 0.75) : hpFrac >= 0.5 ? hexToRgba(e.def.color, 0.5) : hpFrac >= 0.25 ? hexToRgba(e.def.color, 0.25) : '#000000';
+    let baseCenters = [], sideCenters = [];
+    if (e.type === 'E') baseCenters = [0];
+    else if (e.type === 'D') baseCenters = [-3, 3];
+    else if (e.type === 'C') { sideCenters = [-2, 2]; baseCenters = [0]; }
+    else if (e.type === 'B') { baseCenters = [-3, 3]; sideCenters = [-2, 2]; }
+    else if (e.type === 'A') { baseCenters = [-3, 3]; sideCenters = [-2, 0, 2]; }
+    baseCenters.forEach(cx => {
+      ctx.beginPath();
+      ctx.moveTo(cx - 2, baseY);
+      ctx.lineTo(cx + 2, baseY);
+      ctx.lineTo(cx, baseY - 6);
+      ctx.closePath();
+      ctx.fillStyle = fillHp;
+      ctx.fill();
+      ctx.strokeStyle = grad;
+      ctx.stroke();
+    });
+    sideCenters.forEach(cx => {
+      const isACenter = e.type === 'A' && cx === 0;
+      ctx.beginPath();
+      if (isACenter) {
+        // tier A's center side-triangle: shifted up a further 2px
+        ctx.moveTo(cx, baseY + 14);
+        ctx.lineTo(cx - 2, baseY + 6);
+        ctx.lineTo(cx + 2, baseY + 6);
+      } else {
+        // corner side-triangles shifted a further 2px outward (away from center)
+        const ox = cx < 0 ? cx - 6 : cx + 6;
+        ctx.moveTo(ox, baseY + 12);
+        ctx.lineTo(ox - 2, baseY - 4);
+        ctx.lineTo(ox + 2, baseY - 4);
+      }
+      ctx.closePath();
+      ctx.fillStyle = fillHp;
+      ctx.fill();
+      ctx.strokeStyle = grad;
+      ctx.stroke();
+    });
   }
   ctx.restore();
   if (e.type === 'GIANTBOSS') drawBossHpBar(e);
@@ -3207,6 +3375,17 @@ function drawHUD() {
     ctx.textAlign = 'center';
     ctx.fillText('TIME ' + remaining, W / 2, 28);
     ctx.fillText('TOTAL DAMAGE ' + Math.round(asteroidTotalDamage), W / 2, 40);
+  } else if (CYCLE_KIND[cycleM - 1] === 'BOSS' && waveActive && !bossDefeated) {
+    // boss HP bar: no single giant boss entity anymore, tracked as a shared pool
+    // depleted by killing the randomly-spawned minion enemies
+    const barW = W / 2, barH = 3;
+    const barX = W / 2 - barW / 2, barY = 26;
+    const frac = Math.max(0, bossPoolHp / bossPoolMaxHp);
+    ctx.strokeStyle = 'rgba(255,46,90,0.5)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(barX, barY, barW, barH);
+    ctx.fillStyle = 'rgba(255,46,90,0.5)';
+    ctx.fillRect(barX, barY, barW * frac, barH);
   }
 
   // item status: right side, as name + level block bar (font 2px smaller than the rest of the HUD)
@@ -3250,6 +3429,7 @@ function frame(now) {
     updateWaveAnnounce(dt);
     updatePendingWaveStart(dt);
     updateAsteroidWave(dt);
+    updateBossWave(dt);
     updateAsteroids(dt);
     handleCollisions();
     handleAsteroidCollisions();
@@ -3270,7 +3450,8 @@ function frame(now) {
   drawPhantomFlashes();
   drawPlayer();
   drawPickupTexts();
-  if (state === STATE.PLAYING) { drawHUD(); drawWaveAnnounce(); drawPauseButton(); }
+  drawHUD();
+  if (state === STATE.PLAYING) { drawWaveAnnounce(); drawPauseButton(); }
   if (state === STATE.PLAYING && paused) drawPausedOverlay();
 
   requestAnimationFrame(frame);
@@ -3280,10 +3461,10 @@ resize();
 initStars();
 requestAnimationFrame(frame);
 
-// title screen (5s) alternates with an item legend (10s)
+// title screen (5s) alternates with an item legend (5s)
 let titleShowingItems = false;
 function scheduleTitleToggle() {
-  const delay = titleShowingItems ? 10000 : 5000;
+  const delay = 5000;
   setTimeout(() => {
     if (state === STATE.TITLE && !showingEquip) {
       titleShowingItems = !titleShowingItems;
