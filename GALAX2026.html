@@ -230,7 +230,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-08-16 18:29';
+const LAST_UPDATED = '2026-08-16 18:49';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -2898,16 +2898,17 @@ function drawEnemy(e) {
     // no longer visualizes remaining HP via nested inner triangles
     const grad = ctx.createLinearGradient(0, r * 1.1, 0, -r * 0.65);
     grad.addColorStop(0, hexToRgba(e.def.color, 1));
-    grad.addColorStop(0.2, darkenColor(e.def.color, 0.5, 1));
-    grad.addColorStop(1, darkenColor(e.def.color, 0.5, 1));
+    grad.addColorStop(0.2, darkenColor(e.def.color, 0.3, 1));
+    grad.addColorStop(1, darkenColor(e.def.color, 0.3, 1));
     ctx.beginPath();
     drawEnemyTriangle(0, 0, r);
     // fill reflects remaining HP: lighter fill (same color, low opacity) at high HP,
-    // darker/more solid as HP drops, solid black once critically low
+    // darker/more solid as HP drops, solid black once critically low (regular enemies
+    // use a different, more muted opacity scale than the boss)
     const hpFrac = e.maxHp ? Math.max(0, e.hp) / e.maxHp : 1;
-    if (hpFrac >= 0.75) ctx.fillStyle = hexToRgba(e.def.color, 0.75);
-    else if (hpFrac >= 0.5) ctx.fillStyle = hexToRgba(e.def.color, 0.5);
-    else if (hpFrac >= 0.25) ctx.fillStyle = hexToRgba(e.def.color, 0.25);
+    if (hpFrac >= 0.75) ctx.fillStyle = hexToRgba(e.def.color, 0.5);
+    else if (hpFrac >= 0.5) ctx.fillStyle = hexToRgba(e.def.color, 0.35);
+    else if (hpFrac >= 0.25) ctx.fillStyle = hexToRgba(e.def.color, 0.2);
     else ctx.fillStyle = '#000000';
     ctx.fill();
     ctx.strokeStyle = grad;
@@ -2918,7 +2919,7 @@ function drawEnemy(e) {
     // same orientation as the main triangle (apex down), 4 wide x 8 tall, shifted
     // 4px further up than before.
     const baseY = -r * 0.65;
-    const fillHp = hpFrac >= 0.75 ? hexToRgba(e.def.color, 0.75) : hpFrac >= 0.5 ? hexToRgba(e.def.color, 0.5) : hpFrac >= 0.25 ? hexToRgba(e.def.color, 0.25) : '#000000';
+    const fillHp = hpFrac >= 0.75 ? hexToRgba(e.def.color, 0.5) : hpFrac >= 0.5 ? hexToRgba(e.def.color, 0.35) : hpFrac >= 0.25 ? hexToRgba(e.def.color, 0.2) : '#000000';
     let baseCenters = [], sideCenters = [];
     if (e.type === 'E') baseCenters = [0];
     else if (e.type === 'D') baseCenters = [-3, 3];
