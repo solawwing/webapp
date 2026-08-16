@@ -230,7 +230,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-08-17 05:31';
+const LAST_UPDATED = '2026-08-17 06:16';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -2281,7 +2281,7 @@ function updateBullets(dt) {
       if (b.chainTimer <= 0) {
         const last = b.chainPath[b.chainPath.length - 1];
         const next = findNearestEnemyExcluding(last.x, last.y, b.hitSet);
-        const inRange = next && dist2(last.x, last.y, next.x, next.y) < 500 * 500;
+        const inRange = next && dist2(last.x, last.y, next.x, next.y) < 2560 * 2560;
         if (next && inRange && b.loopsLeft > 0) {
           b.hitSet.add(next);
           if (next.isAsteroidObj) {
