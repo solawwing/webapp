@@ -174,7 +174,7 @@
       </div>
       <div class="item-entry" data-weapon="VULCAN">
         <div class="item-header"><span class="item-icon">V</span><span class="item-name">VULCAN</span></div>
-        <div class="item-desc">Rapid burst from the ship's tip with a slight random spread and wildly random power.</div>
+        <div class="item-desc">Rapid burst from the ship's tip with a slight random spread. Levels all the way to 7.</div>
       </div>
       <div class="item-entry" data-weapon="PHANTOM">
         <div class="item-header"><span class="item-icon">P</span><span class="item-name">PHANTOM</span></div>
@@ -230,7 +230,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-08-17 06:16';
+const LAST_UPDATED = '2026-08-18 00:51';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -509,14 +509,16 @@ function drawParticles() {
 }
 function pickItemType() {
   // lower weapon level -> more likely to see the same weapon again (helps reach max level);
-  // once maxed (Lv5), that weapon is excluded entirely so it doesn't drop wastefully.
+  // once maxed, that weapon is excluded entirely so it doesn't drop wastefully — VULCAN
+  // caps at Lv7, every other weapon caps at Lv5.
   // SPARK is a special rare power-up: much lower weight than any other weapon.
   const lvl = player.weaponLevel;
+  const maxLevel = player.weapon === 'VULCAN' ? 7 : 5;
   const weights = ITEM_TYPES.map(t => {
     if (t === 'SPARK') return 0.15;
     if (t !== player.weapon) return 1;
-    if (lvl >= 5) return 0;
-    return 25 - 5 * lvl;
+    if (lvl >= maxLevel) return 0;
+    return Math.max(1, 25 - 5 * lvl); // clamped so VULCAN's extra Lv6/Lv7 headroom never goes negative
   });
   const total = weights.reduce((a, b) => a + b, 0);
   let r = Math.random() * total;
@@ -559,7 +561,8 @@ function updateItems(dt) {
         pickupTexts.push({ text: 'SPARK!', x: player.x, y: player.y - player.r - 6, t: 0, duration: 2.0 });
       } else {
         if (player.weapon === it.type) {
-          player.weaponLevel = Math.min(5, player.weaponLevel + 1);
+          const maxLevel = it.type === 'VULCAN' ? 7 : 5;
+          player.weaponLevel = Math.min(maxLevel, player.weaponLevel + 1);
         } else {
           player.weapon = it.type;
           player.weaponLevel = 1;
@@ -705,7 +708,7 @@ const DOUBLE_COUNTS = [0, 2, 4, 6, 8, 10];
 const WIDE_COUNTS = [0, 3, 5, 7, 9, 11];
 const HOMING_COUNTS = [0, 1, 2, 3, 4, 5];
 const BUBBLE_COUNTS = [0, 6, 10, 14, 18, 22]; // linear, +4 per level
-const VULCAN_COUNTS = [0, 2, 4, 6, 8, 10]; // +2 shots per level
+const VULCAN_COUNTS = [0, 2, 4, 6, 8, 10, 12, 14]; // +2 shots per level, up to Lv7
 const PHANTOM_COOLDOWNS = [0, 1.0, 0.8, 0.6, 0.4, 0.2]; // -0.2s per level
 const SPARK_COOLDOWNS = [0, 0.3, 0.3, 0.3, 0.3, 0.3]; // fixed 0.3s regardless of level
 // per-weapon fire cooldown (seconds between shots), replacing the old one-size-fits-all
@@ -751,7 +754,7 @@ function fireWeapon() {
     const n = WIDE_COUNTS[lvl];
     fanAngles(n, 7).forEach(a => {
       const rad = a * Math.PI / 180;
-      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 2, lenMul: 0.5, wide: true });
+      playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 2, lenMul: 0.5, wide: true, traveled: 0, angle: rad });
     });
   } else if (player.weapon === 'HOMING') {
     // per level: angle pairs start at 20 degrees and step up by 40 degrees each, always
@@ -833,11 +836,15 @@ function fireLaserSubs() {
 
 function fireVulcanShot() {
   // fires from the ship's apex (its topmost/frontmost point), not just above center;
-  // firing angle is randomized between -10 and +10 degrees on every shot
+  // firing angle is randomized between -10 and +10 degrees on every shot. As level
+  // increases, the same bullet is fired repeatedly in place (0.01s apart), `level`
+  // times, instead of a single shot — power is a flat 1 regardless of level.
   const bx = player.x, by = player.y - player.r * 1.9 * 1.4;
   const rad = rand(-10, 10) * Math.PI / 180;
-  const power = Math.floor(rand(1, 6)); // random 1-5 per shot
-  playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 400, vy: -Math.cos(rad) * 400, r: 1, power, vulcanLine: true });
+  const repeats = Math.max(1, player.weaponLevel);
+  for (let k = 0; k < repeats; k++) {
+    playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 400, vy: -Math.cos(rad) * 400, r: 1, power: 1, vulcanLine: true, spawnDelay: k * 0.01 });
+  }
 }
 
 // ---------- PHANTOM: instant flash strike ----------
@@ -1927,8 +1934,8 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["40px splash radius.", "80px radius.", "120px radius.", "160px radius.", "200px radius, biggest shockwave."] },
   BUBBLE: { intro: "Launches a wide cone of drifting pink orbs ahead of the ship, growing steadily larger the farther each one travels. Every orb's brightness is randomly assigned the moment it's fired, and that brightness quietly determines both how far the orb can fly before vanishing and how much damage it deals on contact. The brightest orbs fly the farthest and hit the hardest, while dimmer ones fizzle out quickly and only tickle whatever they touch nearby. Because the cone is wide and the orb count climbs sharply with level, BUBBLE turns into a genuine wall of unpredictable projectiles at higher levels, even though any single orb on its own is fairly weak.",
     levels: ["6 orbs per shot.", "10 orbs.", "14 orbs.", "18 orbs.", "22 orbs, thickest cone."] },
-  VULCAN: { intro: "A rapid-fire burst of short orange bolts fired from the very tip of the ship, each one scattering slightly off true for an unpredictable, chattering spray rather than a clean straight line. No matter how many shots you've unlocked, the whole burst always finishes within half a second, so higher levels simply pack more bolts into that same tight window instead of dragging the burst out longer. Every single bolt also rolls its own power at random, anywhere from a glancing tap to a serious hit, so damage output swings wildly shot to shot. It stacks cleanly with RAPID too, letting the two overlap into an even denser stream of unpredictable fire.",
-    levels: ["2-shot burst.", "4-shot burst.", "6-shot burst.", "8-shot burst.", "10-shot burst, same 0.5s window."] },
+  VULCAN: { intro: "A rapid-fire burst of short orange bolts fired from the very tip of the ship, each one scattering slightly off true for an unpredictable, chattering spray rather than a clean straight line. No matter how many shots you've unlocked, the whole burst always finishes within half a second, so higher levels simply pack more bolts into that same tight window instead of dragging the burst out longer. Every single bolt in a shot now fires as a rapid volley of its own, repeating the exact same bolt in place once per level with barely any delay between each repeat, so leveling up multiplies your output twice over — more shots in the burst, and more repeats of each one. VULCAN also uniquely keeps growing all the way to level seven, two levels further than every other weapon. It stacks cleanly with RAPID too, letting everything overlap into an even denser stream of fire.",
+    levels: ["2-shot burst, 1x repeat.", "4-shot burst, 2x repeat.", "6-shot burst, 3x repeat.", "8-shot burst, 4x repeat.", "10-shot burst, 5x repeat.", "12-shot burst, 6x repeat.", "14-shot burst, 7x repeat, same 0.5s window."] },
   PHANTOM: { intro: "Instantly flashes a wide beam from the ship straight up to the top of the screen, damaging everything caught inside the flash the very moment it fires, with no travel time at all. Anything still standing inside that flash zone while it's fading out also gets caught in a slowing field, moving and acting at half speed for as long as they linger there. The width of that flash and the cooldown between flashes both improve dramatically with level, the beam growing wider while the wait between activations shrinks all the way down to a fifth of a second, letting you flash almost constantly once fully powered up.",
     levels: ["100px wide, 1.0s cooldown.", "120px wide, 0.8s cooldown.", "140px wide, 0.6s cooldown.", "160px wide, 0.4s cooldown.", "180px wide, 0.2s cooldown."] },
   CURVE: { intro: "Launches one violet beam per level, each one locking onto a different target near the top of the screen so that a full volley spreads its attention across several enemies at once instead of piling onto one. Rather than turning sharply toward its target, each beam curves along a gentle, ever-tightening parabolic arc, so its path visibly bends more and more the longer it stays airborne. Its hitbox reaches a generous twenty pixels to either side too, so it doesn't need to line up perfectly to connect. Along the way it pierces through anything else it happens to pass, dealing lesser damage to those incidental targets while saving its heaviest hit for whatever it originally locked onto.",
@@ -1976,7 +1983,7 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 5000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['DOUBLE', 'LASER'];
+const EQUIP_UPDATED = ['WIDE', 'VULCAN'];
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -2221,8 +2228,8 @@ function updateBullets(dt) {
     }
     if (!b.bubble && !b.noTrail) {
       if (!b.trail) b.trail = [];
-      b.trail.push({ x: b.x, y: b.y, rot: b.rot });
-      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : (b.wide || b.double) ? 24 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
+      b.trail.push({ x: b.x, y: b.y, rot: b.angle !== undefined ? b.angle : b.rot, traveled: b.traveled });
+      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.wide ? 4 : b.double ? 24 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
       if (b.trail.length > maxTrail) b.trail.shift();
     }
     if (b.homing) {
@@ -2354,6 +2361,9 @@ function updateBullets(dt) {
       b.traveled += Math.hypot(b.vx, b.vy) * dt;
       b.r = 1 + (b.traveled / 20) * 2; // starts at 1px, grows +2px in radius for every 20px traveled (uncapped)
       if (b.traveled >= b.maxTravel) { playerBullets.splice(i, 1); continue; }
+    }
+    if (b.wide) {
+      b.traveled += Math.hypot(b.vx, b.vy) * dt; // widens the bullet as it flies, see drawBullets
     }
     if (b.spark && !b.burst && b.y <= b.burstY) {
       burstSpark(b);
@@ -3228,11 +3238,39 @@ function drawBullets() {
       ctx.fillStyle = '#ff6a00';
       ctx.fillRect(b.x - 3.5, b.y - 2.5, 2, 5);
       ctx.fillRect(b.x + 1.5, b.y - 2.5, 2, 5);
-    } else if (b.wide || b.double) {
+    } else if (b.wide) {
+      // horizontal bar, starts 2x2px and widens by 4px on each side (total +8px width)
+      // for every 100px traveled — 2x2, 10x2, 18x2, ... rotated to match its firing angle
+      const steps = Math.floor(b.traveled / 100);
+      const width = 2 + steps * 8;
+      const halfW = width / 2;
+      // afterimage trail: ONE continuous filled shape from the tail to the current
+      // position (no gaps between discrete copies), fading along its length
+      if (b.trail && b.trail.length > 0) {
+        const tail = b.trail[0];
+        const tailDist = Math.hypot(b.x - tail.x, b.y - tail.y);
+        if (tailDist > 0.5) {
+          ctx.save();
+          ctx.translate(b.x, b.y);
+          ctx.rotate(b.angle || 0);
+          const grad = ctx.createLinearGradient(0, 0, 0, tailDist);
+          grad.addColorStop(0, 'rgba(57,255,20,0.4)');
+          grad.addColorStop(1, 'rgba(57,255,20,0)');
+          ctx.fillStyle = grad;
+          ctx.fillRect(-halfW, 0, width, tailDist);
+          ctx.restore();
+        }
+      }
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(b.angle || 0);
+      ctx.fillStyle = '#39ff14';
+      ctx.fillRect(-halfW, -0.5, width, 1);
+      ctx.restore();
+    } else if (b.double) {
       // single bar "|", 2x5px — just one of VULCAN's two bars; ONE long trailing line
       // (not multiple discrete copies) that fades from the bullet to fully transparent
-      const barColor = b.wide ? '#39ff14' : '#4ef0ff';
-      const barColorRgb = b.wide ? '57,255,20' : '78,240,255';
+      const barColorRgb = '78,240,255';
       if (b.trail && b.trail.length > 0) {
         const tail = b.trail[0];
         const grad = ctx.createLinearGradient(b.x, b.y, tail.x, tail.y);
@@ -3246,7 +3284,7 @@ function drawBullets() {
         ctx.stroke();
         ctx.lineWidth = 1;
       }
-      ctx.fillStyle = barColor;
+      ctx.fillStyle = '#4ef0ff';
       ctx.fillRect(b.x - 1, b.y - 2.5, 2, 5);
     } else if (b.spark && !b.burst) {
       // small rising spark, harmless until it bursts above mid-screen — 3x3px square
@@ -3487,7 +3525,7 @@ function drawHUD() {
 
   // item status: right side, as name + level block bar (font 2px smaller than the rest of the HUD)
   ctx.font = '10px "Montserrat", sans-serif';
-  if (player.weapon !== 'NORMAL') drawLevelBar(player.weapon, player.weaponLevel, 5, W - 12, 26);
+  if (player.weapon !== 'NORMAL') drawLevelBar(player.weapon, player.weaponLevel, player.weapon === 'VULCAN' ? 7 : 5, W - 12, 26);
   if (player.rapidLevel > 0) drawLevelBar('RAPID', player.rapidLevel, 3, W - 12, 44);
   ctx.font = '12px "Montserrat", sans-serif';
   ctx.textAlign = 'left';
