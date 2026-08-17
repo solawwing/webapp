@@ -2112,12 +2112,12 @@
   function computeStarSpeedScaleAndBracket(){
     let speedScale, speedBracket = 0;
     if(currentSpeedKmh == null || currentSpeedKmh < 5){
-      speedScale = 1.06; // 最低速度(速さを今の0.5倍に)
+      speedScale = 0.53; // 最低速度(速さを今の2倍に)
     } else {
       const MAX_BRACKET = 23; // 5km刻みで120km/hまで
       speedBracket = Math.min(Math.floor(currentSpeedKmh / 5), MAX_BRACKET);
-      const startScale = 1.0;
-      const minScale = 0.25;
+      const startScale = 0.5;
+      const minScale = 0.125;
       speedScale = startScale - (startScale - minScale) * ((speedBracket - 1) / (MAX_BRACKET - 1));
     }
     return { speedScale, speedBracket };
