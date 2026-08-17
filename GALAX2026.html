@@ -230,7 +230,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-08-18 00:51';
+const LAST_UPDATED = '2026-08-18 08:32';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -840,7 +840,7 @@ function fireVulcanShot() {
   // increases, the same bullet is fired repeatedly in place (0.01s apart), `level`
   // times, instead of a single shot — power is a flat 1 regardless of level.
   const bx = player.x, by = player.y - player.r * 1.9 * 1.4;
-  const rad = rand(-10, 10) * Math.PI / 180;
+  const rad = rand(-5, 5) * Math.PI / 180;
   const repeats = Math.max(1, player.weaponLevel);
   for (let k = 0; k < repeats; k++) {
     playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 400, vy: -Math.cos(rad) * 400, r: 1, power: 1, vulcanLine: true, spawnDelay: k * 0.01 });
@@ -1612,7 +1612,8 @@ function drawWaveAnnounce() {
     if (/^WAVE \d+$/.test(line)) {
       drawWaveNumberText(line, W / 2, startY + i * lineGap, fontPx, 20);
     } else {
-      drawSpacedText(line, W / 2, startY + i * lineGap, fontPx, 20);
+      const spacing = line.startsWith('Bonus ') ? 10 : 20;
+      drawSpacedText(line, W / 2, startY + i * lineGap, fontPx, spacing);
     }
   });
   ctx.textAlign = 'left';
@@ -2590,7 +2591,9 @@ function checkWaveClear() {
     // clean transition: clear anything left over regardless of wave kind
     if ((isAsteroidKind(kind) || isCrystalKind(kind)) && !beltDamageBonusApplied) {
       beltDamageBonusApplied = true;
-      score += Math.round(asteroidTotalDamage) * 100;
+      const bonusAmount = Math.round(asteroidTotalDamage) * 100;
+      score += bonusAmount;
+      waveAnnounce = { text: 'Bonus ' + formatScore(bonusAmount), t: 0, hold: 3.4, fade: 0.6 };
     }
     enemies = [];
     spawnQueue = [];
