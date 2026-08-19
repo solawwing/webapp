@@ -39,6 +39,14 @@
     font-size: clamp(10px, 2.2vw, 13px); opacity: 0.75; text-align: left;
     line-height: 1.15; margin-top: 3px; margin-left: 28px; max-width: 220px;
   }
+  /* CYCLE screen: no icon column, so no need to indent under one; numbers/descriptions
+     are 1.5x the item-legend's size, with matching layout breathing room */
+  #cycleScreen .item-list { gap: 12px; }
+  #cycleScreen .item-entry { flex-direction: row; align-items: baseline; gap: 12px; flex-wrap: nowrap; }
+  #cycleScreen .item-name { font-size: clamp(15px, 4.2vw, 21px); flex-shrink: 0; min-width: 1.6em; }
+  #cycleScreen .item-desc {
+    font-size: clamp(15px, 3.3vw, 20px); margin-left: 0; margin-top: 0; max-width: 210px;
+  }
   #overlay .item-icon {
     position: relative;
     width: 18px; height: 18px; flex: 0 0 auto;
@@ -203,7 +211,7 @@
   <div id="cycleScreen" class="hidden">
     <div class="title" style="font-size:clamp(8px,3.5vw,18px);">CYCLE</div>
     <div class="item-list">
-      <div class="item-desc" style="margin-bottom:10px;">Every 12 waves repeat this fixed sequence, looping forever and getting progressively tougher:</div>
+      <div class="item-desc" style="margin-bottom:14px;">Every 12 waves repeat this fixed sequence, looping forever and getting progressively tougher:</div>
       <div class="item-entry">
         <div class="item-header"><span class="item-name">1</span></div>
         <div class="item-desc">Standard enemy formation.</div>
@@ -286,7 +294,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-08-19 19:55';
+const LAST_UPDATED = '2026-08-19 20:31';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
