@@ -300,7 +300,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-08-19 22:28';
+const LAST_UPDATED = '2026-08-21 22:20';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -856,7 +856,7 @@ function fireWeapon() {
       // spawns 20px from ship center in the firing direction, then flies straight for
       // 200px before it starts homing in on its target
       const hx = player.x + Math.sin(rad) * 20, hy = player.y - Math.cos(rad) * 20;
-      playerBullets.push({ x: hx, y: hy, vx: Math.sin(rad) * 60, vy: -Math.cos(rad) * 60, r: 3, homing: true, target, power: 2, speed: 60, maxSpeed: 300, homingAge: 0, straightDist: 200, homingTraveled: 0 });
+      playerBullets.push({ x: hx, y: hy, vx: Math.sin(rad) * 60, vy: -Math.cos(rad) * 60, r: 3, homing: true, target, power: 2 + (lvl - 1), homingLevel: lvl, speed: 60, maxSpeed: 300, homingAge: 0, straightDist: 200, homingTraveled: 0 });
     });
   } else if (player.weapon === 'LASER') {
     const spec = LASER_SPECS[lvl];
@@ -1414,6 +1414,7 @@ function splitByDamage(target) {
   const idx = asteroids.indexOf(target);
   if (idx === -1) return;
   asteroids.splice(idx, 1);
+  score += choice([100, 200, 400, 800]); // random split bonus
   if (target.isCrystal) {
     const origHalfW = target.r;
     const origHalfH = Math.abs(target.verts[0].y);
@@ -3312,9 +3313,11 @@ function drawBullets() {
         ctx.lineWidth = 1;
       }
     } else if (b.homing) {
-      // isosceles triangle (base 5.6px, height 8.4px — 70% of the original 8x12, 1px
-      // thick), apex pointing toward the current travel direction (which itself points
-      // at whatever it's homing in on)
+      // isosceles triangle, base 5.6px/height 8.4px at Lv1 (70% of the original 8x12),
+      // widening by 1px on each dimension per level above 1; apex points toward the
+      // current travel direction (which itself points at whatever it's homing in on)
+      const hLvl = b.homingLevel || 1;
+      const halfBase = 2.8 + (hLvl - 1) * 1.0, halfHeight = 4.2 + (hLvl - 1) * 1.0;
       const ang = Math.atan2(b.vy, b.vx) + Math.PI / 2; // canvas apex is drawn pointing "up" by default, so offset by 90deg
       ctx.lineWidth = 1;
       if (b.trail) {
@@ -3325,9 +3328,9 @@ function drawBullets() {
           ctx.translate(p.x, p.y);
           ctx.rotate(p.rot !== undefined ? p.rot : ang);
           ctx.beginPath();
-          ctx.moveTo(0, -4.2);
-          ctx.lineTo(-2.8, 4.2);
-          ctx.lineTo(2.8, 4.2);
+          ctx.moveTo(0, -halfHeight);
+          ctx.lineTo(-halfBase, halfHeight);
+          ctx.lineTo(halfBase, halfHeight);
           ctx.closePath();
           ctx.stroke();
           ctx.restore();
@@ -3339,18 +3342,18 @@ function drawBullets() {
       // two slanted sides at full opacity
       ctx.strokeStyle = '#baffc9';
       ctx.beginPath();
-      ctx.moveTo(0, -4.2);
-      ctx.lineTo(-2.8, 4.2);
-      ctx.moveTo(0, -4.2);
-      ctx.lineTo(2.8, 4.2);
+      ctx.moveTo(0, -halfHeight);
+      ctx.lineTo(-halfBase, halfHeight);
+      ctx.moveTo(0, -halfHeight);
+      ctx.lineTo(halfBase, halfHeight);
       ctx.stroke();
       // base edge at 50% opacity (thicker line so the opacity difference reads clearly
       // at this small a scale)
       ctx.strokeStyle = 'rgba(186,255,201,0.5)';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(-2.8, 4.2);
-      ctx.lineTo(2.8, 4.2);
+      ctx.moveTo(-halfBase, halfHeight);
+      ctx.lineTo(halfBase, halfHeight);
       ctx.stroke();
       ctx.lineWidth = 1;
       ctx.restore();
