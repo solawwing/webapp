@@ -1814,7 +1814,7 @@
         if(!isZoomedFor50km){
           savedZoomBeforeToggle = map.getZoom();
           followMe = false; // ズームアウト中に現在地追従で戻されないようにする
-          map.fitBounds(getBoundsForRadius(marker.getLatLng(), 50000), { animate:true });
+          map.fitBounds(getBoundsForRadius(marker.getLatLng(), 20000), { animate:true });
         } else {
           if(savedZoomBeforeToggle != null){
             map.setView(marker.getLatLng(), savedZoomBeforeToggle, { animate:true });
