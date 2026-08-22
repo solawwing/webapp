@@ -222,6 +222,7 @@
     -webkit-appearance:none; cursor:pointer;
   }
   .grayToggleBtn:active{ background:rgba(57,255,20,.15); }
+  .grayToggleBtn.active{ background:#888888; }
 
   /* header */
   .head{
@@ -1791,7 +1792,8 @@
   if(grayToggleBtn){
     grayToggleBtn.addEventListener('click', (ev)=>{
       ev.stopPropagation();
-      showGrayStations = !showGrayStations; // ボタンの見た目は変えず、地図上の表示だけ切り替える
+      showGrayStations = !showGrayStations;
+      grayToggleBtn.classList.toggle('active', showGrayStations); // ONならグレー、OFFなら黒
       if(marker) renderStoredStationsOnMap(marker.getLatLng());
     });
   }
