@@ -1789,12 +1789,40 @@
     });
   }
 
+  // 現在地を中心に、指定半径(m)がちょうど収まる緯度経度の範囲(bounds)を計算する
+  function getBoundsForRadius(center, radiusM){
+    const latOffset = radiusM / 111320; // 1度の緯度 ≈ 111.32km
+    const lngOffset = radiusM / (111320 * Math.cos(center.lat * Math.PI / 180));
+    return L.latLngBounds(
+      [center.lat - latOffset, center.lng - lngOffset],
+      [center.lat + latOffset, center.lng + lngOffset]
+    );
+  }
+
+  let isZoomedFor50km = false;
+  let savedZoomBeforeToggle = null;
+
   if(grayToggleBtn){
     grayToggleBtn.addEventListener('click', (ev)=>{
       ev.stopPropagation();
       showGrayStations = !showGrayStations;
       grayToggleBtn.classList.toggle('active', showGrayStations); // ONならグレー、OFFなら黒
       if(marker) renderStoredStationsOnMap(marker.getLatLng());
+
+      // 地図の縮尺を50km圏が見えるレベルとトグルする
+      if(marker){
+        if(!isZoomedFor50km){
+          savedZoomBeforeToggle = map.getZoom();
+          followMe = false; // ズームアウト中に現在地追従で戻されないようにする
+          map.fitBounds(getBoundsForRadius(marker.getLatLng(), 50000), { animate:true });
+        } else {
+          if(savedZoomBeforeToggle != null){
+            map.setView(marker.getLatLng(), savedZoomBeforeToggle, { animate:true });
+          }
+          followMe = true;
+        }
+        isZoomedFor50km = !isZoomedFor50km;
+      }
     });
   }
 
