@@ -300,7 +300,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-08-21 22:20';
+const LAST_UPDATED = '2026-08-23 10:30';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1414,7 +1414,7 @@ function splitByDamage(target) {
   const idx = asteroids.indexOf(target);
   if (idx === -1) return;
   asteroids.splice(idx, 1);
-  score += choice([100, 200, 400, 800]); // random split bonus
+  score += choice([1000, 2000, 4000, 8000]); // random split bonus
   if (target.isCrystal) {
     const origHalfW = target.r;
     const origHalfH = Math.abs(target.verts[0].y);
