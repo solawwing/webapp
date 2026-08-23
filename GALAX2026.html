@@ -300,7 +300,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-08-23 16:06';
+const LAST_UPDATED = '2026-08-23 16:36';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -980,7 +980,7 @@ function firePhantomFlash() {
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i];
     if (e.x >= left && e.x <= right && e.y >= top && e.y <= bottom) {
-      e.hp -= 5;
+      e.hp -= (e.type === 'GIANTBOSS' ? 15 : 10);
       score += 10; // +10 for dealing damage
       if (e.hp <= 0) {
         handleEnemyDeath(e);
