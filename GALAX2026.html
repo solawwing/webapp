@@ -126,7 +126,7 @@
     <div class="sub blink" style="margin-top:24px;">TAP TO START</div>
     <div class="sub" id="updatedLine" style="margin-top:14px; font-size:8px; letter-spacing:1px; opacity:0.5;"></div>
     <div id="tierLegend" style="margin-top:112px; display:flex; gap:14px; justify-content:center; align-items:center;">
-      <svg width="28" height="31" viewBox="0 0 28 31"><polygon points="14,30 6,12.5 22,12.5" fill="none" stroke="#ff0044" stroke-width="1"/>
+      <svg id="tierAIcon" width="28" height="31" viewBox="0 0 28 31" style="pointer-events:auto; cursor:pointer;"><polygon points="14,30 6,12.5 22,12.5" fill="none" stroke="#ff0044" stroke-width="1"/>
         <polygon points="6,24.5 4,8.5 8,8.5" fill="none" stroke="#ff0044" stroke-width="1"/>
         <polygon points="14,26.5 12,18.5 16,18.5" fill="none" stroke="#ff0044" stroke-width="1"/>
         <polygon points="22,24.5 20,8.5 24,8.5" fill="none" stroke="#ff0044" stroke-width="1"/>
@@ -300,7 +300,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-08-23 19:50';
+const LAST_UPDATED = '2026-08-23 22:19';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -481,7 +481,7 @@ function updateShockwaves(dt) {
           score += wave * 20;
           registerAsteroidDamage(1, target);
           spawnDeathParticles(tx, ty, target.isCrystal ? '#7CFFF0' : '#bbbbbb', 3);
-        } else {
+        } else if (!(target.type === 'GIANTBOSS' && !target.hasFiredFirstShot)) {
           target.hp -= 1;
           score += 10; // +10 for dealing damage
           if (target.hp <= 0) {
@@ -532,6 +532,7 @@ function applyGravitySplash(x, y, radius, excludeEnemy) {
     const e = enemies[i];
     if (e === excludeEnemy) continue;
     if (dist2(x, y, e.x, e.y) <= radius * radius) {
+      if (e.type === 'GIANTBOSS' && !e.hasFiredFirstShot) continue;
       e.hp -= 5;
       score += 10; // +10 for dealing damage
       if (e.hp <= 0) {
@@ -935,13 +936,45 @@ function fireVulcanShot() {
 // ---------- PHANTOM: instant flash strike ----------
 let phantomFlashes = [];
 function spawnPhantomFlash(x, y, w, h) {
-  phantomFlashes.push({ x, y, w, h, t: 0, duration: 0.25 });
+  phantomFlashes.push({ x, y, w, h, t: 0, duration: 0.25, tickTimer: 0 });
+}
+function applyPhantomTickDamage(f) {
+  // extra damage tick, separate from the initial hit, catching anything currently
+  // inside the (still-visible) flash zone — including things that entered after the
+  // initial hit — while the flash remains on screen
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    if (e.x >= f.x && e.x <= f.x + f.w && e.y >= f.y && e.y <= f.y + f.h) {
+      if (e.type === 'GIANTBOSS' && !e.hasFiredFirstShot) continue;
+      e.hp -= (e.type === 'GIANTBOSS' ? 10 : 5);
+      score += 10;
+      if (e.hp <= 0) {
+        handleEnemyDeath(e);
+        enemies.splice(i, 1);
+      } else if (e.type !== 'GIANTBOSS') {
+        spawnDeathParticles(e.x, e.y, e.def.color, 2);
+      }
+    }
+  }
+  for (let i = asteroids.length - 1; i >= 0; i--) {
+    const a = asteroids[i];
+    if (a.x >= f.x && a.x <= f.x + f.w && a.y >= f.y && a.y <= f.y + f.h) {
+      score += wave * 20;
+      registerAsteroidDamage(5, a);
+      spawnDeathParticles(a.x, a.y, '#bbbbbb', 4);
+    }
+  }
 }
 function updatePhantomFlashes(dt) {
   for (let i = phantomFlashes.length - 1; i >= 0; i--) {
     const f = phantomFlashes[i];
     f.t += dt;
-    if (f.t >= f.duration) phantomFlashes.splice(i, 1);
+    if (f.t >= f.duration) {
+      // one extra damage tick right as the flash finishes, catching anything still
+      // inside the zone (including things that entered after the initial hit)
+      applyPhantomTickDamage(f);
+      phantomFlashes.splice(i, 1);
+    }
   }
 }
 function drawPhantomFlashes() {
@@ -980,7 +1013,8 @@ function firePhantomFlash() {
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i];
     if (e.x >= left && e.x <= right && e.y >= top && e.y <= bottom) {
-      e.hp -= (e.type === 'GIANTBOSS' ? 15 : 20);
+      if (e.type === 'GIANTBOSS' && !e.hasFiredFirstShot) continue;
+      e.hp -= (e.type === 'GIANTBOSS' ? 15 : 5);
       score += 10; // +10 for dealing damage
       if (e.hp <= 0) {
         handleEnemyDeath(e);
@@ -994,7 +1028,7 @@ function firePhantomFlash() {
     const a = asteroids[i];
     if (a.x >= left && a.x <= right && a.y >= top && a.y <= bottom) {
       score += wave * 20;
-      registerAsteroidDamage(20, a);
+      registerAsteroidDamage(5, a);
       spawnDeathParticles(a.x, a.y, '#bbbbbb', 10);
     }
   }
@@ -1275,7 +1309,7 @@ function makeBossEnemy() {
     t: 0, duration: 2.4,
     angle: 0, swayPhase: 0,
     bossT: 0, fireTimer: rand(0.4, 2.0),
-    trail: [],
+    trail: [], hasFiredFirstShot: false,
   };
 }
 
@@ -1464,39 +1498,39 @@ function splitByDamage(target) {
 }
 
 function spawnGhostSplitPieces(target) {
-  // purely visual "final split" for an already-split piece: two smaller ghost shapes
-  // that drift apart and fade out over 1s (no collision), each finishing with a
-  // normal-enemy-style explosion burst (18 particles) instead of continuing to exist
+  // purely visual "final split" for an already-split piece: four smaller ghost shapes
+  // that drift apart and fade out over 1s (no collision, no explosion burst)
+  const dirs = [{ x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 }];
   if (target.isCrystal) {
     const origHalfW = target.r;
     const origHalfH = Math.abs(target.verts[0].y);
-    const newHalfW = Math.max(6, origHalfW * 0.65);
-    const newHalfH = Math.max(25, origHalfH * 0.65);
-    for (let s = 0; s < 2; s++) {
+    const newHalfW = Math.max(5, origHalfW * 0.5);
+    const newHalfH = Math.max(18, origHalfH * 0.5);
+    dirs.forEach(d => {
       dyingAsteroids.push({
-        x: target.x + (s === 0 ? -10 : 10), y: target.y,
+        x: target.x + d.x * 8, y: target.y + d.y * 8,
         r: newHalfW, isCrystal: true,
         verts: makeHexagonVerts(newHalfW, newHalfH),
         angle: rand(0, Math.PI * 2),
         spin: rand(0.6, 1.2) * (Math.random() < 0.5 ? -1 : 1),
-        vx: (target.vx || 0) + (s === 0 ? -30 : 30), vy: target.vy,
+        vx: (target.vx || 0) + d.x * 25, vy: target.vy + d.y * 25,
         dyingT: 0, dyingDuration: 1.0,
       });
-    }
+    });
   } else {
-    const newR = Math.max(18, target.r * 0.65);
-    for (let s = 0; s < 2; s++) {
+    const newR = Math.max(14, target.r * 0.5);
+    dirs.forEach(d => {
       const n = Math.floor(rand(4, 9));
       dyingAsteroids.push({
-        x: target.x + (s === 0 ? -12 : 12), y: target.y,
+        x: target.x + d.x * 10, y: target.y + d.y * 10,
         r: newR, isCrystal: false,
         verts: makeAsteroidVerts(newR, n),
         angle: rand(0, Math.PI * 2),
         spin: rand(0.5, 1.1) * (Math.random() < 0.5 ? -1 : 1),
-        vx: (target.vx || 0) + (s === 0 ? -70 : 70), vy: target.vy,
+        vx: (target.vx || 0) + d.x * 55, vy: target.vy + d.y * 55,
         dyingT: 0, dyingDuration: 1.0,
       });
-    }
+    });
   }
 }
 function makeHexagonVerts(halfW, halfH) {
@@ -1902,6 +1936,7 @@ function checkMiniBossHits(e) {
       const br = b.r || 3;
       const rr = (miniR + br) * (miniR + br);
       if (dist2(pos.x, pos.y, b.x, b.y) < rr) {
+        if (!e.hasFiredFirstShot) continue;
         e.hp -= (b.power || 1);
         score += 10;
         spawnDeathParticles(pos.x, pos.y, e.def.color, 3);
@@ -1978,6 +2013,7 @@ function updateEnemies(dt) {
       e.fireTimer -= dt;
       if (e.fireTimer <= 0) {
         fireBossBarrage(e);
+        e.hasFiredFirstShot = true;
         e.fireTimer = rand(0.4, 2.0);
       }
     } else if (e.state === 'formation') {
@@ -2045,6 +2081,7 @@ canvas.addEventListener('pointerdown', e => {
 // "start" now leads into an equipment-select screen instead of launching straight into the game
 let showingEquip = false;
 let debugStartWeapon = null;
+let debugStartAtBoss = false; // set via tapping the tier-A icon on the title screen
 const EQUIP_CHOICES = ['DOUBLE', 'WIDE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'THUNDER', 'SPARK']; // no NORMAL
 function showEquipSelect() {
   showingEquip = true;
@@ -2191,7 +2228,7 @@ function beginGame() {
   cycleScreen.classList.add('hidden');
   equipScreen.classList.add('hidden');
   if (equipDescInterval) { clearInterval(equipDescInterval); equipDescInterval = null; }
-  score = 0; wave = 1; killCount = 0; starReverse = false; globalSpeedBonus = 0;
+  score = 0; wave = debugStartAtBoss ? 12 : 1; killCount = 0; starReverse = false; globalSpeedBonus = 0;
   resetPlayer();
   playerBullets = []; enemyBullets = []; items = []; pickupTexts = []; particles = []; shockwaves = []; phantomFlashes = [];
   startWave();
@@ -2453,6 +2490,9 @@ function updateBullets(dt) {
           next = findNearestEnemyExcluding(last.x, last.y, b.hitSet);
           inRange = next && dist2(last.x, last.y, next.x, next.y) < 2560 * 2560;
         }
+        if (next && next.type === 'GIANTBOSS' && !next.hasFiredFirstShot) {
+          next = null; // invulnerable boss can't be chained through — treat as no target
+        }
         if (next && inRange && b.loopsLeft > 0) {
           b.hitSet.add(next);
           if (next.isAsteroidObj) {
@@ -2569,6 +2609,7 @@ function handleOptionCollisions() {
       const e = enemies[i];
       const rr = (e.def.r + optR) * (e.def.r + optR);
       if (dist2(opt.x, opt.y, e.x, e.y) < rr) {
+        if (e.type === 'GIANTBOSS' && !e.hasFiredFirstShot) continue;
         e.hp -= 1;
         score += 10;
         if (e.hp <= 0) {
@@ -2639,6 +2680,7 @@ function handleCollisions() {
         const closest = closestPointOnLaser(b, e.x, e.y);
         const rr = (e.def.r + b.r) * (e.def.r + b.r);
         if (dist2(e.x, e.y, closest.x, closest.y) < rr) {
+          if (e.type === 'GIANTBOSS' && !e.hasFiredFirstShot) continue;
           b.hitSet.add(e);
           e.hp -= (b.power || 1);
           score += 10; // +10 for dealing damage
@@ -2658,6 +2700,7 @@ function handleCollisions() {
         const e = enemies[i];
         const rr = (e.def.r + b.r) * (e.def.r + b.r);
         if (dist2(e.x, e.y, b.x, b.y) < rr) {
+          if (e.type === 'GIANTBOSS' && !e.hasFiredFirstShot) continue;
           b.hitSet.add(e);
           e.hp -= (e.type === 'GIANTBOSS' ? 5 : (b.power || 3));
           score += 10; // +10 for dealing damage
@@ -2681,6 +2724,7 @@ function handleCollisions() {
         // addition to the normal radius-based vertical reach (applies to pierce hits too)
         const dx = Math.abs(e.x - b.x), dy = Math.abs(e.y - b.y);
         if (dx <= e.def.r + 20 && dy <= e.def.r + b.r) {
+          if (e.type === 'GIANTBOSS' && !e.hasFiredFirstShot) continue;
           const wasTarget = e === b.target;
           b.hitSet.add(e);
           e.hp -= wasTarget ? (e.type === 'GIANTBOSS' ? 2 : 5) : 2; // locked target takes 5 (2 vs boss), incidental pierced targets take 2
@@ -2703,8 +2747,10 @@ function handleCollisions() {
           playerBullets.splice(j, 1);
           const ex = e.x, ey = e.y;
           const isBoss = e.type === 'GIANTBOSS';
-          e.hp -= (b.gravity && isBoss) ? 5 : (b.lenMul && isBoss) ? 2 : (b.homing && isBoss) ? 3 : (b.power || 1);
-          score += 10; // +10 for dealing damage
+          if (!(isBoss && !e.hasFiredFirstShot)) {
+            e.hp -= (b.gravity && isBoss) ? 5 : (b.lenMul && isBoss) ? 2 : (b.homing && isBoss) ? 3 : (b.power || 1);
+            score += 10; // +10 for dealing damage
+          }
           if (e.hp <= 0) {
             handleEnemyDeath(e);
             enemies.splice(i, 1);
@@ -2992,8 +3038,6 @@ function updateDyingAsteroids(dt) {
     a.angle += (a.spin || 0) * dt;
     a.dyingT += dt;
     if (a.dyingT >= a.dyingDuration) {
-      // finishes with the same style of explosion burst a regular enemy gets on death
-      spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 18);
       dyingAsteroids.splice(i, 1);
     }
   }
@@ -3869,6 +3913,18 @@ if (titleText) {
 }
 if (qrModal) {
   qrModal.addEventListener('pointerdown', (e) => { e.stopPropagation(); qrModal.style.display = 'none'; });
+}
+
+// tapping the tier-A icon on the title screen flags the next game start (via the
+// equipment-select screen) to begin directly at the Boss stage instead of wave 1
+const tierAIcon = document.getElementById('tierAIcon');
+if (tierAIcon) {
+  tierAIcon.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    debugStartAtBoss = true;
+    showEquipSelect();
+  });
 }
 
 })();
