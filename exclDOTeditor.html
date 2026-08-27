@@ -3,14 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
 <title>DOT EDITOR</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#0a0d12;
-    --panel:#10151d;
-    --line:#1c2733;
+    --bg:#000000;
+    --panel:#000000;
+    --line:#000000;
     --neon:#39fff3;
     --neon-dim:#1b6f6a;
     --text:#dfe9ec;
@@ -18,15 +19,16 @@
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{
-    margin:0; padding:0; background:var(--bg); color:var(--text);
+    margin:0; padding:0; background:#000000; color:var(--text);
     font-family:'Roboto Mono', monospace; font-weight:400;
     -webkit-user-select:none; user-select:none; overscroll-behavior:none;
-    min-height:100svh;
+    min-height:100svh; height:100%;
   }
   .num{font-family:'Roboto Mono', monospace;}
   #app{
     max-width:520px; margin:0 auto; padding:10px 4px 32px;
-    display:flex; flex-direction:column; align-items:center; gap:14px;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    background:#000000;
   }
   h1{
     font-size:clamp(16px,4.5vw,20px); letter-spacing:4px; font-weight:700;
@@ -53,10 +55,10 @@
   .row.between{ justify-content:space-between; }
   label.small{ font-size:11px; color:var(--sub); letter-spacing:1px; }
 
-  .swatches{ display:flex; flex-wrap:wrap; gap:8px; }
+  .swatches{ display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; width:212px; }
   .swatch-wrap{ position:relative; }
   .swatch{
-    width:30px; height:30px; border-radius:4px; border:1px solid var(--line);
+    width:100%; aspect-ratio:1/1; border-radius:4px; border:1px solid #ffffff;
     padding:0; cursor:pointer; display:block;
   }
   .swatch.active{ outline:2px solid var(--neon); outline-offset:2px; }
@@ -79,21 +81,20 @@
 
   button{
     font-family:'Roboto Mono', monospace; font-size:12px; letter-spacing:1px;
-    background:var(--bg); color:var(--text); border:1px solid var(--line);
+    background:var(--bg); color:var(--text); border:1px solid #555;
     border-radius:6px; padding:9px 12px; cursor:pointer;
   }
   button.accent{ color:var(--neon); border-color:var(--neon-dim); }
   button:active{ opacity:.6; }
 
   #previewWrap{
-    position:relative; width:96px; height:96px; margin:0 auto;
+    position:relative; width:120px; height:120px; margin:0 auto;
     border-radius:4px; overflow:hidden; border:1px solid var(--line);
   }
   #previewCheck, #previewCanvas{
     position:absolute; top:0; left:0; width:100%; height:100%;
     image-rendering:pixelated;
   }
-  .preview-title{ text-align:center; font-size:11px; color:var(--sub); letter-spacing:2px; margin-bottom:8px; }
 
   /* ascii modal */
   .modal-overlay{
@@ -130,19 +131,24 @@
     text-transform:lowercase;
   }
   .hexInput:focus{ outline:none; border-color:var(--neon-dim); }
+  .colorBox, .colorBar{
+    display:block; width:100%; border-radius:6px; border:1px solid var(--line);
+    touch-action:none; cursor:crosshair;
+  }
+  .colorBox{ height:150px; }
+  .colorBar{ height:20px; }
   .presetGrid{
     display:grid; grid-template-columns:repeat(10, 1fr); gap:5px;
-    max-height:200px; overflow-y:auto; padding:8px;
+    max-height:120px; overflow-y:auto; padding:8px;
     border:1px solid var(--line); border-radius:6px; background:#0d1218;
   }
   .presetGrid button{
     width:100%; aspect-ratio:1/1; border-radius:3px; border:1px solid rgba(255,255,255,.08);
     padding:0; cursor:pointer;
   }
-  .presetGrid button.selected{ outline:2px solid var(--neon); outline-offset:1px; }
 </style>
 </head>
-<body>
+<body style="background:#000000;">
 <div id="app">
 
   <div class="panel grid-panel">
@@ -152,29 +158,33 @@
     </div>
   </div>
 
-  <div class="panel">
-    <div class="row" style="margin-bottom:10px;">
-      <div class="swatches" id="swatches"></div>
-      <button id="palletBtn">PALLET</button>
+  <div class="row" style="align-items:flex-start; gap:2px;">
+    <div class="panel" style="width:auto; flex:none;">
+      <div id="previewWrap">
+        <canvas id="previewCheck"></canvas>
+        <canvas id="previewCanvas"></canvas>
+      </div>
     </div>
-    <div class="row between">
-      <button id="clearBtn">ALL CLEAR</button>
-      <button id="gridToggleBtn">GRID ON/OFF</button>
-      <button id="asciiBtn">SHOW ASCII</button>
-    </div>
-    <div class="row" style="margin-top:10px; justify-content:center; gap:16px;">
-      <button id="shiftLeftBtn">◀</button>
-      <button id="shiftRightBtn">▶</button>
-      <button id="shiftUpBtn">▲</button>
-      <button id="shiftDownBtn">▼</button>
+
+    <div class="panel" style="flex:1; min-width:0;">
+      <div class="row" style="margin-bottom:2px;">
+        <div class="swatches" id="swatches"></div>
+        <button id="palletBtn">PALLET</button>
+      </div>
     </div>
   </div>
 
-  <div class="panel" style="width:auto; align-self:center;">
-    <div class="preview-title">PREVIEW</div>
-    <div id="previewWrap">
-      <canvas id="previewCheck"></canvas>
-      <canvas id="previewCanvas"></canvas>
+  <div class="panel" style="padding-left:2px; padding-right:2px;">
+    <div class="row between" style="gap:2px;">
+      <button id="clearBtn" style="flex:1;">ALL CLEAR</button>
+      <button id="gridToggleBtn" style="flex:1;">GRID ON/OFF</button>
+      <button id="asciiBtn" style="flex:1;">SHOW ASCII</button>
+    </div>
+    <div class="row" style="margin-top:2px; gap:2px;">
+      <button id="shiftLeftBtn" style="flex:1;">◀</button>
+      <button id="shiftRightBtn" style="flex:1;">▶</button>
+      <button id="shiftUpBtn" style="flex:1;">▲</button>
+      <button id="shiftDownBtn" style="flex:1;">▼</button>
     </div>
   </div>
 </div>
@@ -186,11 +196,6 @@
       <button id="asciiClose">✕</button>
     </div>
     <div class="modal-body">
-      <div class="row" style="gap:8px;">
-        <label class="small">BG COLOR (0)</label>
-        <span class="legend-swatch" id="bgSwatchPreview" style="background:#ffffff;"></span>
-        <input type="text" id="bgColorPicker" class="num hexInput" value="#ffffff" maxlength="7">
-      </div>
       <pre id="asciiGrid" class="num"></pre>
       <div id="asciiLegend"></div>
       <button class="accent" id="asciiCopyBtn">COPY</button>
@@ -221,6 +226,9 @@
         <span class="legend-swatch" id="colorEditPreview" style="width:40px; height:40px;"></span>
         <input type="text" id="colorEditHex" class="num hexInput" maxlength="7" placeholder="#rrggbb">
       </div>
+      <canvas id="slBox" width="260" height="150" class="colorBox"></canvas>
+      <canvas id="hueBar" width="260" height="20" class="colorBar"></canvas>
+      <div class="hint" style="text-align:center;">PRESETS</div>
       <div class="presetGrid" id="colorEditPresets"></div>
       <div class="row" style="justify-content:center; gap:12px;">
         <button id="colorEditCancel">CANCEL</button>
@@ -233,7 +241,7 @@
 <script>
 (function(){
   const SIZE = 24;
-  const grid = new Array(SIZE*SIZE).fill(0); // 0 = transparent, 1-7 = palette slot
+  const grid = new Array(SIZE*SIZE).fill(null); // null = transparent, 0-7 = palette slot index
 
   const gridCanvas = document.getElementById('gridCanvas');
   const checker = document.getElementById('checker');
@@ -247,7 +255,7 @@
 
   let showGrid = true;
   let currentSlot = 1;
-  let paletteColors = ['#ffffff','#41a3fd','#9cff00','#ff1a17','#ff901a','#fed796','#976e16'];
+  let paletteColors = ['#000000','#ffffff','#41a3fd','#9cff00','#ff1a17','#ff901a','#fed796','#976e16','#000000','#000000'];
 
   function resizeCanvas(canvas, ctx, cssSizePx){
     const dpr = window.devicePixelRatio || 1;
@@ -264,9 +272,9 @@
     drawChecker(cctx, size, SIZE);
     drawGrid();
 
-    resizeCanvas(previewCanvas, pctx, 96);
-    resizeCanvas(previewCheck, pcctx, 96);
-    drawChecker(pcctx, 96, 8);
+    resizeCanvas(previewCanvas, pctx, 120);
+    resizeCanvas(previewCheck, pcctx, 120);
+    drawChecker(pcctx, 120, 8);
     drawPreview();
   }
 
@@ -287,8 +295,8 @@
     for(let y=0;y<SIZE;y++){
       for(let x=0;x<SIZE;x++){
         const c = grid[y*SIZE+x];
-        if(c){
-          gctx.fillStyle = paletteColors[c-1];
+        if(c !== null){
+          gctx.fillStyle = paletteColors[c];
           gctx.fillRect(x*cell, y*cell, cell+0.5, cell+0.5);
         }
       }
@@ -307,14 +315,14 @@
   }
 
   function drawPreview(){
-    const size = 96;
+    const size = 120;
     const cell = size / SIZE;
     pctx.clearRect(0,0,size,size);
     for(let y=0;y<SIZE;y++){
       for(let x=0;x<SIZE;x++){
         const c = grid[y*SIZE+x];
-        if(c){
-          pctx.fillStyle = paletteColors[c-1];
+        if(c !== null){
+          pctx.fillStyle = paletteColors[c];
           pctx.fillRect(x*cell, y*cell, cell+0.5, cell+0.5);
         }
       }
@@ -323,10 +331,9 @@
 
   function render(){ drawGrid(); drawPreview(); }
 
-  // --- input handling: tap to paint, double-tap to erase ---
-  let lastTap = { idx:-1, t:0 };
+  // --- input handling: tap a black cell to paint, tap a colored cell to erase it ---
   let pointerDown = false;
-  let dragColorApplied = -1; // last idx painted during this drag, avoid re-trigger dbltap logic mid-drag
+  let dragColorApplied = -1; // last idx touched during this drag
 
   function cellFromEvent(e){
     const rect = gridCanvas.getBoundingClientRect();
@@ -339,9 +346,9 @@
     return cy*SIZE+cx;
   }
 
-  function paintCell(idx, erase){
+  function paintCell(idx){
     if(idx<0) return;
-    grid[idx] = erase ? 0 : currentSlot;
+    grid[idx] = (grid[idx] !== null) ? null : currentSlot;
   }
 
   gridCanvas.addEventListener('pointerdown', (e)=>{
@@ -349,17 +356,8 @@
     const idx = cellFromEvent(e);
     if(idx<0) return;
     pointerDown = true;
-
-    const now = Date.now();
-    const isDoubleTap = (idx === lastTap.idx) && (now - lastTap.t < 320);
-
-    if(isDoubleTap){
-      paintCell(idx, true);
-    } else {
-      paintCell(idx, false);
-    }
+    paintCell(idx);
     dragColorApplied = idx;
-    lastTap = { idx, t: now };
     render();
   });
 
@@ -367,7 +365,7 @@
     if(!pointerDown) return;
     const idx = cellFromEvent(e);
     if(idx<0 || idx===dragColorApplied) return;
-    paintCell(idx, false);
+    paintCell(idx);
     dragColorApplied = idx;
     render();
   });
@@ -375,14 +373,13 @@
   window.addEventListener('pointerup', ()=>{ pointerDown = false; });
   window.addEventListener('pointercancel', ()=>{ pointerDown = false; });
 
-  // --- palette: 7 fixed slots, each independently recolorable ---
+  // --- palette: 8 fixed slots (0=black, 1-7 customizable), each independently recolorable ---
   const swatchWrap = document.getElementById('swatches');
   const swatchButtons = [];
   function buildSwatches(){
     swatchWrap.innerHTML = '';
     swatchButtons.length = 0;
-    paletteColors.forEach((color, i)=>{
-      const slot = i + 1;
+    paletteColors.forEach((color, slot)=>{
       const btn = document.createElement('button');
       btn.className = 'swatch' + (slot===currentSlot ? ' active' : '');
       btn.style.background = color;
@@ -390,6 +387,7 @@
       btn.addEventListener('click', ()=>{
         currentSlot = slot;
         updateSwatchActiveStates();
+        updatePalletBtnState();
       });
 
       swatchWrap.appendChild(btn);
@@ -397,14 +395,20 @@
     });
   }
   function updateSwatchActiveStates(){
-    swatchButtons.forEach((btn, i)=>{
-      const slot = i + 1;
+    swatchButtons.forEach((btn, slot)=>{
       btn.classList.toggle('active', slot===currentSlot);
     });
   }
+  function updatePalletBtnState(){
+    const btn = document.getElementById('palletBtn');
+    btn.disabled = (currentSlot === 0);
+    btn.style.opacity = (currentSlot === 0) ? '0.35' : '1';
+  }
   buildSwatches();
+  updatePalletBtnState();
 
   document.getElementById('palletBtn').addEventListener('click', ()=>{
+    if(currentSlot === 0) return; // color 0 (black) is fixed and not editable
     openColorEditModal(currentSlot);
   });
 
@@ -414,7 +418,13 @@
   const colorEditPreview = document.getElementById('colorEditPreview');
   const colorEditSlotNum = document.getElementById('colorEditSlotNum');
   const colorEditPresets = document.getElementById('colorEditPresets');
-  let editingSlot = 1;
+  const slBox = document.getElementById('slBox');
+  const hueBar = document.getElementById('hueBar');
+  const slCtx = slBox.getContext('2d');
+  const hueCtx = hueBar.getContext('2d');
+  let editingSlot = 0;
+  let currentHue = 0;
+
   function hslToHex(h, s, l){
     s/=100; l/=100;
     const k = n => (n + h/30) % 12;
@@ -424,19 +434,43 @@
     return '#' + toHex(f(0)) + toHex(f(8)) + toHex(f(4));
   }
 
+  function hexToHsl(hex){
+    const r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255;
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    let h = 0;
+    const l = (max+min)/2;
+    const d = max-min;
+    if(d !== 0){
+      switch(max){
+        case r: h = ((g-b)/d) % 6; break;
+        case g: h = (b-r)/d + 2; break;
+        default: h = (r-g)/d + 4;
+      }
+      h *= 60;
+      if(h < 0) h += 360;
+    }
+    return h;
+  }
+
+  function rgbToHex(r,g,b){
+    return '#' + [r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+  }
+
+  function drawHueBar(){
+    const w = hueBar.width, h = hueBar.height;
+    const grad = hueCtx.createLinearGradient(0,0,w,0);
+    for(let i=0;i<=6;i++) grad.addColorStop(i/6, hslToHex(i*60,100,50));
+    hueCtx.fillStyle = grad;
+    hueCtx.fillRect(0,0,w,h);
+  }
+  drawHueBar();
+
   function buildPresetColors(){
     const colors = [];
-    // grayscale row: black -> white
-    for(let i=0;i<10;i++){
-      const l = Math.round(i * 100/9);
-      colors.push(hslToHex(0,0,l));
-    }
-    // hue rows at several lightness levels
+    for(let i=0;i<10;i++) colors.push(hslToHex(0,0, Math.round(i * 100/9)));
     const lightnessLevels = [80,65,50,35,20];
     for(const l of lightnessLevels){
-      for(let h=0; h<360; h+=18){
-        colors.push(hslToHex(h,85,l));
-      }
+      for(let h=0; h<360; h+=18) colors.push(hslToHex(h,85,l));
     }
     return colors;
   }
@@ -447,21 +481,66 @@
       const p = document.createElement('button');
       p.style.background = c;
       p.addEventListener('click', ()=>{
-        colorEditHex.value = c;
-        colorEditPreview.style.background = c;
+        setColorFromHex(c);
+        currentHue = hexToHsl(c);
+        drawSLBox(currentHue);
       });
       colorEditPresets.appendChild(p);
     });
   }
   buildColorEditPresets();
 
+  function drawSLBox(hue){
+    const w = slBox.width, h = slBox.height;
+    slCtx.fillStyle = hslToHex(hue,100,50);
+    slCtx.fillRect(0,0,w,h);
+    const whiteGrad = slCtx.createLinearGradient(0,0,w,0);
+    whiteGrad.addColorStop(0,'#fff'); whiteGrad.addColorStop(1,'rgba(255,255,255,0)');
+    slCtx.fillStyle = whiteGrad; slCtx.fillRect(0,0,w,h);
+    const blackGrad = slCtx.createLinearGradient(0,0,0,h);
+    blackGrad.addColorStop(0,'rgba(0,0,0,0)'); blackGrad.addColorStop(1,'#000');
+    slCtx.fillStyle = blackGrad; slCtx.fillRect(0,0,w,h);
+  }
+
+  function setColorFromHex(hex){
+    colorEditHex.value = hex;
+    colorEditPreview.style.background = hex;
+  }
+
+  function pickFromSLBox(clientX, clientY){
+    const rect = slBox.getBoundingClientRect();
+    const x = Math.max(0, Math.min(slBox.width-1, Math.round((clientX-rect.left) * (slBox.width/rect.width))));
+    const y = Math.max(0, Math.min(slBox.height-1, Math.round((clientY-rect.top) * (slBox.height/rect.height))));
+    const data = slCtx.getImageData(x,y,1,1).data;
+    setColorFromHex(rgbToHex(data[0],data[1],data[2]));
+  }
+
+  function pickHue(clientX){
+    const rect = hueBar.getBoundingClientRect();
+    const frac = Math.max(0, Math.min(1, (clientX-rect.left)/rect.width));
+    currentHue = frac*360;
+    drawSLBox(currentHue);
+  }
+
+  let slDown = false, hueDown = false;
+  slBox.addEventListener('pointerdown', e=>{
+    slDown = true; slBox.setPointerCapture(e.pointerId); pickFromSLBox(e.clientX, e.clientY);
+  });
+  slBox.addEventListener('pointermove', e=>{ if(slDown) pickFromSLBox(e.clientX, e.clientY); });
+  hueBar.addEventListener('pointerdown', e=>{
+    hueDown = true; hueBar.setPointerCapture(e.pointerId); pickHue(e.clientX);
+  });
+  hueBar.addEventListener('pointermove', e=>{ if(hueDown) pickHue(e.clientX); });
+  window.addEventListener('pointerup', ()=>{ slDown = false; hueDown = false; });
+
   function openColorEditModal(slot){
     editingSlot = slot;
-    const hex = paletteColors[slot-1];
+    const hex = paletteColors[slot];
     colorEditSlotNum.textContent = slot;
-    colorEditHex.value = hex;
+    currentHue = hexToHsl(hex);
+    drawSLBox(currentHue);
     colorEditHex.style.borderColor = '';
-    colorEditPreview.style.background = hex;
+    setColorFromHex(hex);
     colorEditModal.hidden = false;
   }
 
@@ -478,8 +557,8 @@
       colorEditHex.style.borderColor = '#ff1744';
       return;
     }
-    paletteColors[editingSlot-1] = v.toLowerCase();
-    swatchButtons[editingSlot-1].style.background = v;
+    paletteColors[editingSlot] = v.toLowerCase();
+    swatchButtons[editingSlot].style.background = v;
     render();
     colorEditModal.hidden = true;
   });
@@ -502,7 +581,7 @@
     confirmModal.hidden = true;
   });
   document.getElementById('confirmYes').addEventListener('click', ()=>{
-    for(let i=0;i<grid.length;i++) grid[i]=0;
+    for(let i=0;i<grid.length;i++) grid[i]=null;
     render();
     confirmModal.hidden = true;
   });
@@ -516,7 +595,7 @@
   });
 
   function shiftGrid(dx, dy){
-    const next = new Array(SIZE*SIZE).fill(0);
+    const next = new Array(SIZE*SIZE).fill(null);
     for(let y=0;y<SIZE;y++){
       for(let x=0;x<SIZE;x++){
         let nx = x + dx;
@@ -539,16 +618,16 @@
 
   // --- ascii (numeric) export ---
   const asciiModal = document.getElementById('asciiModal');
-  const bgColorPicker = document.getElementById('bgColorPicker');
 
   function buildAsciiData(){
-    const legend = [{ idx:0, hex: bgColorPicker.value.toLowerCase() }];
-    paletteColors.forEach((hex, i)=> legend.push({ idx:i+1, hex: hex.toLowerCase() }));
+    const legend = [{ idx:'_', label:'transparent' }];
+    paletteColors.forEach((hex, slot)=> legend.push({ idx:slot, hex: hex.toLowerCase() }));
     const rows = [];
     for(let y=0;y<SIZE;y++){
       const rowVals = [];
       for(let x=0;x<SIZE;x++){
-        rowVals.push(grid[y*SIZE+x]);
+        const c = grid[y*SIZE+x];
+        rowVals.push(c === null ? '_' : c);
       }
       rows.push(rowVals.join(','));
     }
@@ -563,10 +642,12 @@
     legend.forEach(item=>{
       const row = document.createElement('div');
       row.className = 'legend-row';
+      const swatchStyle = item.hex ? ('background:'+item.hex) :
+        'background:linear-gradient(45deg,#333 25%,transparent 25%,transparent 75%,#333 75%,#333),linear-gradient(45deg,#333 25%,transparent 25%,transparent 75%,#333 75%,#333); background-size:6px 6px; background-position:0 0,3px 3px; background-color:#111;';
       row.innerHTML =
-        '<span class="legend-swatch" style="background:'+item.hex+'"></span>' +
+        '<span class="legend-swatch" style="'+swatchStyle+'"></span>' +
         '<span class="num legend-idx">'+item.idx+'</span>' +
-        '<span class="num">'+item.hex+'</span>';
+        '<span class="num">'+(item.hex || item.label)+'</span>';
       legendEl.appendChild(row);
     });
   }
@@ -583,16 +664,9 @@
   });
   function isValidHex(v){ return /^#[0-9a-f]{6}$/i.test(v); }
 
-  bgColorPicker.addEventListener('input', ()=>{
-    if(isValidHex(bgColorPicker.value)){
-      document.getElementById('bgSwatchPreview').style.background = bgColorPicker.value;
-      renderAscii();
-    }
-  });
-
   document.getElementById('asciiCopyBtn').addEventListener('click', ()=>{
     const { text, legend } = buildAsciiData();
-    const legendText = legend.map(l=> l.idx+': '+l.hex).join('\n');
+    const legendText = legend.map(l=> l.idx+': '+(l.hex || l.label)).join('\n');
     const full = text + '\n\n' + legendText;
     if(navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(full).catch(()=>{});
