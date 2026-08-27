@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FinaRogue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&family=BIZ+UDPGothic&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  html,body { width:100%; height:100%; background:#000; overflow:hidden;
+    font-family:'BIZ UDPGothic','Montserrat',sans-serif; color:#7CFFF0; }
+  #wrap { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  #stage { position:relative; width:100%; max-width:480px; height:100%; max-height:900px; background:#000; }
+  canvas { position:absolute; top:0; left:0; width:100%; display:block; }
+  #view { z-index:1; touch-action:manipulation; }
+  #ui { position:absolute; inset:0; z-index:2; pointer-events:none; }
+  #screenTitle, #screenJob, #screenOver { pointer-events:auto; }
+  #screenBattle { pointer-events:none; }
+  #battleCmds { pointer-events:auto; }
+  #screenJob { background:rgba(0,5,5,0.95); z-index:3; }
+  .overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; text-align:center; }
+  .hidden { display:none !important; }
+  .title-main { font-size:clamp(26px,8vw,40px); letter-spacing:8px; color:#7CFFF0;
+    text-shadow:0 0 8px #7CFFF0; margin-bottom:6px; }
+  .title-sub { font-size:11px; letter-spacing:3px; color:#3ab483; margin-bottom:40px; }
+  .blink { animation:blink 1.4s infinite; }
+  @keyframes blink { 0%,49%{opacity:1;} 50%,100%{opacity:0.15;} }
+  .tap { font-size:13px; letter-spacing:4px; }
+  .panel-btn { border:1px solid #7CFFF0; color:#7CFFF0; background:rgba(0,20,20,0.4);
+    padding:10px 14px; font-size:13px; letter-spacing:2px; margin:5px; border-radius:2px;
+    font-family:inherit; }
+  .job-row { display:flex; flex-direction:column; gap:6px; width:86%; max-height:60vh; overflow-y:auto; }
+  .job-card { border:1px solid #3ab483; padding:8px 10px; text-align:left; display:flex; align-items:center; gap:10px; }
+  .job-card svg { flex:0 0 40px; height:52px; }
+  .job-info { flex:1; }
+  .job-name { font-size:14px; color:#7CFFF0; letter-spacing:2px; }
+  .job-stat { font-size:10px; color:#5fd6c8; letter-spacing:1px; margin-top:2px; }
+  #hudFloor { position:absolute; top:6px; left:8px; font-size:10px; letter-spacing:1px;
+    color:#7CFFF0; text-shadow:0 0 4px #000; }
+  #minimap { position:absolute; top:6px; right:8px; width:130px; height:130px; border:1px solid #2a6f66;
+    background:rgba(0,10,10,0.5); pointer-events:none; }
+  #bottomPanel { position:absolute; bottom:0; left:0; right:0; padding:6px 10px 10px;
+    background:rgba(0,5,5,0.8); pointer-events:none; }
+  #playerInfoBar { position:absolute; bottom:66px; left:0; right:0; padding:4px 10px;
+    background:rgba(0,5,5,0.8); pointer-events:none; z-index:2; }
+  #msg { font-size:10px; color:#eeff00; letter-spacing:1px; text-align:center; min-height:14px; }
+  #hpmpLine { font-size:11px; letter-spacing:1px; text-align:center; color:#7CFFF0; margin-bottom:2px; }
+  #statusLine { font-size:10px; letter-spacing:1px; text-align:center; color:#5fd6c8; }
+  #btnRow { display:flex; justify-content:center; gap:8px; }
+  .hudbtn { pointer-events:auto; border:1px solid #7CFFF0; padding:5px 12px; border-radius:2px;
+    font-size:11px; letter-spacing:1px; }
+  #swipeHint { text-align:center; font-size:9px; letter-spacing:1px; color:#3ab483;
+    opacity:1; transition:opacity 1.2s ease; margin-top:4px; }
+  #swipeHint.faded { opacity:0; }
+  .bar-row { display:flex; align-items:center; gap:6px; margin-bottom:3px; }
+  .bar-label { width:16px; }
+  .bar-outline { flex:1; height:8px; border:1px solid #7CFFF0; position:relative; }
+  .bar-fill { position:absolute; top:0; left:0; bottom:0; background:#7CFFF0; opacity:0.55; }
+  #battleWrap { position:absolute; inset:0; display:flex; flex-direction:column; }
+  #battleView { flex:1; position:relative; }
+  #battleCmds { display:flex; flex-wrap:wrap; justify-content:center; padding:10px 6px 4px; gap:8px; margin-bottom:112px; }
+  .cmdbtn { flex:1 1 26%; max-width:31%; border:1px solid #7CFFF0; color:#7CFFF0; background:rgba(0,20,20,0.4);
+    padding:12px 4px; font-size:12px; letter-spacing:3px; border-radius:2px; font-family:inherit; }
+  #battleLog { font-size:11px; letter-spacing:1px; color:#eeff00; text-align:center; min-height:16px; margin-bottom:4px; }
+  .enemy-name { position:absolute; top:8px; left:0; right:0; text-align:center; font-size:12px; letter-spacing:3px; }
+  .sub-list { position:absolute; inset:0; background:rgba(0,5,5,0.92); display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:6px; z-index:5; pointer-events:auto; }
+  .sub-item { border:1px solid #3ab483; padding:8px 16px; font-size:12px; letter-spacing:2px; width:70%; text-align:center; }
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage">
+  <canvas id="view" width="480" height="640"></canvas>
+  <div id="ui">
+    <!-- TITLE -->
+    <div id="screenTitle" class="overlay">
+      <div class="title-main">FinaRogue</div>
+      <div class="title-sub">線画で描くダンジョン探索</div>
+      <div class="tap blink">タップしてスタート</div>
+      <div id="bestFloor" style="font-size:10px;letter-spacing:2px;margin-top:26px;color:#3ab483;"></div>
+    </div>
+    <!-- JOB SELECT -->
+    <div id="screenJob" class="overlay hidden">
+      <div style="font-size:15px;letter-spacing:4px;margin-bottom:14px;">クラスチェンジ</div>
+      <div class="job-row" id="jobList"></div>
+    </div>
+    <!-- DUNGEON -->
+    <div id="screenDungeon" class="overlay hidden" style="justify-content:flex-start; pointer-events:none;">
+      <div id="hudFloor">FLOOR 1</div>
+      <canvas id="minimap" width="130" height="130"></canvas>
+      <div id="bottomPanel">
+        <div id="btnRow">
+          <span id="statusBtn" class="hudbtn">ステータス</span>
+          <span id="classBtn" class="hudbtn">クラス</span>
+          <span id="equipBtn" class="hudbtn">装備</span>
+        </div>
+        <div id="swipeHint">緑のマスをタップで移動／ダブルタップで分岐まで自動移動</div>
+      </div>
+    </div>
+    <!-- always-visible player info (shown in both the map and battle screens) -->
+    <div id="playerInfoBar">
+      <div id="msg"></div>
+      <div id="hpmpLine">HP <span id="hpText"></span>&nbsp;&nbsp;&nbsp;MP <span id="mpText"></span></div>
+      <div id="statusLine"></div>
+    </div>
+    <!-- BATTLE -->
+    <div id="screenBattle" class="overlay hidden" style="justify-content:flex-end;">
+      <div id="battleWrap">
+        <div id="battleView">
+          <div class="enemy-name" id="enemyName"></div>
+          <div style="position:absolute; top:32px; left:18%; right:18%;">
+            <div class="bar-row"><span class="bar-label">HP</span><div class="bar-outline"><div class="bar-fill" id="enemyHpFill" style="background:#ff5566;"></div></div><span id="enemyHpText" style="font-size:9px;"></span></div>
+          </div>
+        </div>
+        <div id="battleLog"></div>
+        <div id="battleCmds">
+          <button class="cmdbtn" id="cmdMag">まほう</button>
+          <button class="cmdbtn" id="cmdItem">どうぐ</button>
+          <button class="cmdbtn" id="cmdRun">にげる</button>
+        </div>
+      </div>
+    </div>
+    <!-- GAME OVER -->
+    <div id="screenOver" class="overlay hidden">
+      <div class="title-main" style="font-size:28px;">GAME OVER</div>
+      <div id="overStats" style="font-size:12px;letter-spacing:2px;margin:16px 0;color:#3ab483;"></div>
+      <div class="tap blink">タップしてリトライ</div>
+    </div>
+  </div>
+</div></div>
+
+<script>
+"use strict";
+/* ---------------- CONFIG ---------------- */
+const TILE = 48;          // each floor tile is drawn 48x48
+const REVEAL_RADIUS = 6;  // tiles lit around the player; beyond that only remembered outlines show
+let dpr = 1, viewW = 480, viewH = 640, COLS = 15, ROWS = 20, centerCol = 7, centerRow = 10;
+const DIRS = [[0,-1],[1,0],[0,1],[-1,0]]; // N E S W (cardinal, used for initial spawn facing)
+const DIRS8 = [[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1]]; // N NE E SE S SW W NW
+const ANG4 = [-Math.PI/2, 0, Math.PI/2, Math.PI];
+const LEFTOF = d => (d+3)%4, RIGHTOF = d => (d+1)%4;
+
+/* ---------------- JOBS (FF-inspired) ---------------- */
+const JOBS = [
+  {id:"freelancer", name:"すっぴん", hp:22, mp:7, atk:5, mag:4, def:3, spd:6, weapon:"短剣", desc:"これといった特技を持たない、ごく普通の人。レベルアップで他の職業が解放される"},
+  {id:"warrior", name:"戦士", hp:34, mp:2, atk:9, mag:1, def:6, spd:5, weapon:"ブロードソード", desc:"高いHPと攻撃力を誇る前衛職"},
+  {id:"monk",    name:"モンク", hp:30, mp:2, atk:8, mag:1, def:5, spd:8, weapon:"素手（拳）", desc:"武器なしで戦う俊敏な格闘家"},
+  {id:"thief",   name:"シーフ", hp:24, mp:3, atk:6, mag:2, def:3, spd:11,weapon:"ショートソード", desc:"すばやさに優れ、逃走が得意"},
+  {id:"whitemage",name:"白魔道士", hp:20, mp:16, atk:3, mag:8, def:2, spd:6, weapon:"ロッド", desc:"回復魔法を得意とする後衛職"},
+  {id:"blackmage",name:"黒魔道士", hp:18, mp:18, atk:2, mag:10,def:2, spd:5, weapon:"メイス", desc:"強力な攻撃魔法を操る後衛職"},
+  {id:"redmage", name:"赤魔道士", hp:24, mp:10, atk:6, mag:6, def:4, spd:7, weapon:"レイピア", desc:"攻守魔法をバランス良く扱う"}
+];
+
+/* ---------------- ITEMS ---------------- */
+const ITEM_DEFS = {
+  potion:  {name:"ポーション", desc:"HPを25回復"},
+  hipotion:{name:"ハイポーション", desc:"HPを60回復"},
+  ether:   {name:"エーテル", desc:"MPを20回復"},
+  phoenix: {name:"フェニックスの尾", desc:"戦闘不能から復活"}
+};
+
+/* ---------------- EQUIPMENT (5 weapon types x50, 5 armor types x50) ---------------- */
+// tiered material/rank prefixes shared across all equipment lines, weakest -> strongest
+const EQUIP_TIERS = [
+  "木の","銅の","鉄の","鋼の","銀の","黒鉄の","ミスリルの","竜骨の","魔銀の","オリハルコンの",
+  "アダマンの","ダイヤの","クリスタルの","隕鉄の","賢者の","聖なる","闇の","業物の","王家の","神々の",
+  "天空の","深淵の","紅蓮の","蒼氷の","雷光の","破魔の","双牙の","獄炎の","氷結の","封魔の",
+  "覇王の","竜神の","幻影の","終焉の","蒼穹の","黄金の","漆黒の","白銀の","星屑の","虚空の",
+  "永劫の","絶対の","究極の","伝説の","古代の","禁断の","超越の","真紅の","破滅の","混沌の"
+];
+function buildEquipList(baseNoun, overrides){
+  return EQUIP_TIERS.map((pre,i)=> (overrides && overrides[i]) ? overrides[i] : (pre+baseNoun));
+}
+const WEAPON_DEFS = {
+  dagger: buildEquipList("短剣", {47:"夜叉の爪", 48:"暗殺者の刃", 49:"虚無の短剣"}),
+  sword:  buildEquipList("剣",   {47:"デュランダル", 48:"ムラマサ", 49:"エクスカリバー"}),
+  axe:    buildEquipList("斧",   {47:"バイキングアックス", 48:"巨人殺しの斧", 49:"神々の裁き"}),
+  bow:    buildEquipList("弓",   {47:"アルテミスの弓", 48:"彗星の一矢", 49:"天照"}),
+  staff:  buildEquipList("杖",   {47:"賢者の杖", 48:"時空の杖", 49:"創世の杖"})
+};
+const ARMOR_DEFS = {
+  armor:  buildEquipList("鎧",   {47:"ドラゴンメイル", 48:"女神の鎧", 49:"不滅の鎧"}),
+  robe:   buildEquipList("服",   {47:"賢者のローブ", 48:"星霜のローブ", 49:"女神の衣"}),
+  shield: buildEquipList("盾",   {47:"イージスの盾", 48:"竜鱗の盾", 49:"絶対防御の盾"}),
+  helm:   buildEquipList("兜",   {47:"竜王の兜", 48:"覇者の兜", 49:"不滅の兜"}),
+  boots:  buildEquipList("靴",   {47:"韋駄天の靴", 48:"疾風のブーツ", 49:"次元跳躍のブーツ"})
+};
+const SLOT_OF = {dagger:"weapon",sword:"weapon",axe:"weapon",bow:"weapon",staff:"weapon",
+  armor:"body",robe:"body",shield:"shield",helm:"helm",boots:"boots"};
+const CAT_LABEL = {dagger:"短剣",sword:"剣",axe:"斧",bow:"弓",staff:"杖",
+  armor:"鎧",robe:"服",shield:"盾",helm:"兜",boots:"靴"};
+function equipPower(cat, idx){ return WEAPON_DEFS[cat] ? 1+Math.floor(idx*0.8) : 1+Math.floor(idx*0.4); }
+function equipName(item){ const list = WEAPON_DEFS[item.cat] || ARMOR_DEFS[item.cat]; return list[item.idx]; }
+
+// which weapon/armor categories each job is permitted to equip
+const JOB_EQUIP = {
+  freelancer:{weapons:["dagger"],                armors:["robe","boots"]},
+  warrior:   {weapons:["sword","axe","dagger"], armors:["armor","shield","helm","boots"]},
+  monk:      {weapons:["dagger","staff"],        armors:["robe","boots"]},
+  thief:     {weapons:["dagger","sword","bow"],  armors:["robe","shield","helm","boots"]},
+  whitemage: {weapons:["staff","dagger"],        armors:["robe","shield","boots"]},
+  blackmage: {weapons:["staff","dagger"],        armors:["robe","helm","boots"]},
+  redmage:   {weapons:["sword","dagger","staff","bow"], armors:["robe","shield","helm","boots"]}
+};
+function jobCanUse(jobId, cat){
+  const j = JOB_EQUIP[jobId];
+  return j.weapons.includes(cat) || j.armors.includes(cat);
+}
+
+/* ---------------- LEVELING ---------------- */
+// stats favored on level-up for each job (get a bigger 0-2 roll instead of a 0-1 roll)
+const JOB_PRIMARY = {
+  freelancer: [],
+  warrior: ["atk","def"],
+  monk: ["atk","spd"],
+  thief: ["spd","atk"],
+  whitemage: ["mag"],
+  blackmage: ["mag"],
+  redmage: ["mag","atk"]
+};
+function expToNext(level){ return 20 + (level-1)*12; }
+function levelUp(){
+  player.level++;
+  const primary = JOB_PRIMARY[player.job] || [];
+  const gains = {};
+  ["atk","mag","def","spd"].forEach(stat=>{
+    const gain = primary.includes(stat) ? Math.floor(Math.random()*3) : Math.floor(Math.random()*2);
+    player[stat] += gain;
+    if(gain>0) gains[stat] = gain;
+  });
+  const hpGain = 2 + Math.floor(Math.random()*3);
+  player.maxhp += hpGain; player.hp += hpGain;
+  if(hpGain>0) gains.hp = hpGain;
+  const mpGain = primary.includes("mag") ? 1+Math.floor(Math.random()*2) : Math.floor(Math.random()*2);
+  player.maxmp += mpGain; player.mp += mpGain;
+  if(mpGain>0) gains.mp = mpGain;
+  player.hp = player.maxhp; player.mp = player.maxmp; // level up fully restores HP/MP
+  return gains;
+}
+function formatGains(gains){
+  const labels = {hp:"HP",mp:"MP",atk:"ATK",mag:"MAG",def:"DEF",spd:"SPD"};
+  return Object.keys(gains).map(k=>labels[k]+"+"+gains[k]).join(" ");
+}
+function jobMeetsRequirements(jobId){
+  const j = JOBS.find(x=>x.id===jobId);
+  return player.atk>=j.atk && player.mag>=j.mag && player.def>=j.def && player.spd>=j.spd;
+}
+
+/* ---------------- MONSTERS ---------------- */
+const MONSTER_POOL = [
+  {name:"スライム", shape:"slime", hp:12, atk:3, def:1, spd:3, exp:4},
+  {name:"コウモリ", shape:"bat", hp:9, atk:4, def:0, spd:9, exp:4},
+  {name:"ゴブリン", shape:"goblin", hp:16, atk:5, def:2, spd:5, exp:6},
+  {name:"スケルトン", shape:"skeleton", hp:20, atk:6, def:3, spd:4, exp:8},
+  {name:"リザードマン", shape:"lizard", hp:24, atk:7, def:3, spd:6, exp:10},
+  {name:"オーガ", shape:"ogre", hp:40, atk:10, def:5, spd:3, exp:16}
+];
+const BOSS = {name:"ワイバーン", shape:"dragon", hp:80, atk:13, def:6, spd:6, exp:60};
+
+/* ---------------- STATE ---------------- */
+let state = "title";
+const SIZE = 200; // every floor is a fixed 200x200 tile grid
+let player, tiles, rooms, visited, stairsList, floor, monsters;
+let enemy, battleTurnMsgs = [];
+let canWait = false;
+
+const view = document.getElementById("view");
+const ctx = view.getContext("2d");
+const mini = document.getElementById("minimap");
+const mctx = mini.getContext("2d");
+
+function fitCanvas(){
+  dpr = window.devicePixelRatio || 1;
+  const rect = view.getBoundingClientRect();
+  viewW = rect.width; viewH = rect.height;
+  view.width = Math.round(viewW*dpr);
+  view.height = Math.round(viewH*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  COLS = Math.ceil(viewW/TILE)+1;
+  ROWS = Math.ceil(viewH/TILE)+1;
+  centerCol = Math.floor(COLS/2);
+  centerRow = Math.floor(ROWS/2);
+  if(state==="dungeon") renderDungeon();
+}
+fitCanvas();
+window.addEventListener("resize", fitCanvas);
+
+function $(id){ return document.getElementById(id); }
+function show(id){ ["screenTitle","screenJob","screenDungeon","screenBattle","screenOver"].forEach(s=>$(s).classList.toggle("hidden", s!==id)); }
+
+/* ---------------- DUNGEON GENERATION (rooms connected by corridors) ---------------- */
+function isWallTile(x,y){
+  if(x<0||y<0||x>=SIZE||y>=SIZE) return true;
+  return tiles[y*SIZE+x] === 0;
+}
+function hasWall(x,y,dir){
+  const [dx,dy] = DIRS[dir];
+  return isWallTile(x+dx, y+dy);
+}
+function carveRoom(r){
+  for(let y=r.y; y<r.y+r.h; y++) for(let x=r.x; x<r.x+r.w; x++) tiles[y*SIZE+x] = 1;
+}
+function carveH(x1,x2,y){ for(let x=Math.min(x1,x2); x<=Math.max(x1,x2); x++) tiles[y*SIZE+x] = 1; }
+function carveV(y1,y2,x){ for(let y=Math.min(y1,y2); y<=Math.max(y1,y2); y++) tiles[y*SIZE+x] = 1; }
+function carveCorridor(x1,y1,x2,y2){
+  if(Math.random()<0.5){ carveH(x1,x2,y1); carveV(y1,y2,x2); }
+  else { carveV(y1,y2,x1); carveH(x1,x2,y2); }
+}
+function generateDungeon(floorNum){
+  tiles = new Uint8Array(SIZE*SIZE); // 0 = wall, 1 = passable (room or corridor)
+  rooms = [];
+  const targetRooms = Math.min(45 + floorNum*2, 100);
+  let attempts = 0;
+  while(rooms.length < targetRooms && attempts < targetRooms*25){
+    attempts++;
+    const w = 5 + Math.floor(Math.random()*7);
+    const h = 5 + Math.floor(Math.random()*7);
+    const x = 2 + Math.floor(Math.random()*(SIZE-w-4));
+    const y = 2 + Math.floor(Math.random()*(SIZE-h-4));
+    const cand = {x,y,w,h};
+    let overlap = false;
+    for(const r of rooms){
+      if(cand.x-1 < r.x+r.w+1 && cand.x+cand.w+1 > r.x-1 && cand.y-1 < r.y+r.h+1 && cand.y+cand.h+1 > r.y-1){ overlap = true; break; }
+    }
+    if(overlap) continue;
+    rooms.push(cand);
+    carveRoom(cand);
+  }
+  // connect every room via nearest-neighbor chaining, so corridors stay short
+  const connected = [rooms[0]];
+  const remaining = rooms.slice(1);
+  while(remaining.length){
+    let bi=-1, bj=-1, bd=Infinity;
+    for(let i=0;i<connected.length;i++){
+      const a = center(connected[i]);
+      for(let j=0;j<remaining.length;j++){
+        const b = center(remaining[j]);
+        const d = Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
+        if(d<bd){ bd=d; bi=i; bj=j; }
+      }
+    }
+    const a = center(connected[bi]), b = center(remaining[bj]);
+    carveCorridor(a.x,a.y,b.x,b.y);
+    connected.push(remaining[bj]);
+    remaining.splice(bj,1);
+  }
+  // a few short extra links to nearby rooms, for loops (kept local so corridors don't get long)
+  for(let i=0;i<rooms.length;i++){
+    if(Math.random() > 0.25) continue;
+    const a = center(rooms[i]);
+    let bj=-1, bd=Infinity;
+    for(let j=0;j<rooms.length;j++){
+      if(j===i) continue;
+      const b = center(rooms[j]);
+      const d = Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
+      if(d<bd){ bd=d; bj=j; }
+    }
+    if(bj>=0 && bd<60){ const b = center(rooms[bj]); carveCorridor(a.x,a.y,b.x,b.y); }
+  }
+}
+function center(r){ return {x: r.x+Math.floor(r.w/2), y: r.y+Math.floor(r.h/2)}; }
+function isInAnyRoom(x,y){
+  for(const r of rooms){ if(x>=r.x && x<r.x+r.w && y>=r.y && y<r.y+r.h) return true; }
+  return false;
+}
+function roomAt(x,y){
+  for(const r of rooms){ if(x>=r.x && x<r.x+r.w && y>=r.y && y<r.y+r.h) return r; }
+  return null;
+}
+
+/* ---------------- GAME START ---------------- */
+function startFloor(f){
+  floor = f;
+  generateDungeon(f);
+  const start = center(rooms[0]);
+  player.x = start.x; player.y = start.y;
+  const idx = DIRS.findIndex((d,i)=>!hasWall(start.x,start.y,i));
+  player.dir = ANG4[idx>=0 ? idx : 1];
+  stairsList = [];
+  const isBossFloor = floor % 5 === 0;
+  const candidateRooms = rooms.slice(1); // never in the start room
+  if(isBossFloor) candidateRooms.pop(); // keep the boss room (last room) stairs-free
+  const stairCount = Math.min(3 + Math.floor(Math.random()*3), candidateRooms.length); // 3-5, capped
+  for(let i=candidateRooms.length-1; i>0; i--){ // shuffle
+    const j = Math.floor(Math.random()*(i+1));
+    [candidateRooms[i],candidateRooms[j]] = [candidateRooms[j],candidateRooms[i]];
+  }
+  for(let i=0; i<stairCount; i++){
+    const c = center(candidateRooms[i]);
+    stairsList.push({x:c.x, y:c.y});
+  }
+  visited = new Set([start.x+","+start.y]);
+  $("hudFloor").textContent = "FLOOR " + f;
+  $("msg").textContent = "";
+  spawnFloorMonsters();
+}
+function stairsAt(x,y){ return stairsList.some(s=>s.x===x && s.y===y); }
+
+function makeMonster(x,y,scale){
+  const base = MONSTER_POOL[Math.floor(Math.random()*MONSTER_POOL.length)];
+  return {x,y, name:base.name, shape:base.shape,
+    hp:Math.round(base.hp*scale), maxhp:Math.round(base.hp*scale),
+    atk:Math.round(base.atk*scale), def:base.def, spd:base.spd, exp:Math.round(base.exp*scale)};
+}
+function spawnFloorMonsters(){
+  monsters = [];
+  const scale = 1 + (floor-1)*0.18;
+  const isBossFloor = floor % 5 === 0;
+  // at least one monster per room (except the player's start room, and the goal room on boss floors)
+  for(let i=1; i<rooms.length; i++){
+    if(isBossFloor && i===rooms.length-1) continue;
+    const room = rooms[i];
+    let attempts = 0;
+    while(attempts < 10){
+      attempts++;
+      const x = room.x + 1 + Math.floor(Math.random()*Math.max(1,room.w-2));
+      const y = room.y + 1 + Math.floor(Math.random()*Math.max(1,room.h-2));
+      if(isWallTile(x,y)) continue;
+      if(x===player.x && y===player.y) continue;
+      monsters.push(makeMonster(x,y,scale));
+      break;
+    }
+  }
+  // low-chance monsters roaming the corridors too
+  for(let y=1; y<SIZE-1; y++){
+    for(let x=1; x<SIZE-1; x++){
+      if(isWallTile(x,y)) continue;
+      if(isInAnyRoom(x,y)) continue; // corridor tiles only
+      if(x===player.x && y===player.y) continue;
+      if(Math.random() < 0.004) monsters.push(makeMonster(x,y,scale));
+    }
+  }
+  if(isBossFloor){
+    const goalRoom = rooms[rooms.length-1];
+    const bx = goalRoom.x+Math.floor(goalRoom.w/2), by = goalRoom.y+Math.floor(goalRoom.h/2);
+    monsters.push({x:bx, y:by, name:BOSS.name, shape:BOSS.shape,
+      hp:Math.round(BOSS.hp*scale), maxhp:Math.round(BOSS.hp*scale),
+      atk:Math.round(BOSS.atk*scale), def:BOSS.def, spd:BOSS.spd, exp:Math.round(BOSS.exp*scale), isBoss:true});
+  }
+}
+
+function newGame(job){
+  player = {
+    job: job.id, jobName: job.name,
+    level: 1, exp: 0, tilesMoved: 0, faceLeft: false,
+    maxhp: job.hp, hp: job.hp, maxmp: job.mp, mp: job.mp,
+    atk: job.atk, mag: job.mag, def: job.def, spd: job.spd,
+    x:0,y:0,dir:1,
+    items: { potion:3, ether:1, phoenix:1 },
+    equip: { weapon: {cat: JOB_EQUIP[job.id].weapons[0], idx:0}, body:null, shield:null, helm:null, boots:null },
+    inventoryEquip: []
+  };
+  updateHudJob();
+  startFloor(1);
+  state = "dungeon";
+  show("screenDungeon");
+  renderDungeon();
+}
+function updateHudJob(){
+  const w = player.equip.weapon;
+  $("statusLine").textContent = "Lv." + player.level + " " + player.jobName + " / " + (w ? equipName(w) : "なし") +
+    "　ATK" + (player.atk+currentAtkBonus()) + " MAG" + player.mag + " DEF" + (player.def+currentDefBonus()) + " SPD" + player.spd;
+}
+function currentAtkBonus(){ const e = player.equip.weapon; return e ? equipPower(e.cat,e.idx) : 0; }
+function currentDefBonus(){
+  let b = 0;
+  ["body","shield","helm","boots"].forEach(s=>{ const e = player.equip[s]; if(e) b += equipPower(e.cat,e.idx); });
+  return b;
+}
+
+/* ---------------- MOVEMENT (tap an adjacent highlighted tile) ---------------- */
+function tryMoveTo(wx, wy){
+  const dx = wx-player.x, dy = wy-player.y;
+  if(Math.abs(dx)>1 || Math.abs(dy)>1 || (dx===0 && dy===0)) return;
+  if(isWallTile(wx,wy)){ flashMsg("かべだ！"); return; }
+  if(dx!==0 && dy!==0){
+    // don't allow cutting diagonally through a solid corner
+    if(isWallTile(player.x+dx, player.y) && isWallTile(player.x, player.y+dy)){ flashMsg("かべだ！"); return; }
+  }
+  player.dir = Math.atan2(dy,dx); // face the direction actually moved, no separate turning
+  if(dx!==0) player.faceLeft = dx<0;
+  player.x = wx; player.y = wy;
+  visited.add(wx+","+wy);
+  trackMovement();
+  afterStep();
+}
+function trackMovement(){
+  player.tilesMoved = (player.tilesMoved||0) + 1;
+  if(player.tilesMoved % 10 === 0){
+    player.hp = Math.min(player.maxhp, player.hp + 1);
+    player.mp = Math.min(player.maxmp, player.mp + 1);
+    updateBars();
+  }
+}
+
+function afterStep(){
+  renderDungeon();
+  if(stairsAt(player.x, player.y)){
+    flashMsg("階段を見つけた…下の階へ");
+    setTimeout(()=>{ startFloor(floor+1); renderDungeon(); }, 900);
+    return;
+  }
+  if(checkMonsterCollision()) return;
+  moveMonsters();
+  if(checkMonsterCollision()) return;
+  renderDungeon();
+}
+function moveMonsters(){
+  const playerRoom = roomAt(player.x, player.y);
+  monsters.forEach(m=>{
+    const mRoom = roomAt(m.x, m.y);
+    if(mRoom && mRoom===playerRoom && Math.random() < 0.5){
+      // same room as the player: chase, but never step out into a corridor
+      const dx = Math.sign(player.x-m.x), dy = Math.sign(player.y-m.y);
+      const tryMoves = [];
+      if(dx!==0 && dy!==0) tryMoves.push([dx,dy]);
+      if(dx!==0) tryMoves.push([dx,0]);
+      if(dy!==0) tryMoves.push([0,dy]);
+      for(const [tdx,tdy] of tryMoves){
+        const nx = m.x+tdx, ny = m.y+tdy;
+        if(isWallTile(nx,ny)) continue;
+        if(roomAt(nx,ny)!==mRoom) continue; // stay inside the room
+        if(tdx!==0 && tdy!==0 && isWallTile(m.x+tdx,m.y) && isWallTile(m.x,m.y+tdy)) continue;
+        m.x = nx; m.y = ny;
+        return;
+      }
+      return; // blocked, hold position
+    }
+    if(Math.random() < 0.5) return; // idle chance, so they don't all swarm at once
+    const opts = DIRS8.filter(([odx,ody])=>{
+      const nx = m.x+odx, ny = m.y+ody;
+      if(isWallTile(nx,ny)) return false;
+      if(odx!==0 && ody!==0 && isWallTile(m.x+odx,m.y) && isWallTile(m.x,m.y+ody)) return false;
+      return true;
+    });
+    if(!opts.length) return;
+    const [odx,ody] = opts[Math.floor(Math.random()*opts.length)];
+    m.x += odx; m.y += ody;
+  });
+}
+function runOpenDirs(fromDx, fromDy){
+  // passable directions from the player's current tile, excluding the direction just come from
+  const revDx = -fromDx, revDy = -fromDy;
+  const opts = [];
+  DIRS8.forEach(([dx,dy])=>{
+    if(dx===revDx && dy===revDy) return;
+    const nx = player.x+dx, ny = player.y+dy;
+    if(isWallTile(nx,ny)) return;
+    if(dx!==0 && dy!==0 && isWallTile(player.x+dx,player.y) && isWallTile(player.x,player.y+dy)) return;
+    opts.push([dx,dy]);
+  });
+  return opts;
+}
+function autoRun(dx, dy){
+  const nx = player.x+dx, ny = player.y+dy;
+  if(isWallTile(nx,ny)) return;
+  if(dx!==0 && dy!==0 && isWallTile(player.x+dx,player.y) && isWallTile(player.x,player.y+dy)) return;
+  runStep(dx, dy, 0);
+}
+function runStep(dx, dy, steps){
+  player.dir = Math.atan2(dy,dx);
+  if(dx!==0) player.faceLeft = dx<0;
+  player.x += dx; player.y += dy;
+  visited.add(player.x+","+player.y);
+  trackMovement();
+  if(stairsAt(player.x, player.y)){
+    renderDungeon();
+    flashMsg("階段を見つけた…下の階へ");
+    setTimeout(()=>{ startFloor(floor+1); renderDungeon(); }, 900);
+    return;
+  }
+  if(checkMonsterCollision()) return;
+  moveMonsters();
+  if(checkMonsterCollision()) return;
+  renderDungeon();
+  if(steps >= 150) return; // safety cap on a single run
+  const opts = runOpenDirs(dx,dy);
+  if(opts.length !== 1) return; // branch point, dead end, or open room: stop so the player can choose
+  const [ndx,ndy] = opts[0];
+  setTimeout(()=>runStep(ndx,ndy,steps+1), 55);
+}
+function checkMonsterCollision(){
+  const m = monsters.find(m=>m.x===player.x && m.y===player.y);
+  if(m){ startBattleWith(m); return true; }
+  return false;
+}
+let msgHoldUntilTap = false;
+function flashMsg(t, ms, persist){
+  $("msg").textContent = t;
+  if(persist){ msgHoldUntilTap = true; return; }
+  msgHoldUntilTap = false;
+  ms = ms||1100;
+  setTimeout(()=>{ if($("msg").textContent===t) $("msg").textContent=""; }, ms);
+}
+
+/* ---------------- DUNGEON RENDER (top-down, 32x32 tiles) ---------------- */
+function clearView(){ ctx.fillStyle="#000"; ctx.fillRect(0,0,viewW,viewH); }
+
+function renderDungeon(){
+  clearView();
+  const ox = player.x-centerCol, oy = player.y-centerRow;
+  for(let sr=0; sr<ROWS; sr++){
+    for(let sc=0; sc<COLS; sc++){
+      const wx = ox+sc, wy = oy+sr;
+      if(wx<0||wy<0||wx>=SIZE||wy>=SIZE) continue;
+      const key = wx+","+wy;
+      const dist = Math.max(Math.abs(wx-player.x), Math.abs(wy-player.y));
+      const lit = dist <= REVEAL_RADIUS;
+      if(lit) visited.add(key);
+      if(!visited.has(key)) continue;
+      if(isWallTile(wx,wy)) continue; // solid rock: no lines drawn from the wall's own side
+      const px = sc*TILE, py = sr*TILE;
+      ctx.strokeStyle = lit ? "#123f3a" : "#0c211f";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(px, py, TILE, TILE);
+      ctx.strokeStyle = lit ? "#7CFFF0" : "#1c3d3a";
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      if(isWallTile(wx,wy-1)){ ctx.moveTo(px,py); ctx.lineTo(px+TILE,py); }
+      if(isWallTile(wx,wy+1)){ ctx.moveTo(px,py+TILE); ctx.lineTo(px+TILE,py+TILE); }
+      if(isWallTile(wx-1,wy)){ ctx.moveTo(px,py); ctx.lineTo(px,py+TILE); }
+      if(isWallTile(wx+1,wy)){ ctx.moveTo(px+TILE,py); ctx.lineTo(px+TILE,py+TILE); }
+      ctx.stroke();
+    }
+  }
+  // staircases visible within the lit radius
+  stairsList.forEach(s=>{
+    if(!visited.has(s.x+","+s.y)) return;
+    const sc = centerCol+(s.x-player.x), sr = centerRow+(s.y-player.y);
+    if(sc<0 || sr<0 || sc>=COLS || sr>=ROWS) return;
+    drawStairsIcon(sc*TILE, sr*TILE);
+  });
+  // monsters visible within the lit radius
+  monsters.forEach(m=>{
+    const dist = Math.max(Math.abs(m.x-player.x), Math.abs(m.y-player.y));
+    if(dist > REVEAL_RADIUS) return;
+    const sc = centerCol+(m.x-player.x), sr = centerRow+(m.y-player.y);
+    if(sc<0 || sr<0 || sc>=COLS || sr>=ROWS) return;
+    drawMonsterMarker(sc*TILE, sr*TILE, m);
+  });
+  // movable neighbor tiles (orthogonal + diagonal, corner-cut blocked): 32x33 fluorescent green at 50% opacity, centered in the tile
+  DIRS8.forEach(([dx,dy])=>{
+    const wx = player.x+dx, wy = player.y+dy;
+    if(isWallTile(wx,wy)) return;
+    if(dx!==0 && dy!==0 && isWallTile(player.x+dx,player.y) && isWallTile(player.x,player.y+dy)) return;
+    const sc = centerCol+dx, sr = centerRow+dy;
+    const px = sc*TILE, py = sr*TILE;
+    const hw = 32, hh = 33;
+    ctx.fillStyle = "rgba(57,255,20,0.2)";
+    ctx.fillRect(px+(TILE-hw)/2, py+(TILE-hh)/2, hw, hh);
+  });
+  drawPlayerMapSprite(ctx, centerCol*TILE+TILE/2, centerRow*TILE+TILE/2, player.job, player.faceLeft);
+  renderMinimap();
+  updateBars();
+}
+
+const MM_RADIUS = 10; // window shows (2*MM_RADIUS+1) tiles across, centered on player
+const MM_SIZE = 130;   // matches the minimap canvas's width/height attributes
+function renderMinimap(){
+  mctx.fillStyle = "#000"; mctx.fillRect(0,0,MM_SIZE,MM_SIZE);
+  const span = MM_RADIUS*2+1;
+  const cell = MM_SIZE/span;
+  const ox = player.x - MM_RADIUS, oy = player.y - MM_RADIUS;
+  mctx.strokeStyle = "#ffffff"; mctx.lineWidth = 1;
+  mctx.beginPath();
+  for(let wy=0; wy<span; wy++){
+    for(let wx=0; wx<span; wx++){
+      const x = ox+wx, y = oy+wy;
+      if(x<0||y<0||x>=SIZE||y>=SIZE) continue;
+      if(!visited.has(x+","+y)) continue;
+      if(isWallTile(x,y)) continue;
+      const px = wx*cell, py = wy*cell;
+      if(isWallTile(x,y-1)){ mctx.moveTo(px,py); mctx.lineTo(px+cell,py); }
+      if(isWallTile(x,y+1)){ mctx.moveTo(px,py+cell); mctx.lineTo(px+cell,py+cell); }
+      if(isWallTile(x-1,y)){ mctx.moveTo(px,py); mctx.lineTo(px,py+cell); }
+      if(isWallTile(x+1,y)){ mctx.moveTo(px+cell,py); mctx.lineTo(px+cell,py+cell); }
+    }
+  }
+  mctx.stroke();
+  stairsList.forEach(s=>{
+    if(!visited.has(s.x+","+s.y)) return;
+    const sx = s.x-ox, sy = s.y-oy;
+    if(sx>=0 && sx<span && sy>=0 && sy<span){
+      mctx.strokeStyle = "#eeff00";
+      mctx.strokeRect(sx*cell+cell*0.2, sy*cell+cell*0.2, cell*0.6, cell*0.6);
+    }
+  });
+  // player arrow, always centered
+  const pcx = MM_RADIUS*cell+cell/2, pcy = MM_RADIUS*cell+cell/2;
+  const ang = player.dir;
+  mctx.strokeStyle = "#7CFFF0"; mctx.fillStyle="#7CFFF0";
+  mctx.save(); mctx.translate(pcx,pcy); mctx.rotate(ang);
+  mctx.beginPath(); mctx.moveTo(5,0); mctx.lineTo(-4,3.5); mctx.lineTo(-4,-3.5); mctx.closePath(); mctx.fill();
+  mctx.restore();
+}
+
+function drawStairsIcon(px, py){
+  const cx = px+TILE/2, cy = py+TILE/2;
+  ctx.strokeStyle = "#eeff00"; ctx.lineWidth = 1.8;
+  const halfW = TILE*0.36, halfH = TILE*0.30;
+  // converging side rails, like a staircase seen from directly above
+  ctx.beginPath();
+  ctx.moveTo(cx-halfW, cy-halfH); ctx.lineTo(cx-halfW*0.15, cy+halfH);
+  ctx.moveTo(cx+halfW, cy-halfH); ctx.lineTo(cx+halfW*0.15, cy+halfH);
+  ctx.stroke();
+  // receding tread lines
+  const steps = 5;
+  ctx.beginPath();
+  for(let i=0; i<steps; i++){
+    const t = i/(steps-1);
+    const yy = cy-halfH + t*(halfH*2);
+    const w = halfW*2 * (1 - t*0.85);
+    ctx.moveTo(cx-w/2, yy);
+    ctx.lineTo(cx+w/2, yy);
+  }
+  ctx.stroke();
+}
+
+function hexToRgba(hex, alpha){
+  const n = parseInt(hex.slice(1),16);
+  const r = (n>>16)&255, g = (n>>8)&255, b = n&255;
+  return "rgba("+r+","+g+","+b+","+alpha+")";
+}
+function monsterThreatColor(m){
+  const mPower = m.maxhp + m.atk*3 + m.def*2;
+  const pPower = player.maxhp + (player.atk+currentAtkBonus())*3 + (player.def+currentDefBonus())*2;
+  if(mPower > pPower*1.15) return "#ff5566"; // stronger than the player
+  if(mPower < pPower*0.85) return "#39ff14"; // weaker than the player
+  return "#eeff00"; // about the same
+}
+
+function drawMonsterMarker(px, py, m){
+  const cx = px+TILE/2, cy = py+TILE/2;
+  let r = 6;
+  if(m.isBoss || m.shape==="dragon" || m.shape==="ogre") r = 9;
+  else if(m.shape==="slime") r = 7;
+  const color = monsterThreatColor(m);
+  ctx.strokeStyle = color; ctx.fillStyle = hexToRgba(color,0.25); ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); ctx.stroke();
+  ctx.beginPath();
+  if(m.shape==="bat"){ ctx.moveTo(cx-r-3,cy); ctx.lineTo(cx-r,cy-3); ctx.moveTo(cx+r+3,cy); ctx.lineTo(cx+r,cy-3); }
+  else if(m.shape==="skeleton"){ ctx.moveTo(cx-3,cy-r+2); ctx.lineTo(cx+3,cy-r+2); }
+  else if(m.shape==="dragon" || m.isBoss){ ctx.moveTo(cx-r-4,cy); ctx.lineTo(cx-r,cy); ctx.moveTo(cx+r+4,cy); ctx.lineTo(cx+r,cy); }
+  else if(m.shape==="lizard"){ ctx.moveTo(cx,cy+r); ctx.lineTo(cx,cy+r+4); }
+  ctx.stroke();
+}
+
+function updateBars(){
+  $("hpText").textContent = player.hp+"/"+player.maxhp;
+  $("mpText").textContent = player.mp+"/"+player.maxmp;
+}
+function updateEnemyBar(){
+  const pct = Math.max(0,(enemy.hp/enemy.maxhp*100));
+  $("enemyHpFill").style.width = pct + "%";
+  $("enemyHpText").textContent = Math.max(0,enemy.hp)+"/"+enemy.maxhp;
+}
+
+/* ---------------- PLAYER TILE SPRITE (top-down, 32x32, faces move direction) ---------------- */
+function drawPlayerTile(pctx, cx, cy, jobId, ang){
+  pctx.save();
+  pctx.translate(cx,cy);
+  pctx.rotate(ang);
+  pctx.strokeStyle = "#7CFFF0"; pctx.fillStyle = "rgba(124,255,240,0.16)"; pctx.lineWidth = 1;
+  // shoulders, slightly tapered toward the back
+  pctx.beginPath();
+  pctx.moveTo(2,-8.5);
+  pctx.quadraticCurveTo(9,-9, 10,-3.5);
+  pctx.quadraticCurveTo(11,0, 10,3.5);
+  pctx.quadraticCurveTo(9,9, 2,8.5);
+  pctx.quadraticCurveTo(-8,7, -9,0);
+  pctx.quadraticCurveTo(-8,-7, 2,-8.5);
+  pctx.closePath();
+  pctx.fill(); pctx.stroke();
+  // neck + head, offset toward facing direction
+  pctx.beginPath();
+  pctx.moveTo(6,-1.6); pctx.lineTo(8,-1.2);
+  pctx.moveTo(6,1.6); pctx.lineTo(8,1.2);
+  pctx.stroke();
+  pctx.beginPath();
+  pctx.arc(10.5,0,3.4,0,Math.PI*2);
+  pctx.fill(); pctx.stroke();
+  // faint centerline + arm hints
+  pctx.beginPath();
+  pctx.moveTo(-9,0); pctx.lineTo(-4,0);
+  pctx.moveTo(1,-8); pctx.lineTo(-2,-11);
+  pctx.moveTo(1,8); pctx.lineTo(-2,11);
+  pctx.lineWidth = 0.8;
+  pctx.stroke();
+  pctx.lineWidth = 1;
+  pctx.beginPath();
+  switch(jobId){
+    case "warrior":
+      // blade + small pauldron arcs
+      pctx.moveTo(7,-7); pctx.lineTo(21,-14); pctx.lineTo(23,-16); pctx.moveTo(19,-11.5); pctx.lineTo(22,-13);
+      pctx.moveTo(-6,-8.5); pctx.arc(-6,-8.5,1.6,0,Math.PI*2);
+      pctx.moveTo(-6,8.5); pctx.arc(-6,8.5,1.6,0,Math.PI*2);
+      break;
+    case "monk":
+      // wrapped fists
+      pctx.moveTo(15,7.5); pctx.arc(12,7.5,2.6,0,Math.PI*2);
+      pctx.moveTo(15,-7.5); pctx.arc(12,-7.5,2.6,0,Math.PI*2);
+      pctx.moveTo(10.5,6); pctx.lineTo(13.5,9);
+      pctx.moveTo(10.5,-6); pctx.lineTo(13.5,-9);
+      break;
+    case "thief":
+      // slim dagger + curved hood trailing behind
+      pctx.moveTo(7,-5); pctx.lineTo(18,-9.5); pctx.lineTo(20,-10.5);
+      pctx.moveTo(-9,-7);
+      pctx.quadraticCurveTo(-19,0, -9,7);
+      break;
+    case "whitemage":
+      // flowing robe hem + rod with orb
+      pctx.moveTo(-9,-6); pctx.quadraticCurveTo(-13,0, -9,6);
+      pctx.moveTo(-2.5,-10); pctx.lineTo(-2.5,10.5);
+      pctx.moveTo(0.5,-12.5); pctx.arc(-2.5,-12.5,2,0,Math.PI*2);
+      break;
+    case "blackmage":
+      // conical hat + brim + staff
+      pctx.moveTo(4,-8.5); pctx.lineTo(9.5,-16); pctx.lineTo(15,-8.5);
+      pctx.moveTo(3,-8.8); pctx.quadraticCurveTo(9.5,-11.5, 16,-8.8);
+      pctx.moveTo(-2.5,-10); pctx.lineTo(-2.5,10.5);
+      pctx.moveTo(-4.3,-11.8); pctx.lineTo(-0.7,-13.2); pctx.lineTo(-4.3,-14.6); pctx.closePath();
+      break;
+    case "redmage":
+      // slender rapier + two-point flowing cape
+      pctx.moveTo(6,-4); pctx.lineTo(21,-9); pctx.moveTo(9.5,-5.3); pctx.lineTo(11,-3.2);
+      pctx.moveTo(-8,-7); pctx.quadraticCurveTo(-17,-3, -15,3);
+      pctx.moveTo(-8,7); pctx.quadraticCurveTo(-17,3, -15,-3);
+      break;
+  }
+  pctx.stroke();
+  pctx.restore();
+}
+
+/* ---------------- MONSTER SHAPES (line art) ---------------- */
+function drawMonster(shape, t, color){
+  const cx = viewW/2, cy = viewH*0.4;
+  const bob = Math.sin(t*0.003)*4;
+  ctx.strokeStyle = color || "#ff5566"; ctx.lineWidth = 2;
+  ctx.save(); ctx.translate(cx, cy+bob);
+  if(shape==="slime"){
+    ctx.beginPath();
+    ctx.moveTo(-40,10);
+    ctx.bezierCurveTo(-45,-35,45,-35,40,10);
+    ctx.bezierCurveTo(48,30,-48,30,-40,10);
+    ctx.closePath(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(-14,-8,4,0,7); ctx.arc(14,-8,4,0,7); ctx.stroke();
+  } else if(shape==="bat"){
+    ctx.beginPath();
+    ctx.moveTo(0,-10); ctx.lineTo(-50,-30); ctx.lineTo(-30,0); ctx.lineTo(-50,15); ctx.lineTo(0,5);
+    ctx.lineTo(50,15); ctx.lineTo(30,0); ctx.lineTo(50,-30); ctx.closePath(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0,-2,10,0,7); ctx.stroke();
+  } else if(shape==="goblin" || shape==="lizard" || shape==="ogre" || shape==="skeleton"){
+    const scale = shape==="ogre"?1.5:(shape==="skeleton"?1.1:1);
+    ctx.scale(scale,scale);
+    ctx.beginPath();
+    ctx.arc(0,-45,14,0,7); // head
+    ctx.moveTo(0,-31); ctx.lineTo(0,20); // spine
+    ctx.moveTo(-26,-10); ctx.lineTo(26,-10); // arms
+    ctx.moveTo(-26,-10); ctx.lineTo(-34,20); // weapon arm line
+    ctx.moveTo(0,20); ctx.lineTo(-18,55);
+    ctx.moveTo(0,20); ctx.lineTo(18,55);
+    ctx.stroke();
+    if(shape==="skeleton"){
+      ctx.beginPath();
+      for(let i=0;i<4;i++){ ctx.moveTo(-16,-20+i*10); ctx.lineTo(16,-20+i*10); }
+      ctx.stroke();
+    }
+    if(shape==="lizard"){
+      ctx.beginPath(); ctx.moveTo(0,20); ctx.quadraticCurveTo(30,40,45,20); ctx.stroke();
+    }
+    // weapon line
+    ctx.beginPath(); ctx.moveTo(-34,20); ctx.lineTo(-55,-15); ctx.stroke();
+  } else if(shape==="dragon"){
+    ctx.beginPath();
+    ctx.moveTo(0,-50); ctx.lineTo(-70,-10); ctx.lineTo(-40,10); ctx.lineTo(-70,40);
+    ctx.lineTo(0,10); ctx.lineTo(70,40); ctx.lineTo(40,10); ctx.lineTo(70,-10); ctx.closePath();
+    ctx.moveTo(0,10); ctx.lineTo(0,60);
+    ctx.stroke();
+    ctx.beginPath(); ctx.arc(0,-58,10,0,7); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ---------------- PLAYER CHARACTER SHAPE (line art, varies by job/weapon) ---------------- */
+/* ---------------- FREELANCER PIXEL SPRITE (colored squares, 32x32, original design) ---------------- */
+function buildPixelRow(pairs){
+  let s = "";
+  for(let i=0; i<pairs.length; i+=2) s += String(pairs[i+1]).repeat(pairs[i]);
+  return s;
+}
+function mirrorRow(leftPairs){
+  const left = buildPixelRow(leftPairs); // 16 chars, left half
+  return left + left.split("").reverse().join(""); // 32 chars, symmetric
+}
+const FL_ROWS = [
+  mirrorRow([12,'.',4,'Y']),
+  mirrorRow([10,'.',6,'Y']),
+  mirrorRow([9,'.',7,'Y']),
+  mirrorRow([8,'.',8,'Y']),
+  mirrorRow([8,'.',8,'Y']),
+  mirrorRow([8,'.',3,'Y',5,'S']),
+  buildPixelRow([8,'.',2,'Y',4,'S',1,'K',2,'S',1,'K',4,'S',2,'Y',8,'.']),
+  mirrorRow([8,'.',2,'Y',6,'S']),
+  mirrorRow([8,'.',2,'Y',6,'S']),
+  mirrorRow([8,'.',8,'S']),
+  mirrorRow([9,'.',7,'S']),
+  mirrorRow([10,'.',6,'S']),
+  mirrorRow([10,'.',6,'S']),
+  mirrorRow([7,'.',9,'T']),
+  mirrorRow([6,'.',10,'T']),
+  mirrorRow([5,'.',11,'T']),
+  mirrorRow([5,'.',2,'S',9,'T']),
+  mirrorRow([5,'.',2,'S',9,'T']),
+  mirrorRow([5,'.',11,'T']),
+  mirrorRow([5,'.',11,'T']),
+  mirrorRow([5,'.',11,'L']),
+  mirrorRow([5,'.',11,'T']),
+  mirrorRow([6,'.',10,'T']),
+  mirrorRow([7,'.',9,'P']),
+  mirrorRow([7,'.',3,'P',2,'.',4,'P']),
+  mirrorRow([7,'.',3,'P',2,'.',4,'P']),
+  mirrorRow([7,'.',3,'P',2,'.',4,'P']),
+  mirrorRow([7,'.',3,'P',2,'.',4,'P']),
+  mirrorRow([7,'.',3,'B',2,'.',4,'B']),
+  mirrorRow([7,'.',3,'B',2,'.',4,'B']),
+  mirrorRow([7,'.',3,'B',2,'.',4,'B']),
+  mirrorRow([7,'.',3,'B',2,'.',4,'B'])
+];
+const FL_PALETTE = {Y:"#7a4a2a",S:"#e0b98a",K:"#1a1a1a",T:"#4d7a4a",L:"#4a3020",P:"#5a4a3a",B:"#2a1f14"};
+const FL_CELL = 4, FL_ORIGIN_X = -64, FL_ORIGIN_Y = -76;
+function drawFreelancerPixels(pctx){
+  for(let r=0; r<FL_ROWS.length; r++){
+    const row = FL_ROWS[r];
+    for(let c=0; c<row.length; c++){
+      const ch = row[c];
+      if(ch===".") continue;
+      pctx.fillStyle = FL_PALETTE[ch];
+      pctx.fillRect(FL_ORIGIN_X+c*FL_CELL, FL_ORIGIN_Y+r*FL_CELL, FL_CELL, FL_CELL);
+    }
+  }
+}
+function freelancerSvgRects(){
+  let out = "";
+  FL_ROWS.forEach((row,r)=>{
+    for(let c=0; c<row.length; c++){
+      const ch = row[c];
+      if(ch===".") continue;
+      out += '<rect x="'+(FL_ORIGIN_X+c*FL_CELL)+'" y="'+(FL_ORIGIN_Y+r*FL_CELL)+'" width="'+FL_CELL+'" height="'+FL_CELL+'" fill="'+FL_PALETTE[ch]+'"/>';
+    }
+  });
+  return out;
+}
+
+function drawPlayerFigure(pctx, x, y, jobId, scale){
+  pctx.save();
+  pctx.translate(x,y);
+  pctx.scale(scale,scale);
+  if(jobId==="freelancer"){
+    drawFreelancerPixels(pctx);
+    pctx.restore();
+    return;
+  }
+  pctx.strokeStyle = "#7CFFF0"; pctx.lineWidth = 2/scale;
+  pctx.beginPath();
+  pctx.arc(0,-45,12,0,7);
+  pctx.moveTo(0,-33); pctx.lineTo(0,15);
+  pctx.moveTo(-20,-10); pctx.lineTo(20,-10);
+  pctx.moveTo(0,15); pctx.lineTo(-15,50);
+  pctx.moveTo(0,15); pctx.lineTo(15,50);
+  pctx.stroke();
+  pctx.beginPath();
+  switch(jobId){
+    case "warrior":
+      pctx.moveTo(20,-10); pctx.lineTo(45,-45); pctx.moveTo(30,-22); pctx.lineTo(38,-14);
+      pctx.moveTo(-14,-5); pctx.lineTo(14,-5); pctx.moveTo(-12,5); pctx.lineTo(12,5);
+      break;
+    case "monk":
+      pctx.moveTo(24,-10); pctx.arc(20,-10,4,0,7); pctx.moveTo(-16,-10); pctx.arc(-20,-10,4,0,7);
+      break;
+    case "thief":
+      pctx.moveTo(20,-10); pctx.lineTo(35,-25);
+      pctx.moveTo(-10,-40); pctx.lineTo(-25,10); pctx.lineTo(0,-30);
+      break;
+    case "whitemage":
+      pctx.moveTo(-15,15); pctx.lineTo(-25,50); pctx.lineTo(25,50); pctx.lineTo(15,15);
+      pctx.moveTo(20,-10); pctx.lineTo(20,-50);
+      pctx.moveTo(24,-54); pctx.arc(20,-54,4,0,7);
+      break;
+    case "blackmage":
+      pctx.moveTo(-14,-50); pctx.lineTo(0,-80); pctx.lineTo(14,-50);
+      pctx.moveTo(-15,15); pctx.lineTo(-25,50); pctx.lineTo(25,50); pctx.lineTo(15,15);
+      pctx.moveTo(20,-10); pctx.lineTo(24,-50); pctx.moveTo(18,-48); pctx.lineTo(30,-48);
+      break;
+    case "redmage":
+      pctx.moveTo(-14,-30); pctx.lineTo(-28,40); pctx.lineTo(0,15);
+      pctx.moveTo(20,-10); pctx.lineTo(48,-40);
+      pctx.moveTo(29,-18); pctx.arc(24,-18,5,0,7);
+      break;
+  }
+  pctx.stroke();
+  pctx.restore();
+}
+
+function drawPlayerMapSprite(pctx, cx, cy, jobId, faceLeft){
+  pctx.save();
+  if(faceLeft){ pctx.translate(cx*2,0); pctx.scale(-1,1); }
+  drawPlayerFigure(pctx, cx, cy, jobId, 0.34);
+  pctx.restore();
+}
+
+let battleAnimT = 0, battleRAF = null;
+function battleLoop(t){
+  clearView();
+  ctx.strokeStyle = "#123f3a"; ctx.lineWidth=1;
+  ctx.strokeRect(12,12,viewW-24,viewH-24);
+  drawMonster(enemy.shape, t, monsterThreatColor(enemy));
+  drawPlayerFigure(ctx, viewW*0.2, viewH*0.83, player.job, 1.15);
+  battleRAF = requestAnimationFrame(battleLoop);
+}
+
+/* ---------------- BATTLE ---------------- */
+function startBattleWith(mon){
+  enemy = mon;
+  state = "battle";
+  show("screenBattle");
+  $("enemyName").textContent = enemy.name;
+  $("battleLog").textContent = (enemy.isBoss ? "強大な気配…" : enemy.name + " が あらわれた！");
+  updateEnemyBar();
+  updateBars();
+  battleAnimT = 0;
+  cancelAnimationFrame(battleRAF);
+  battleRAF = requestAnimationFrame(battleLoop);
+}
+
+function maybeDropEquip(){
+  if(Math.random() > 0.32) return null;
+  const cats = [...JOB_EQUIP[player.job].weapons, ...JOB_EQUIP[player.job].armors];
+  const cat = cats[Math.floor(Math.random()*cats.length)];
+  const idx = Math.min(49, Math.max(0, Math.floor(floor*0.7 + Math.random()*6)));
+  const item = {cat, idx};
+  player.inventoryEquip.push(item);
+  return item;
+}
+
+function endBattle(win){
+  cancelAnimationFrame(battleRAF);
+  show("screenDungeon");
+  state = "dungeon";
+  const idx = monsters.indexOf(enemy);
+  if(win){
+    if(idx>=0) monsters.splice(idx,1);
+    const drop = maybeDropEquip();
+    let msg = enemy.name + " をたおした！ (+" + enemy.exp + "EXP)";
+    if(drop) msg += "　" + CAT_LABEL[drop.cat] + "「" + equipName(drop) + "」を手に入れた！";
+    player.exp += enemy.exp;
+    let leveledUp = false;
+    const totalGains = {};
+    while(player.exp >= expToNext(player.level)){
+      player.exp -= expToNext(player.level);
+      const gains = levelUp();
+      Object.keys(gains).forEach(k=>{ totalGains[k] = (totalGains[k]||0) + gains[k]; });
+      leveledUp = true;
+    }
+    if(leveledUp){
+      msg += "　レベルアップ！ Lv." + player.level + " (" + formatGains(totalGains) + ")";
+      updateHudJob();
+    }
+    flashMsg(msg, drop ? 2200 : 1100, leveledUp);
+    updateBars();
+  } else if(idx>=0){
+    const opts = DIRS.filter(([dx,dy])=>!isWallTile(enemy.x+dx, enemy.y+dy));
+    if(opts.length){ const [dx,dy] = opts[Math.floor(Math.random()*opts.length)]; enemy.x += dx; enemy.y += dy; }
+  }
+  renderDungeon();
+}
+
+function log(t){ $("battleLog").textContent = t; }
+
+function playerAttack(){
+  const dmg = Math.max(1, player.atk + currentAtkBonus() + Math.floor(Math.random()*4) - enemy.def);
+  enemy.hp -= dmg;
+  updateEnemyBar();
+  log(player.jobName + " の攻撃！ " + enemy.name + " に " + dmg + " のダメージ");
+  setTimeout(()=>{
+    if(enemy.hp<=0){ log(enemy.name + " をたおした！"); setTimeout(()=>endBattle(true), 900); return; }
+    enemyTurn();
+  }, 700);
+}
+
+function playerMagic(){
+  if(player.mp < 4){ log("MPがたりない！"); return; }
+  player.mp -= 4;
+  const dmg = Math.max(1, player.mag*2 + Math.floor(Math.random()*4) - enemy.def);
+  enemy.hp -= dmg;
+  log("魔法を唱えた！ " + enemy.name + " に " + dmg + " のダメージ");
+  updateEnemyBar();
+  updateBars();
+  setTimeout(()=>{
+    if(enemy.hp<=0){ log(enemy.name + " をたおした！"); setTimeout(()=>endBattle(true), 900); return; }
+    enemyTurn();
+  }, 700);
+}
+
+function playerItem(){
+  const owned = Object.keys(player.items).filter(k=>player.items[k]>0);
+  if(!owned.length){ log("どうぐがない！"); return; }
+  const box = document.createElement("div");
+  box.className = "sub-list";
+  owned.forEach(k=>{
+    const b = document.createElement("div");
+    b.className = "sub-item";
+    b.textContent = ITEM_DEFS[k].name + " x" + player.items[k];
+    b.onclick = ()=>{
+      useItem(k);
+      box.remove();
+    };
+    box.appendChild(b);
+  });
+  const cancel = document.createElement("div");
+  cancel.className = "sub-item"; cancel.textContent = "やめる";
+  cancel.onclick = ()=>box.remove();
+  box.appendChild(cancel);
+  $("battleWrap").appendChild(box);
+}
+function useItem(k){
+  player.items[k]--;
+  if(k==="potion") player.hp = Math.min(player.maxhp, player.hp+25);
+  if(k==="hipotion") player.hp = Math.min(player.maxhp, player.hp+60);
+  if(k==="ether") player.mp = Math.min(player.maxmp, player.mp+20);
+  if(k==="phoenix"){ log("しかし、なにも起こらなかった。"); updateBars(); return; }
+  log(ITEM_DEFS[k].name + " を使った！");
+  updateBars();
+  setTimeout(enemyTurn, 700);
+}
+
+function playerRun(){
+  const chance = 0.4 + (player.spd - enemy.spd)*0.03;
+  if(Math.random() < Math.max(0.15, Math.min(0.9,chance))){
+    log("うまく逃げ切った！");
+    setTimeout(()=>endBattle(false), 700);
+  } else {
+    log("逃げられなかった！");
+    setTimeout(enemyTurn, 700);
+  }
+}
+
+function enemyTurn(){
+  const dmg = Math.max(1, enemy.atk + Math.floor(Math.random()*3) - player.def - currentDefBonus());
+  player.hp -= dmg;
+  log(enemy.name + " の攻撃！ " + dmg + " のダメージ");
+  updateBars();
+  setTimeout(()=>{
+    if(player.hp<=0){
+      if(player.items.phoenix>0){
+        player.items.phoenix--; player.hp = Math.round(player.maxhp*0.5);
+        log("フェニックスの尾で息を吹き返した！");
+        updateBars();
+      } else {
+        gameOver();
+      }
+    }
+  }, 500);
+}
+
+function gameOver(){
+  cancelAnimationFrame(battleRAF);
+  const best = Math.max(floor, parseInt(localStorage.getItem("wq-best")||"0"));
+  localStorage.setItem("wq-best", best);
+  $("overStats").textContent = "到達階層：" + floor + " かい　／　最深記録：" + best + " かい";
+  state = "over";
+  show("screenOver");
+}
+
+function openStatusScreen(){
+  const old = $("statusOverlay"); if(old) old.remove();
+  const box = document.createElement("div");
+  box.className = "sub-list"; box.id = "statusOverlay";
+  const rows = [
+    "クラス：" + player.jobName,
+    "レベル：" + player.level,
+    "EXP：" + player.exp + " / " + expToNext(player.level),
+    "HP：" + player.hp + " / " + player.maxhp,
+    "MP：" + player.mp + " / " + player.maxmp,
+    "ATK：" + player.atk + "（装備+" + currentAtkBonus() + "）",
+    "MAG：" + player.mag,
+    "DEF：" + player.def + "（装備+" + currentDefBonus() + "）",
+    "SPD：" + player.spd
+  ];
+  rows.forEach(t=>{
+    const row = document.createElement("div");
+    row.className = "sub-item";
+    row.style.cssText = "border:1px solid #3ab483; padding:8px 16px; font-size:12px; letter-spacing:2px; width:70%; text-align:left;";
+    row.textContent = t;
+    box.appendChild(row);
+  });
+  const close = document.createElement("div");
+  close.className = "sub-item";
+  close.style.cssText = "border:1px solid #3ab483; padding:8px 16px; font-size:12px; letter-spacing:2px; width:70%; text-align:center; margin-top:8px;";
+  close.textContent = "とじる";
+  close.onclick = ()=>box.remove();
+  box.appendChild(close);
+  $("screenDungeon").appendChild(box);
+}
+$("statusBtn").addEventListener("click", ()=>{ if(state==="dungeon") openStatusScreen(); });
+
+function openEquipScreen(){
+  const old = $("equipOverlay"); if(old) old.remove();
+  const box = document.createElement("div");
+  box.className = "sub-list"; box.id = "equipOverlay";
+  [["weapon","武器"],["body","防具"],["shield","盾"],["helm","兜"],["boots","靴"]].forEach(([slotKey,label])=>{
+    const cur = player.equip[slotKey];
+    const row = document.createElement("div");
+    row.className = "sub-item";
+    row.textContent = label + "： " + (cur ? equipName(cur) : "なし");
+    row.onclick = ()=>{ box.remove(); openSlotPicker(slotKey,label); };
+    box.appendChild(row);
+  });
+  const close = document.createElement("div");
+  close.className = "sub-item"; close.textContent = "とじる";
+  close.onclick = ()=>box.remove();
+  box.appendChild(close);
+  $("screenDungeon").appendChild(box);
+}
+function openSlotPicker(slotKey,label){
+  const box = document.createElement("div");
+  box.className = "sub-list"; box.id = "equipOverlay";
+  const cur = player.equip[slotKey];
+  if(cur){
+    const off = document.createElement("div");
+    off.className = "sub-item"; off.textContent = "（" + label + "をはずす）";
+    off.onclick = ()=>{ player.inventoryEquip.push(cur); player.equip[slotKey] = null; box.remove(); updateHudJob(); openEquipScreen(); };
+    box.appendChild(off);
+  }
+  const options = player.inventoryEquip.filter(it=>SLOT_OF[it.cat]===slotKey);
+  if(!options.length){
+    const none = document.createElement("div");
+    none.className = "sub-item"; none.textContent = "てもちの" + label + "がない";
+    box.appendChild(none);
+  }
+  options.forEach(it=>{
+    const row = document.createElement("div");
+    row.className = "sub-item";
+    row.textContent = CAT_LABEL[it.cat] + "「" + equipName(it) + "」 (+" + equipPower(it.cat,it.idx) + ")";
+    row.onclick = ()=>{
+      player.inventoryEquip.splice(player.inventoryEquip.indexOf(it),1);
+      const prev = player.equip[slotKey];
+      if(prev) player.inventoryEquip.push(prev);
+      player.equip[slotKey] = it;
+      box.remove(); updateHudJob(); openEquipScreen();
+    };
+    box.appendChild(row);
+  });
+  const back = document.createElement("div");
+  back.className = "sub-item"; back.textContent = "もどる";
+  back.onclick = ()=>{ box.remove(); openEquipScreen(); };
+  box.appendChild(back);
+  $("screenDungeon").appendChild(box);
+}
+$("equipBtn").addEventListener("click", ()=>{ if(state==="dungeon") openEquipScreen(); });
+$("classBtn").addEventListener("click", ()=>{ if(state==="dungeon") openClassChange(); });
+
+/* ---------------- INPUT ---------------- */
+$("screenTitle").addEventListener("click", ()=>{
+  newGame(JOBS.find(j=>j.id==="freelancer"));
+});
+$("screenOver").addEventListener("click", ()=>{ state="title"; show("screenTitle"); updateBestLabel(); });
+
+function updateBestLabel(){
+  const best = localStorage.getItem("wq-best");
+  $("bestFloor").textContent = best ? ("これまでの最深記録：" + best + " かい") : "";
+}
+updateBestLabel();
+
+function jobIconSVG(job){
+  if(job.id==="freelancer"){
+    return `<svg viewBox="-60 -90 120 150" shape-rendering="crispEdges">${freelancerSvgRects()}</svg>`;
+  }
+  const base = `<circle cx="0" cy="-45" r="12"/><path d="M0,-33 L0,15 M-20,-10 L20,-10 M0,15 L-15,50 M0,15 L15,50"/>`;
+  let extra = "";
+  switch(job.id){
+    case "warrior":
+      extra = `<path d="M20,-10 L45,-45 M30,-22 L38,-14 M-14,-5 L14,-5 M-12,5 L12,5"/>`;
+      break;
+    case "monk":
+      extra = `<circle cx="20" cy="-10" r="4"/><circle cx="-20" cy="-10" r="4"/>`;
+      break;
+    case "thief":
+      extra = `<path d="M20,-10 L35,-25 M-10,-40 L-25,10 L0,-30"/>`;
+      break;
+    case "whitemage":
+      extra = `<path d="M-15,15 L-25,50 L25,50 L15,15 M20,-10 L20,-50"/><circle cx="20" cy="-54" r="4"/>`;
+      break;
+    case "blackmage":
+      extra = `<path d="M-14,-50 L0,-80 L14,-50 M-15,15 L-25,50 L25,50 L15,15 M20,-10 L24,-50 M18,-48 L30,-48"/>`;
+      break;
+    case "redmage":
+      extra = `<path d="M-14,-30 L-28,40 L0,15 M20,-10 L48,-40"/><circle cx="24" cy="-18" r="5"/>`;
+      break;
+  }
+  return `<svg viewBox="-60 -90 120 150" fill="none" stroke="#7CFFF0" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round">${base}${extra}</svg>`;
+}
+function openClassChange(){
+  state = "job";
+  show("screenJob");
+  const list = $("jobList");
+  list.innerHTML = "";
+  JOBS.forEach(j=>{
+    const isCurrent = j.id===player.job;
+    const unlocked = isCurrent || jobMeetsRequirements(j.id);
+    const card = document.createElement("div");
+    card.className = "job-card";
+    card.style.opacity = unlocked ? "1" : "0.4";
+    const statusTag = isCurrent ? "（現在）" : (unlocked ? "（変更可）" : "（ロック中）");
+    card.innerHTML = jobIconSVG(j) +
+      `<div class="job-info"><div class="job-name">${j.name}${statusTag}</div>
+       <div class="job-stat">HP${j.hp} MP${j.mp} ATK${j.atk} MAG${j.mag} DEF${j.def} SPD${j.spd}</div>
+       <div class="job-stat">${j.desc}</div></div>`;
+    if(unlocked && !isCurrent){
+      card.onclick = ()=> changeClass(j);
+    }
+    list.appendChild(card);
+  });
+  const close = document.createElement("div");
+  close.className = "sub-item";
+  close.style.cssText = "border:1px solid #3ab483; padding:8px 16px; font-size:12px; letter-spacing:2px; width:70%; text-align:center; margin-top:8px;";
+  close.textContent = "もどる";
+  close.onclick = ()=>{ state="dungeon"; show("screenDungeon"); renderDungeon(); };
+  list.appendChild(close);
+}
+function changeClass(job){
+  player.job = job.id;
+  player.jobName = job.name;
+  // drop any equipped gear the new class can't use
+  ["weapon","body","shield","helm","boots"].forEach(slot=>{
+    const item = player.equip[slot];
+    if(item && !jobCanUse(job.id, item.cat)){
+      player.inventoryEquip.push(item);
+      player.equip[slot] = null;
+    }
+  });
+  updateHudJob();
+  flashMsg(job.name + " にジョブチェンジした！", 1800);
+  state = "dungeon";
+  show("screenDungeon");
+  renderDungeon();
+}
+
+let hintFaded = false;
+let lastTapTime = 0;
+let pendingTap = null; // {tileKey, timer}
+const DOUBLE_TAP_MS = 260;
+function onCanvasTap(clientX, clientY){
+  const now = Date.now();
+  if(now - lastTapTime < 150) return; // dedup: multiple event types can fire for one physical tap
+  lastTapTime = now;
+  if(msgHoldUntilTap){ msgHoldUntilTap = false; $("msg").textContent = ""; }
+  if(state==="battle"){ playerAttack(); return; } // tapping the enemy area attacks
+  if(state!=="dungeon") return;
+  if(!hintFaded){ $("swipeHint").classList.add("faded"); hintFaded = true; }
+  const rect = view.getBoundingClientRect();
+  const px = clientX - rect.left, py = clientY - rect.top;
+  const sc = Math.floor(px/TILE), sr = Math.floor(py/TILE);
+  const ox = player.x-centerCol, oy = player.y-centerRow;
+  const wx = ox+sc, wy = oy+sr;
+  const dx = wx-player.x, dy = wy-player.y;
+  if(Math.abs(dx)>1 || Math.abs(dy)>1 || (dx===0&&dy===0)){
+    flashMsg("DEBUG: tap("+Math.round(px)+","+Math.round(py)+") tile("+wx+","+wy+") player("+player.x+","+player.y+") ※範囲外", 2200);
+    return;
+  }
+  const tileKey = wx+","+wy;
+  if(pendingTap && pendingTap.tileKey===tileKey){
+    clearTimeout(pendingTap.timer);
+    pendingTap = null;
+    autoRun(dx,dy); // double tap: run until the next branch/dead end/monster/stairs
+    return;
+  }
+  if(pendingTap){ clearTimeout(pendingTap.timer); pendingTap = null; }
+  const timer = setTimeout(()=>{ pendingTap = null; tryMoveTo(wx,wy); }, DOUBLE_TAP_MS);
+  pendingTap = {tileKey, timer};
+}
+view.addEventListener("pointerup", e=>onCanvasTap(e.clientX, e.clientY));
+view.addEventListener("click", e=>onCanvasTap(e.clientX, e.clientY));
+view.addEventListener("touchend", e=>{
+  if(e.changedTouches && e.changedTouches[0]) onCanvasTap(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+}, {passive:true});
+
+$("cmdMag").addEventListener("click", ()=>{ if(state==="battle") playerMagic(); });
+$("cmdItem").addEventListener("click", ()=>{ if(state==="battle") playerItem(); });
+$("cmdRun").addEventListener("click", ()=>{ if(state==="battle") playerRun(); });
+
+show("screenTitle");
+</script>
+</body>
+</html>
