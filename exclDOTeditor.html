@@ -131,6 +131,12 @@
     text-transform:lowercase;
   }
   .hexInput:focus{ outline:none; border-color:var(--neon-dim); }
+  #loadAsciiInput{
+    width:100%; min-height:456px; background:#0d1218; color:var(--text);
+    border:1px solid var(--line); border-radius:6px; padding:8px 10px;
+    font-size:9px; line-height:1.35; resize:vertical; -webkit-user-select:text; user-select:text;
+  }
+  #loadAsciiInput:focus{ outline:none; border-color:var(--neon-dim); }
   .colorBox, .colorBar{
     display:block; width:100%; border-radius:6px; border:1px solid var(--line);
     touch-action:none; cursor:crosshair;
@@ -179,8 +185,9 @@
   <div class="panel" style="padding-left:2px; padding-right:2px;">
     <div class="row between" style="gap:2px;">
       <button id="clearBtn" style="flex:1;">ALL CLEAR</button>
-      <button id="gridToggleBtn" style="flex:1;">GRID ON/OFF</button>
-      <button id="asciiBtn" style="flex:1;">SHOW ASCII</button>
+      <button id="gridToggleBtn" style="flex:1;">GRID</button>
+      <button id="asciiBtn" style="flex:1;">SAVE</button>
+      <button id="loadAsciiBtn" style="flex:1;">LOAD</button>
     </div>
     <div class="row" style="margin-top:2px; gap:2px;">
       <button id="shiftLeftBtn" style="flex:1;">◀</button>
@@ -194,13 +201,30 @@
 <div class="modal-overlay" id="asciiModal" hidden>
   <div class="modal">
     <div class="modal-header">
-      <span>ASCII DATA</span>
+      <span>SAVE ASCII</span>
       <button id="asciiClose">✕</button>
     </div>
     <div class="modal-body">
       <pre id="asciiGrid" class="num"></pre>
       <div id="asciiLegend"></div>
       <button class="accent" id="asciiCopyBtn">COPY</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="loadAsciiModal" hidden>
+  <div class="modal">
+    <div class="modal-header">
+      <span>LOAD ASCII</span>
+      <button id="loadAsciiClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <textarea id="loadAsciiInput" class="num" placeholder="Paste SHOW ASCII output here"></textarea>
+      <div id="loadAsciiStatus" style="font-size:12px; color:var(--sub);"></div>
+      <div class="row" style="justify-content:center; gap:12px;">
+        <button id="loadAsciiCancel">CANCEL</button>
+        <button class="accent" id="loadAsciiApply">LOAD</button>
+      </div>
     </div>
   </div>
 </div>
@@ -673,6 +697,88 @@
     if(navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(full).catch(()=>{});
     }
+  });
+
+  // --- load ascii: parse the SHOW ASCII / COPY output back into the grid ---
+  const loadAsciiModal = document.getElementById('loadAsciiModal');
+  const loadAsciiInput = document.getElementById('loadAsciiInput');
+  const loadAsciiStatus = document.getElementById('loadAsciiStatus');
+
+  document.getElementById('loadAsciiBtn').addEventListener('click', ()=>{
+    loadAsciiInput.value = '';
+    loadAsciiStatus.textContent = '';
+    loadAsciiModal.hidden = false;
+  });
+  document.getElementById('loadAsciiCancel').addEventListener('click', ()=>{
+    loadAsciiModal.hidden = true;
+  });
+  document.getElementById('loadAsciiClose').addEventListener('click', ()=>{
+    loadAsciiModal.hidden = true;
+  });
+  loadAsciiModal.addEventListener('click', (e)=>{
+    if(e.target === loadAsciiModal) loadAsciiModal.hidden = true;
+  });
+
+  document.getElementById('loadAsciiApply').addEventListener('click', ()=>{
+    const raw = loadAsciiInput.value.trim();
+    if(!raw){
+      loadAsciiStatus.textContent = 'Paste ASCII data first.';
+      loadAsciiStatus.style.color = '#ff1744';
+      return;
+    }
+
+    // split grid block from legend block on the first blank line
+    const blocks = raw.split(/\n\s*\n/);
+    const gridBlock = blocks[0].trim();
+    const legendBlock = blocks.slice(1).join('\n').trim();
+
+    const rows = gridBlock.split('\n').map(l=>l.trim()).filter(l=>l.length);
+    if(rows.length !== SIZE){
+      loadAsciiStatus.textContent = 'Expected '+SIZE+' rows, got '+rows.length+'.';
+      loadAsciiStatus.style.color = '#ff1744';
+      return;
+    }
+
+    const newGrid = new Array(SIZE*SIZE).fill(null);
+    for(let y=0; y<SIZE; y++){
+      const tokens = rows[y].split(',').map(t=>t.trim());
+      if(tokens.length !== SIZE){
+        loadAsciiStatus.textContent = 'Row '+(y+1)+' has '+tokens.length+' values, expected '+SIZE+'.';
+        loadAsciiStatus.style.color = '#ff1744';
+        return;
+      }
+      for(let x=0; x<SIZE; x++){
+        const t = tokens[x];
+        if(t === '_'){
+          newGrid[y*SIZE+x] = null;
+        } else if(/^[0-9]$/.test(t)){
+          newGrid[y*SIZE+x] = parseInt(t, 10);
+        } else {
+          loadAsciiStatus.textContent = 'Unrecognized value "'+t+'" at row '+(y+1)+'.';
+          loadAsciiStatus.style.color = '#ff1744';
+          return;
+        }
+      }
+    }
+
+    // optional legend: apply any custom colors it specifies
+    if(legendBlock){
+      legendBlock.split('\n').forEach(line=>{
+        const m = line.match(/^\s*([0-9])\s*:\s*(#[0-9a-fA-F]{6})\s*$/);
+        if(m){
+          const slot = parseInt(m[1], 10);
+          if(slot >= 0 && slot < paletteColors.length) paletteColors[slot] = m[2].toLowerCase();
+        }
+      });
+    }
+
+    for(let i=0;i<grid.length;i++) grid[i] = newGrid[i];
+    buildSwatches();
+    updatePalletBtnState();
+    render();
+    loadAsciiStatus.textContent = 'Loaded.';
+    loadAsciiStatus.style.color = 'var(--neon)';
+    loadAsciiModal.hidden = true;
   });
 
   window.addEventListener('resize', layout);
