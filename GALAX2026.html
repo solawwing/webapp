@@ -148,7 +148,7 @@
         <polygon points="9,12.5 13,12.5 11,6.5" fill="none" stroke="#39ff14" stroke-width="1"/>
         <polygon points="15,12.5 19,12.5 17,6.5" fill="none" stroke="#39ff14" stroke-width="1"/>
       </svg>
-      <svg width="28" height="31" viewBox="0 0 28 31"><polygon points="14,30 6,12.5 22,12.5" fill="none" stroke="#ffffff" stroke-width="1"/>
+      <svg id="tierEIcon" width="28" height="31" viewBox="0 0 28 31" style="pointer-events:auto; cursor:pointer;"><polygon points="14,30 6,12.5 22,12.5" fill="none" stroke="#ffffff" stroke-width="1"/>
         <polygon points="12,12.5 16,12.5 14,6.5" fill="none" stroke="#ffffff" stroke-width="1"/>
       </svg>
     </div>
@@ -171,7 +171,7 @@
       </div>
       <div class="item-entry" data-weapon="LASER">
         <div class="item-header"><span class="item-icon">L</span><span class="item-name">LASER</span></div>
-        <div class="item-desc">Piercing beam plus two side beams, growing thicker each level.</div>
+        <div class="item-desc">Piercing beam plus two side beams, growing thicker each level. Levels to 7.</div>
       </div>
       <div class="item-entry" data-weapon="GRAVITY">
         <div class="item-header"><span class="item-icon">G</span><span class="item-name">GRAVITY</span></div>
@@ -187,7 +187,7 @@
       </div>
       <div class="item-entry" data-weapon="PHANTOM">
         <div class="item-header"><span class="item-icon">P</span><span class="item-name">PHANTOM</span></div>
-        <div class="item-desc">Instant flash beam that slows anything it catches. Cooldown shrinks fast.</div>
+        <div class="item-desc">Instant flash beam that slows anything it catches. Levels all the way to 7.</div>
       </div>
       <div class="item-entry" data-weapon="CURVE">
         <div class="item-header"><span class="item-icon">C</span><span class="item-name">CURVE</span></div>
@@ -195,7 +195,7 @@
       </div>
       <div class="item-entry" data-weapon="THUNDER">
         <div class="item-header"><span class="item-icon">T</span><span class="item-name">THUNDER</span></div>
-        <div class="item-desc">Chain lightning jumping between targets, sometimes branching.</div>
+        <div class="item-desc">Chain lightning that jumps between targets. Levels all the way to 7.</div>
       </div>
       <div class="item-entry" data-weapon="SPARK">
         <div class="item-header"><span class="item-icon">S</span><span class="item-name">SPARK <span style="font-size:6px;">(SUMIDAGAWA HANABI FES.)</span></span></div>
@@ -300,7 +300,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-08-23 22:19';
+const LAST_UPDATED = '2026-08-31 07:51';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -359,6 +359,10 @@ function qbezier(p0, p1, p2, t) {
 }
 function dist2(ax, ay, bx, by) { const dx = ax-bx, dy = ay-by; return dx*dx + dy*dy; }
 function rand(a, b) { return a + Math.random() * (b - a); }
+function weaponMaxLevel(type) {
+  // VULCAN/PHANTOM/THUNDER/LASER uniquely level up to 7, every other weapon caps at 5
+  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER') ? 7 : 5;
+}
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function formatScore(n) { return Math.round(n).toLocaleString('en-US'); }
 function weightedChoice(items, weights) {
@@ -397,7 +401,7 @@ function resetPlayer() {
   player.y = H - 90; player.targetY = H - 90;
   player.lives = 3; player.alive = true; player.invT = 2.0; player.fireCd = 0;
   player.weapon = debugStartWeapon || 'NORMAL';
-  player.weaponLevel = debugStartWeapon ? 1 : 0;
+  player.weaponLevel = debugStartWeapon ? (debugStartMaxLevel ? weaponMaxLevel(debugStartWeapon) : 1) : 0;
   player.rapidLevel = 0; player.burstRemaining = 0; player.burstTimer = 0;
   player.vulcanBurstRemaining = 0; player.vulcanBurstTimer = 0; player.vulcanShotInterval = 0.1; player.vulcanXOffset = 0;
   player.laserSubCooldown = 0;
@@ -581,15 +585,15 @@ function drawParticles() {
 function pickItemType() {
   // lower weapon level -> more likely to see the same weapon again (helps reach max level);
   // once maxed, that weapon is excluded entirely so it doesn't drop wastefully — VULCAN
-  // caps at Lv7, every other weapon caps at Lv5.
+  // and PHANTOM cap at Lv7, every other weapon caps at Lv5.
   // SPARK is a special rare power-up: much lower weight than any other weapon.
   const lvl = player.weaponLevel;
-  const maxLevel = player.weapon === 'VULCAN' ? 7 : 5;
+  const maxLevel = weaponMaxLevel(player.weapon);
   const weights = ITEM_TYPES.map(t => {
     if (t === 'SPARK') return 0.15;
     if (t !== player.weapon) return 1;
     if (lvl >= maxLevel) return 0;
-    return Math.max(1, 25 - 5 * lvl); // clamped so VULCAN's extra Lv6/Lv7 headroom never goes negative
+    return Math.max(1, 25 - 5 * lvl); // clamped so VULCAN/PHANTOM's extra Lv6/Lv7 headroom never goes negative
   });
   const total = weights.reduce((a, b) => a + b, 0);
   let r = Math.random() * total;
@@ -632,7 +636,7 @@ function updateItems(dt) {
         pickupTexts.push({ text: 'SPARK!', x: player.x, y: player.y - player.r - 6, t: 0, duration: 2.0 });
       } else {
         if (player.weapon === it.type) {
-          const maxLevel = it.type === 'VULCAN' ? 7 : 5;
+          const maxLevel = weaponMaxLevel(it.type);
           player.weaponLevel = Math.min(maxLevel, player.weaponLevel + 1);
         } else {
           player.weapon = it.type;
@@ -780,7 +784,7 @@ const WIDE_COUNTS = [0, 3, 5, 7, 9, 11];
 const HOMING_COUNTS = [0, 1, 2, 3, 4, 5];
 const BUBBLE_COUNTS = [0, 6, 10, 14, 18, 22]; // linear, +4 per level
 const VULCAN_COUNTS = [0, 2, 4, 6, 8, 10, 12, 14]; // +2 shots per level, up to Lv7
-const PHANTOM_COOLDOWNS = [0, 1.0, 0.8, 0.6, 0.4, 0.2]; // -0.2s per level
+const PHANTOM_COOLDOWNS = [0, 1.0, 0.8, 0.6, 0.4, 0.2, 0.15, 0.1]; // -0.2s/level up to Lv5, then finer steps
 const SPARK_COOLDOWNS = [0, 0.3, 0.3, 0.3, 0.3, 0.3]; // fixed 0.3s regardless of level
 // per-weapon fire cooldown (seconds between shots), replacing the old one-size-fits-all
 // "wait until the screen is clear of your own bullets" gate for these weapons
@@ -794,7 +798,13 @@ const LASER_SPECS = [null,
   { length: 300, pierce: 5, speed: 400 },
   { length: 400, pierce: 10, speed: 450 },
   { length: 500, pierce: 10, speed: 500 },
+  { length: 600, pierce: 10, speed: 550 },
+  { length: 700, pierce: 10, speed: 600 },
 ];
+function laserThickness(lvl) {
+  // +1px per level Lv1(2px)-Lv5(6px), then +2px per level for Lv6(8px)/Lv7(10px)
+  return lvl <= 5 ? 1 + lvl : 6 + (lvl - 5) * 2;
+}
 const CURVE_SPECS = [null,
   { turn: 7.5 },
   { turn: 7.5 },
@@ -802,7 +812,7 @@ const CURVE_SPECS = [null,
   { turn: 7.5 },
   { turn: 7.5 },
 ];
-const THUNDER_LOOP_COUNTS = [0, 2, 4, 8, 16, 32];
+const THUNDER_LOOP_COUNTS = [0, 2, 4, 8, 16, 32, 32, 32];
 function fireWeapon() {
   const bx = player.x, by = player.y - player.r;
   const lvl = player.weaponLevel;
@@ -898,10 +908,11 @@ function fireWeapon() {
       });
     }
   } else if (player.weapon === 'THUNDER') {
+    const maxResets = lvl >= 7 ? 5 : lvl >= 6 ? 4 : 3;
     playerBullets.push({
       x: bx, y: by, vx: 0, vy: -700, r: 3, power: 3, thunder: true,
       length: 50, chaining: false, dying: false, finished: false, hitSet: new Set(), chainPath: [], loopsLeft: THUNDER_LOOP_COUNTS[lvl],
-      chainTimer: 0, family: { active: 1 },
+      chainTimer: 0, family: { active: 1 }, maxResets,
     });
   } else {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, power: 5 });
@@ -922,14 +933,14 @@ function fireLaserSubs() {
 
 function fireVulcanShot() {
   // fires from the ship's apex (its topmost/frontmost point), not just above center;
-  // firing angle is randomized between -10 and +10 degrees on every shot. As level
+  // firing angle is randomized between -5 and +5 degrees on every shot. As level
   // increases, the same bullet is fired repeatedly in place (0.01s apart), `level`
-  // times, instead of a single shot — power is a flat 1 regardless of level.
+  // times, instead of a single shot — power is random 1-3 per shot.
   const bx = player.x, by = player.y - player.r * 1.9 * 1.4;
   const rad = rand(-5, 5) * Math.PI / 180;
   const repeats = Math.max(1, player.weaponLevel);
   for (let k = 0; k < repeats; k++) {
-    playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 400, vy: -Math.cos(rad) * 400, r: 1, power: 1, vulcanLine: true, spawnDelay: k * 0.01 });
+    playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 400, vy: -Math.cos(rad) * 400, r: 1, power: Math.floor(rand(1, 4)), vulcanLine: true, spawnDelay: k * 0.01 });
   }
 }
 
@@ -1420,6 +1431,8 @@ function spawnAsteroid() {
     vy: Math.cos(fallAngleRad) * fallSpeed, // each asteroid falls at its own speed, faster overall
     willSplit, hasSplit: false, splitY: willSplit ? rand(20, H / 2) : null,
     damageTaken: 0,
+    // off-center "core" point (simulated light source) used to fake a faceted,
+    // 3D-looking rock via a radial gradient + internal facet lines to each vertex
   });
 }
 
@@ -2082,6 +2095,7 @@ canvas.addEventListener('pointerdown', e => {
 let showingEquip = false;
 let debugStartWeapon = null;
 let debugStartAtBoss = false; // set via tapping the tier-A icon on the title screen
+let debugStartMaxLevel = false; // set via tapping the tier-E icon on the title screen
 const EQUIP_CHOICES = ['DOUBLE', 'WIDE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'THUNDER', 'SPARK']; // no NORMAL
 function showEquipSelect() {
   showingEquip = true;
@@ -2105,20 +2119,20 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["3-way fan.", "5-way fan.", "7-way fan.", "9-way fan.", "11-way, full coverage."] },
   HOMING: { intro: "Each shot locks onto its own distinct target, enemies, asteroids, and crystals all count, so a full volley can track that many different threats simultaneously. Shots launch twenty pixels off the ship's tip along a fixed firing angle, travel two hundred pixels dead straight while steadily accelerating, then curve in toward whatever they're locked onto once that opening stretch ends. Leveling up doesn't just add more shots, it widens the angles those shots launch at too, starting at twenty degrees and stepping up by forty more each level, so a maxed-out volley can blanket a huge arc and lock onto far more targets than the early levels can manage.",
     levels: ["2 shots at ±20°.", "4 shots, up to ±60°.", "6 shots, up to ±100°.", "8 shots, up to ±140°.", "10 shots, up to ±180°."] },
-  LASER: { intro: "A piercing cyan beam that cuts through several targets at once, plus two independent side beams firing on their own faster rhythm from just beside the ship. The main beam and the side beams share the same per-level length, pierce count, and travel speed, so every level-up improves all three beams together rather than just one. The main beam also visibly thickens by a pixel every level, so by max level it's a wide, unmistakable shaft of light that stretches far up the screen, punches through ten targets in a row, and travels faster than almost anything else in your arsenal, turning LASER into a serious long-range pick for late-game waves and tough boss fights.",
-    levels: ["200px, pierces 5, 2px thick.", "250px, pierces 5, 3px thick.", "300px, pierces 5, 4px thick.", "400px, pierces 10, 5px thick.", "500px, pierces 10, 6px thick."] },
+  LASER: { intro: "A piercing cyan beam that cuts through several targets at once, plus two independent side beams firing on their own faster rhythm from just beside the ship. The main beam and the side beams share the same per-level length, pierce count, and travel speed, so every level-up improves all three beams together rather than just one. The main beam also visibly thickens by a pixel every level up through level five, then thickens twice as fast for the final two levels, so by max level it's an enormous, unmistakable shaft of light that stretches nearly the full height of the screen, punches through ten targets in a row, and travels faster than almost anything else in your arsenal. LASER uniquely keeps growing all the way to level seven, two levels further than most weapons, turning a maxed-out beam into one of the most dominant long-range picks for late-game waves and tough boss fights.",
+    levels: ["200px, pierces 5, 2px thick.", "250px, pierces 5, 3px thick.", "300px, pierces 5, 4px thick.", "400px, pierces 10, 5px thick.", "500px, pierces 10, 6px thick.", "600px, pierces 10, 8px thick.", "700px, pierces 10, 10px thick."] },
   GRAVITY: { intro: "Every hit splashes nearby enemies for extra damage, and also kicks off a shockwave ring that lingers on screen for several seconds afterward. The ring first expands to its full size, then holds there and visibly shakes in place before fading away. Anything caught inside the ring takes repeated damage for as long as it stays trapped, and enemies inside also move and act at half their normal speed, effectively locking them down while the ring keeps ticking. The splash and shockwave radius both grow with level, so a high-level GRAVITY shot can blanket a huge portion of the screen and turn crowded moments into a serious area-control advantage.",
     levels: ["40px splash radius.", "80px radius.", "120px radius.", "160px radius.", "200px radius, biggest shockwave."] },
   BUBBLE: { intro: "Launches a wide cone of drifting pink orbs ahead of the ship, growing steadily larger the farther each one travels. Every orb's brightness is randomly assigned the moment it's fired, and that brightness quietly determines both how far the orb can fly before vanishing and how much damage it deals on contact. The brightest orbs fly the farthest and hit the hardest, while dimmer ones fizzle out quickly and only tickle whatever they touch nearby. Because the cone is wide and the orb count climbs sharply with level, BUBBLE turns into a genuine wall of unpredictable projectiles at higher levels, even though any single orb on its own is fairly weak.",
     levels: ["6 orbs per shot.", "10 orbs.", "14 orbs.", "18 orbs.", "22 orbs, thickest cone."] },
   VULCAN: { intro: "A rapid-fire burst of short orange bolts fired from the very tip of the ship, each one scattering a few degrees off true for a chattering spray rather than a clean straight line. No matter how many shots you've unlocked, the whole burst always finishes within half a second, so higher levels simply pack more bolts into that same tight window instead of dragging the burst out longer. Every single bolt in a shot now fires as a rapid volley of its own too, repeating the exact same bolt in place once per level with barely any delay between each repeat, so leveling up multiplies your output twice over — more shots in the burst, and more repeats of each one. VULCAN also uniquely keeps growing all the way to level seven, two levels further than every other weapon. It stacks cleanly with RAPID too, letting everything overlap into an even denser stream of fire.",
     levels: ["2-shot burst, 1x repeat.", "4-shot burst, 2x repeat.", "6-shot burst, 3x repeat.", "8-shot burst, 4x repeat.", "10-shot burst, 5x repeat.", "12-shot burst, 6x repeat.", "14-shot burst, 7x repeat, same 0.5s window."] },
-  PHANTOM: { intro: "Instantly flashes a wide beam from the ship straight up to the top of the screen, damaging everything caught inside the flash the very moment it fires, with no travel time at all. Anything still standing inside that flash zone while it's fading out also gets caught in a slowing field, moving and acting at half speed for as long as they linger there. The width of that flash and the cooldown between flashes both improve dramatically with level, the beam growing wider while the wait between activations shrinks all the way down to a fifth of a second, letting you flash almost constantly once fully powered up.",
-    levels: ["100px wide, 1.0s cooldown.", "120px wide, 0.8s cooldown.", "140px wide, 0.6s cooldown.", "160px wide, 0.4s cooldown.", "180px wide, 0.2s cooldown."] },
+  PHANTOM: { intro: "Instantly flashes a wide beam from the ship straight up to the top of the screen, damaging everything caught inside the flash the very moment it fires, with no travel time at all. Anything still standing inside that flash zone while it's fading out also gets caught in a slowing field, moving and acting at half speed for as long as they linger there — and takes a second damage tick right as the flash finishes, catching anything that wandered in after the initial hit too. The width of that flash and the cooldown between flashes both improve dramatically with level, the beam growing wider while the wait between activations shrinks all the way down to a tenth of a second. PHANTOM also uniquely keeps growing all the way to level seven, two levels further than most other weapons, letting you flash almost constantly once fully powered up.",
+    levels: ["100px wide, 1.0s cooldown.", "120px wide, 0.8s cooldown.", "140px wide, 0.6s cooldown.", "160px wide, 0.4s cooldown.", "180px wide, 0.2s cooldown.", "200px wide, 0.15s cooldown.", "220px wide, 0.1s cooldown."] },
   CURVE: { intro: "Launches one violet beam per level, each one locking onto a different target near the top of the screen so that a full volley spreads its attention across several enemies at once instead of piling onto one. Rather than turning sharply toward its target, each beam curves along a gentle, ever-tightening parabolic arc, so its path visibly bends more and more the longer it stays airborne. Its hitbox reaches a generous twenty pixels to either side too, so it doesn't need to line up perfectly to connect. Along the way it pierces through anything else it happens to pass, dealing lesser damage to those incidental targets while saving its heaviest hit for whatever it originally locked onto.",
     levels: ["1 beam.", "2 beams.", "3 beams.", "4 beams.", "5 beams, covers most of the top row."] },
-  THUNDER: { intro: "A yellow bolt that, on its first hit, ignites a chain reaction, jumping rapidly between nearby untouched targets one after another and sometimes branching into multiple simultaneous chains that spread out across the whole formation. Each branch has its own independent chance to split again, so a lucky trigger can cascade into a sprawling web of lightning connecting a huge number of enemies at once. Higher levels dramatically increase how many total jumps the chain can make before it finally fizzles out, so a maxed-out THUNDER can chew through entire waves in a single well-placed hit.",
-    levels: ["2 jumps.", "4 jumps.", "8 jumps.", "16 jumps.", "32 jumps, huge chains."] },
+  THUNDER: { intro: "A yellow bolt that, on its first hit, ignites a chain reaction, jumping rapidly to the nearest untouched target within a huge range and then the next, forming a single unbroken line of lightning rather than branching apart, dealing solid damage with every single jump. If it ever runs out of nearby untouched targets while jumps still remain, it clears its own memory of who it's already hit and keeps going, letting the same handful of targets get chained through again rather than fizzling out early — this reset is capped per bolt so it can't loop forever, and that cap itself grows a little further at the very top levels. The chain caps out at thirty-two total jumps by level five, and THUNDER uniquely keeps growing two levels further still, not for more jumps but for a chain that's simply more persistent and harder to run dry, letting a maxed-out bolt chew through entire waves off a single well-placed hit.",
+    levels: ["2 jumps, up to 3 resets.", "4 jumps, up to 3 resets.", "8 jumps, up to 3 resets.", "16 jumps, up to 3 resets.", "32 jumps, up to 3 resets.", "32 jumps, up to 4 resets.", "32 jumps, up to 5 resets."] },
   SPARK: { intro: "A rare thirty-second power-up themed after a fireworks festival, and one of the hardest weapon pickups to come across. Twin sparks rise gently into the air before bursting into a shower of scattering fragments, with the number of directions those fragments fly constantly changing throughout the duration for an ever-shifting fireworks display that never looks quite the same twice. No items drop while it's active, so grabbing SPARK means temporarily giving up your regular item flow in exchange for a wild, screen-filling barrage, so it's worth timing your pickup carefully around how safe the moment feels.",
     levels: null },
 };
@@ -2160,7 +2174,7 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 5000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['WIDE', 'THUNDER'];
+const EQUIP_UPDATED = ['DOUBLE', 'WIDE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'THUNDER'];
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -2482,7 +2496,7 @@ function updateBullets(dt) {
         const last = b.chainPath[b.chainPath.length - 1];
         let next = findNearestEnemyExcluding(last.x, last.y, b.hitSet);
         let inRange = next && dist2(last.x, last.y, next.x, next.y) < 2560 * 2560;
-        if ((!next || !inRange) && b.loopsLeft > 0 && (b.resetLoops || 0) < 3) {
+        if ((!next || !inRange) && b.loopsLeft > 0 && (b.resetLoops || 0) < (b.maxResets || 3)) {
           // jumps remain but no un-hit target is left in range — reset the hit list
           // and keep chaining, up to 3 resets total
           b.hitSet.clear();
@@ -2497,10 +2511,10 @@ function updateBullets(dt) {
           b.hitSet.add(next);
           if (next.isAsteroidObj) {
             score += wave * 20;
-            registerAsteroidDamage(1, next);
+            registerAsteroidDamage(2, next);
             spawnDeathParticles(next.x, next.y, '#bbbbbb', 3);
           } else {
-            next.hp -= (next.type === 'GIANTBOSS' ? 5 : 1);
+            next.hp -= (next.type === 'GIANTBOSS' ? 5 : 2);
             score += 10; // +10 for dealing damage
             if (next.hp <= 0) {
               handleEnemyDeath(next);
@@ -3365,7 +3379,7 @@ function drawBullets() {
     if (b.laser) {
       // gradient beam: bright at the head (tip), dull at the tail (near origin) —
       // WIDE's own bolts use shocking pink instead of LASER's cyan
-      ctx.lineWidth = b.subLaser ? 1 : (1 + (b.laserLevel || 1)); // main beam grows +1px per level
+      ctx.lineWidth = b.subLaser ? 1 : laserThickness(b.laserLevel || 1); // main beam grows +1px per level (Lv1-5), then +2px for Lv6/Lv7
       const { tailX, tailY } = laserSegmentEnds(b);
       const grad = ctx.createLinearGradient(b.x, b.y, tailX, tailY);
       const beamColor = b.wide ? '#adff2f' : '#39fff3';
@@ -3775,7 +3789,7 @@ function drawHUD() {
 
   // item status: right side, as name + level block bar (font 2px smaller than the rest of the HUD)
   ctx.font = '10px "Montserrat", sans-serif';
-  if (player.weapon !== 'NORMAL') drawLevelBar(player.weapon, player.weaponLevel, player.weapon === 'VULCAN' ? 7 : 5, W - 12, 26);
+  if (player.weapon !== 'NORMAL') drawLevelBar(player.weapon, player.weaponLevel, weaponMaxLevel(player.weapon), W - 12, 26);
   if (player.rapidLevel > 0) drawLevelBar('RAPID', player.rapidLevel, 3, W - 12, 44);
   ctx.font = '12px "Montserrat", sans-serif';
   ctx.textAlign = 'left';
@@ -3923,6 +3937,18 @@ if (tierAIcon) {
     e.stopPropagation();
     e.preventDefault();
     debugStartAtBoss = true;
+    showEquipSelect();
+  });
+}
+
+// tapping the tier-E icon on the title screen flags the next game start to begin
+// with the chosen weapon already at its max level, instead of Lv1
+const tierEIcon = document.getElementById('tierEIcon');
+if (tierEIcon) {
+  tierEIcon.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    debugStartMaxLevel = true;
     showEquipSelect();
   });
 }
