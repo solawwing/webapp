@@ -61,7 +61,7 @@
   #battleWrap { position:absolute; inset:0; display:flex; flex-direction:column; }
   #battleView { flex:1; position:relative; }
   #battleCmds { display:flex; flex-wrap:wrap; justify-content:center; padding:10px 6px 4px; gap:8px; margin-bottom:112px; }
-  .cmdbtn { flex:1 1 26%; max-width:31%; border:1px solid #7CFFF0; color:#7CFFF0; background:rgba(0,20,20,0.4);
+  .cmdbtn { flex:1 1 19%; max-width:23%; border:1px solid #7CFFF0; color:#7CFFF0; background:rgba(0,20,20,0.4);
     padding:12px 4px; font-size:12px; letter-spacing:3px; border-radius:2px; font-family:inherit; }
   #battleLog { font-size:11px; letter-spacing:1px; color:#eeff00; text-align:center; min-height:16px; margin-bottom:4px; }
   .enemy-name { position:absolute; top:8px; left:0; right:0; text-align:center; font-size:12px; letter-spacing:3px; }
@@ -77,13 +77,12 @@
     <!-- TITLE -->
     <div id="screenTitle" class="overlay">
       <div class="title-main">FinaRogue</div>
-      <div class="title-sub">線画で描くダンジョン探索</div>
-      <div class="tap blink">タップしてスタート</div>
+      <div class="tap blink">冒険を始める</div>
       <div id="bestFloor" style="font-size:10px;letter-spacing:2px;margin-top:26px;color:#3ab483;"></div>
     </div>
     <!-- JOB SELECT -->
     <div id="screenJob" class="overlay hidden">
-      <div style="font-size:15px;letter-spacing:4px;margin-bottom:14px;">クラスチェンジ</div>
+      <div style="font-size:15px;letter-spacing:4px;margin-bottom:14px;">ジョブチェンジ</div>
       <div class="job-row" id="jobList"></div>
     </div>
     <!-- DUNGEON -->
@@ -93,7 +92,7 @@
       <div id="bottomPanel">
         <div id="btnRow">
           <span id="statusBtn" class="hudbtn">ステータス</span>
-          <span id="classBtn" class="hudbtn">クラス</span>
+          <span id="classBtn" class="hudbtn">ジョブ</span>
           <span id="equipBtn" class="hudbtn">装備</span>
         </div>
         <div id="swipeHint">緑のマスをタップで移動／ダブルタップで分岐まで自動移動</div>
@@ -102,7 +101,7 @@
     <!-- always-visible player info (shown in both the map and battle screens) -->
     <div id="playerInfoBar">
       <div id="msg"></div>
-      <div id="hpmpLine">HP <span id="hpText"></span>&nbsp;&nbsp;&nbsp;MP <span id="mpText"></span></div>
+      <div id="hpmpLine"><span id="lvJobText"></span>&nbsp;&nbsp;HP <span id="hpText"></span>&nbsp;&nbsp;&nbsp;MP <span id="mpText"></span></div>
       <div id="statusLine"></div>
     </div>
     <!-- BATTLE -->
@@ -116,6 +115,7 @@
         </div>
         <div id="battleLog"></div>
         <div id="battleCmds">
+          <button class="cmdbtn" id="cmdAtk">たたかう</button>
           <button class="cmdbtn" id="cmdMag">まほう</button>
           <button class="cmdbtn" id="cmdItem">どうぐ</button>
           <button class="cmdbtn" id="cmdRun">にげる</button>
@@ -144,13 +144,15 @@ const LEFTOF = d => (d+3)%4, RIGHTOF = d => (d+1)%4;
 
 /* ---------------- JOBS (FF-inspired) ---------------- */
 const JOBS = [
-  {id:"freelancer", name:"すっぴん", hp:22, mp:7, atk:5, mag:4, def:3, spd:6, weapon:"短剣", desc:"これといった特技を持たない、ごく普通の人。レベルアップで他の職業が解放される"},
-  {id:"warrior", name:"戦士", hp:34, mp:2, atk:9, mag:1, def:6, spd:5, weapon:"ブロードソード", desc:"高いHPと攻撃力を誇る前衛職"},
-  {id:"monk",    name:"モンク", hp:30, mp:2, atk:8, mag:1, def:5, spd:8, weapon:"素手（拳）", desc:"武器なしで戦う俊敏な格闘家"},
-  {id:"thief",   name:"シーフ", hp:24, mp:3, atk:6, mag:2, def:3, spd:11,weapon:"ショートソード", desc:"すばやさに優れ、逃走が得意"},
-  {id:"whitemage",name:"白魔道士", hp:20, mp:16, atk:3, mag:8, def:2, spd:6, weapon:"ロッド", desc:"回復魔法を得意とする後衛職"},
-  {id:"blackmage",name:"黒魔道士", hp:18, mp:18, atk:2, mag:10,def:2, spd:5, weapon:"メイス", desc:"強力な攻撃魔法を操る後衛職"},
-  {id:"redmage", name:"赤魔道士", hp:24, mp:10, atk:6, mag:6, def:4, spd:7, weapon:"レイピア", desc:"攻守魔法をバランス良く扱う"}
+  {id:"freelancer", name:"すっぴん", hp:24, mp:0, atk:6, mag:6, def:6, spd:6, weapon:"短剣", desc:"これといった特技を持たない、ごく普通の人。レベルアップで他の職業が解放される"},
+  {id:"warrior", name:"戦士", hp:44, mp:0, atk:12, mag:2, def:10, spd:6, weapon:"ブロードソード", desc:"高いHPと攻撃力を誇る前衛職"},
+  {id:"monk",    name:"モンク", hp:50, mp:0, atk:12, mag:0, def:12, spd:6, weapon:"素手（拳）", desc:"武器なしで戦う俊敏な格闘家"},
+  {id:"thief",   name:"シーフ", hp:26, mp:18, atk:6, mag:4, def:6, spd:10,weapon:"ショートソード", desc:"すばやさに優れ、逃走が得意"},
+  {id:"whitemage",name:"白魔道士", hp:24, mp:48, atk:4, mag:12, def:6, spd:6, weapon:"ロッド", desc:"回復魔法を得意とする後衛職"},
+  {id:"blackmage",name:"黒魔道士", hp:22, mp:54, atk:2, mag:14,def:4, spd:6, weapon:"メイス", desc:"強力な攻撃魔法を操る後衛職"},
+  {id:"redmage", name:"赤魔道士", hp:18, mp:32, atk:8, mag:8, def:4, spd:8, weapon:"レイピア", desc:"攻守魔法をバランス良く扱う"},
+  {id:"ninja", name:"忍者", hp:26, mp:14, atk:8, mag:4, def:8, spd:10, weapon:"苦無", desc:"すばやさと攻撃力を兼ね備えた隠密の使い手"},
+  {id:"dragoon", name:"竜騎士", hp:38, mp:12, atk:10, mag:4, def:10, spd:8, weapon:"槍", desc:"高い攻撃力と防御力を誇るジャンプの使い手"}
 ];
 
 /* ---------------- ITEMS ---------------- */
@@ -202,7 +204,9 @@ const JOB_EQUIP = {
   thief:     {weapons:["dagger","sword","bow"],  armors:["robe","shield","helm","boots"]},
   whitemage: {weapons:["staff","dagger"],        armors:["robe","shield","boots"]},
   blackmage: {weapons:["staff","dagger"],        armors:["robe","helm","boots"]},
-  redmage:   {weapons:["sword","dagger","staff","bow"], armors:["robe","shield","helm","boots"]}
+  redmage:   {weapons:["sword","dagger","staff","bow"], armors:["robe","shield","helm","boots"]},
+  ninja:     {weapons:["dagger","bow"],           armors:["robe","boots"]},
+  dragoon:   {weapons:["sword","axe"],            armors:["armor","shield","helm","boots"]}
 };
 function jobCanUse(jobId, cat){
   const j = JOB_EQUIP[jobId];
@@ -218,7 +222,9 @@ const JOB_PRIMARY = {
   thief: ["spd","atk"],
   whitemage: ["mag"],
   blackmage: ["mag"],
-  redmage: ["mag","atk"]
+  redmage: ["mag","atk"],
+  ninja: ["spd","atk"],
+  dragoon: ["atk","def"]
 };
 function expToNext(level){ return 20 + (level-1)*12; }
 function levelUp(){
@@ -408,19 +414,23 @@ function spawnFloorMonsters(){
   monsters = [];
   const scale = 1 + (floor-1)*0.18;
   const isBossFloor = floor % 5 === 0;
-  // at least one monster per room (except the player's start room, and the goal room on boss floors)
+  // per room: usually 1-3 monsters, sometimes none, rarely a 10-monster room
   for(let i=1; i<rooms.length; i++){
     if(isBossFloor && i===rooms.length-1) continue;
     const room = rooms[i];
-    let attempts = 0;
-    while(attempts < 10){
-      attempts++;
-      const x = room.x + 1 + Math.floor(Math.random()*Math.max(1,room.w-2));
-      const y = room.y + 1 + Math.floor(Math.random()*Math.max(1,room.h-2));
-      if(isWallTile(x,y)) continue;
-      if(x===player.x && y===player.y) continue;
-      monsters.push(makeMonster(x,y,scale));
-      break;
+    const roll = Math.random();
+    const count = roll < 0.05 ? 10 : (roll < 0.15 ? 0 : 1 + Math.floor(Math.random()*3));
+    for(let n=0; n<count; n++){
+      let attempts = 0;
+      while(attempts < 10){
+        attempts++;
+        const x = room.x + 1 + Math.floor(Math.random()*Math.max(1,room.w-2));
+        const y = room.y + 1 + Math.floor(Math.random()*Math.max(1,room.h-2));
+        if(isWallTile(x,y)) continue;
+        if(x===player.x && y===player.y) continue;
+        monsters.push(makeMonster(x,y,scale));
+        break;
+      }
     }
   }
   // low-chance monsters roaming the corridors too
@@ -444,7 +454,7 @@ function spawnFloorMonsters(){
 function newGame(job){
   player = {
     job: job.id, jobName: job.name,
-    level: 1, exp: 0, tilesMoved: 0, faceLeft: false,
+    level: 1, exp: 0, tilesMoved: 0, faceLeft: true,
     maxhp: job.hp, hp: job.hp, maxmp: job.mp, mp: job.mp,
     atk: job.atk, mag: job.mag, def: job.def, spd: job.spd,
     x:0,y:0,dir:1,
@@ -459,9 +469,9 @@ function newGame(job){
   renderDungeon();
 }
 function updateHudJob(){
-  const w = player.equip.weapon;
-  $("statusLine").textContent = "Lv." + player.level + " " + player.jobName + " / " + (w ? equipName(w) : "なし") +
-    "　ATK" + (player.atk+currentAtkBonus()) + " MAG" + player.mag + " DEF" + (player.def+currentDefBonus()) + " SPD" + player.spd;
+  $("lvJobText").textContent = "Lv." + player.level + " " + player.jobName;
+  $("statusLine").textContent =
+    "ATK" + player.atk + "（装備+" + currentAtkBonus() + "） MAG" + player.mag + " DEF" + player.def + "（装備+" + currentDefBonus() + "） SPD" + player.spd;
 }
 function currentAtkBonus(){ const e = player.equip.weapon; return e ? equipPower(e.cat,e.idx) : 0; }
 function currentDefBonus(){
@@ -731,8 +741,72 @@ function monsterThreatColor(m){
   return "#eeff00"; // about the same
 }
 
+/* ---------------- MONSTER PIXEL SPRITES (colored squares, 24x24) ---------------- */
+const MONSTER_PIXEL_SPRITES = {
+  slime: {
+    palette: {"0":"#000000","1":"#ffffff","2":"#a1ddf7","3":"#13abec","4":"#136aec","5":"#1329ec"},
+    rows: [
+      "________________________",
+      "________________________",
+      "________________________",
+      "________33335___________",
+      "_____32222233345________",
+      "___33221222233345_______",
+      "__3322112222333345______",
+      "_4322222222333334445____",
+      "_43222222233333344445___",
+      "4433222333333333444445__",
+      "44433333333333444444445_",
+      "44433333333444444444445_",
+      "444443334444444444444445",
+      "444444444444444444444445",
+      "444444444444444444444445",
+      "444444444444444444444445",
+      "_4444444444444444444445_",
+      "_4444444444444444444445_",
+      "__44444444444444444445__",
+      "____44444444444444445___",
+      "______4444444444445_____",
+      "________________________",
+      "________________________",
+      "________________________"
+    ]
+  }
+};
+function drawMonsterPixelsAt(pctx, cx, cy, shape, size, applyShake){
+  const sprite = MONSTER_PIXEL_SPRITES[shape];
+  const rows = sprite.rows;
+  const n = rows.length;
+  const cell = size/n;
+  const origin = -size/2;
+  const shaking = applyShake && Date.now() < enemyShakeUntil;
+  const progress = shaking ? Math.min(1, (Date.now()-enemyShakeStart)/500) : 0;
+  const burst = Math.sin(progress*Math.PI) * enemyShakeDist;
+  for(let r=0; r<n; r++){
+    const row = rows[r];
+    for(let c=0; c<row.length; c++){
+      const ch = row[c];
+      if(ch==="_") continue;
+      pctx.fillStyle = sprite.palette[ch];
+      const px = cx+origin+c*cell, py = cy+origin+r*cell;
+      const dr = r-enemyShakeCenterR, dc = c-enemyShakeCenterC;
+      const inBlock = shaking && Math.abs(dr)<=1 && Math.abs(dc)<=1;
+      if(inBlock){
+        const ang = enemyShakeVectors[(dr+1)*3+(dc+1)];
+        pctx.fillRect(px+Math.cos(ang)*burst, py+Math.sin(ang)*burst, cell, cell);
+      } else {
+        pctx.fillRect(px, py, cell, cell);
+      }
+    }
+  }
+}
+
 function drawMonsterMarker(px, py, m){
   const cx = px+TILE/2, cy = py+TILE/2;
+  if(MONSTER_PIXEL_SPRITES[m.shape]){
+    drawMonsterPixelsAt(ctx, cx, cy, m.shape, TILE*0.9);
+    return;
+  }
   let r = 6;
   if(m.isBoss || m.shape==="dragon" || m.shape==="ogre") r = 9;
   else if(m.shape==="slime") r = 7;
@@ -838,6 +912,10 @@ function drawPlayerTile(pctx, cx, cy, jobId, ang){
 function drawMonster(shape, t, color){
   const cx = viewW/2, cy = viewH*0.4;
   const bob = Math.sin(t*0.003)*4;
+  if(MONSTER_PIXEL_SPRITES[shape]){
+    drawMonsterPixelsAt(ctx, cx, cy+bob, shape, Math.min(viewW,viewH)*0.4, true);
+    return;
+  }
   ctx.strokeStyle = color || "#ff5566"; ctx.lineWidth = 2;
   ctx.save(); ctx.translate(cx, cy+bob);
   if(shape==="slime"){
@@ -885,70 +963,344 @@ function drawMonster(shape, t, color){
 }
 
 /* ---------------- PLAYER CHARACTER SHAPE (line art, varies by job/weapon) ---------------- */
-/* ---------------- FREELANCER PIXEL SPRITE (colored squares, 32x32, original design) ---------------- */
-function buildPixelRow(pairs){
-  let s = "";
-  for(let i=0; i<pairs.length; i+=2) s += String(pairs[i+1]).repeat(pairs[i]);
-  return s;
+/* ---------------- PIXEL SPRITES (colored squares, 24x24, user-authored designs) ---------------- */
+const PIXEL_CELL = 5.5, PIXEL_ORIGIN_X = -66, PIXEL_ORIGIN_Y = -78;
+const PIXEL_SPRITES = {
+  freelancer: {
+    palette: {"0":"#000000","1":"#ffffff","2":"#41a3fd","3":"#9cff00","4":"#ff1a17","5":"#ff901a","6":"#fed796","7":"#976e16","8":"#000000","9":"#000000"},
+    rows: [
+      "________________________",
+      "______77_77777__________",
+      "_______777777777________",
+      "______77777777777_______",
+      "_____77707777777________",
+      "_____77_677777777_______",
+      "______7_60077707________",
+      "________62177607________",
+      "________6216667_________",
+      "________66666_7_________",
+      "________666222__________",
+      "_________66222__________",
+      "________2_222211________",
+      "_______2222222111_______",
+      "_______222222_7711______",
+      "_____6662222_66671______",
+      "_____666_333_6667_______",
+      "_____66__222_666________",
+      "_________2222___________",
+      "___________111__________",
+      "___________7777_________",
+      "___________3333_________",
+      "__________333_3_________",
+      "________________________"
+    ]
+  },
+  warrior: {
+    palette: {"0":"#000000","1":"#ffffff","2":"#41a3fd","3":"#9cff00","4":"#ff1a17","5":"#ff901a","6":"#fed796","7":"#976e16","8":"#f0ea0c","9":"#1329ec"},
+    rows: [
+      "________________________",
+      "______77_77777__________",
+      "_______777777777________",
+      "______77777777277_______",
+      "_____77707779227________",
+      "_____77_277779277_______",
+      "______7_90077797________",
+      "________62177607________",
+      "________6216667_________",
+      "________66666_7_________",
+      "________666888_444______",
+      "______44_6684044888_____",
+      "______8040444088________",
+      "_______44444440229______",
+      "_______444444_9922______",
+      "_____6604444_66692______",
+      "_____666_840_6669_______",
+      "_____66___48_666________",
+      "__________8_9___________",
+      "____________29__________",
+      "___________4444_________",
+      "___________8844_________",
+      "__________444_4_________",
+      "________________________"
+    ]
+  },
+  monk: {
+    palette: {"0":"#000000","1":"#ffffff","2":"#41a3fd","3":"#2ca50d","4":"#ec13d6","5":"#a50d68","6":"#fed796","7":"#976e16","8":"#f0ea0c","9":"#1329ec"},
+    rows: [
+      "________________________",
+      "______77_77777__________",
+      "_______777777777________",
+      "______77777777777_______",
+      "_____77707777667________",
+      "_____77_677777677_______",
+      "______7_60077707________",
+      "________62177607________",
+      "________6216667_________",
+      "________66666_7_________",
+      "________6666____________",
+      "_________6663366________",
+      "_______3606633666_______",
+      "_______36666336666______",
+      "_______366663_9226______",
+      "_____6636666_66629______",
+      "_____66__888_6669_______",
+      "_____66___44_666________",
+      "__________444___8_______",
+      "__________44444_88______",
+      "__________44444_88______",
+      "___________666___8______",
+      "__________33333_________",
+      "________________________"
+    ]
+  },
+  thief: {
+    palette: {"0":"#000000","1":"#ffffff","2":"#41a3fd","3":"#28be1b","4":"#ff1a17","5":"#ff901a","6":"#fed796","7":"#976e16","8":"#ecd613","9":"#000000"},
+    rows: [
+      "________________________",
+      "_______77_333333________",
+      "________777733333_______",
+      "_______77777733333______",
+      "______777077773333______",
+      "______77_677777333______",
+      "_______7_600777333______",
+      "_________621776033______",
+      "_________62166603_______",
+      "_________66666_3_33_____",
+      "_________6666_____33____",
+      "________8_66_33888______",
+      "_______1810_1388111_____",
+      "________13113381________",
+      "_______7733333_7766_____",
+      "______6663333_66676_____",
+      "______666_888_6667______",
+      "______66__333_666_______",
+      "__________3333__________",
+      "___________111__________",
+      "___________7777_________",
+      "___________7777_________",
+      "__________777_7_________",
+      "________________________"
+    ]
+  },
+  whitemage: {
+    palette: {"0":"#000000","1":"#ffffff","2":"#41a3fd","3":"#28be1b","4":"#ff1a17","5":"#ff901a","6":"#fed796","7":"#976e16","8":"#f2e25a","9":"#000000"},
+    rows: [
+      "________________________",
+      "_______77_77777_________",
+      "________777777777_______",
+      "_______77777777777______",
+      "______77707777777_______",
+      "______77_677777777______",
+      "_______7_60077707_______",
+      "_________62177607_______",
+      "_________6216667________",
+      "_________66666_781______",
+      "_______1_666__1111______",
+      "_______18_6_1111111_____",
+      "________180118_8888_____",
+      "_______1811181_118______",
+      "________181811__418_____",
+      "______66_1811_66441_____",
+      "______66_1111_66411_____",
+      "______66_1111_66411_____",
+      "_________11111__441_____",
+      "_______4_111111_441_____",
+      "_______4_141141_411_____",
+      "_______4_4414414_441____",
+      "________444444444_44____",
+      "________________________"
+    ]
+  },
+  blackmage: {
+    palette: {"0":"#000000","1":"#ffffff","2":"#41a3fd","3":"#28be1b","4":"#ff1a17","5":"#a5960d","6":"#fed796","7":"#976e16","8":"#f2e25a","9":"#0d4aa5"},
+    rows: [
+      "________________________",
+      "____________29____88____",
+      "_____________29_888_____",
+      "__________2__298885_____",
+      "______888892229885______",
+      "________8882298885______",
+      "________008888885_______",
+      "________000088885_______",
+      "________0020008885______",
+      "________00100000885_____",
+      "_______20000022___85____",
+      "_______2222222229_______",
+      "________2222222229______",
+      "_______999992222229_____",
+      "________92222____29_____",
+      "______666_____666_29____",
+      "______666_777_666_29____",
+      "______66__383_666_29____",
+      "________9_3838____29____",
+      "_______29_3838383_29____",
+      "_______29__38383__29____",
+      "_______29_________29____",
+      "________29_88888__2_____",
+      "________________________"
+    ]
+  },
+  redmage: {
+    palette: {"0":"#000000","1":"#ffffff","2":"#41a3fd","3":"#28be1b","4":"#ff1a17","5":"#a50d0d","6":"#fed796","7":"#976e16","8":"#f2e25a","9":"#0d4aa5"},
+    rows: [
+      "________________________",
+      "___________5555_888_____",
+      "_________45555588_______",
+      "_________444458888______",
+      "_________44445855555____",
+      "________4444485555______",
+      "_______44444555_________",
+      "______444455___777______",
+      "_________6216667________",
+      "_________66666_7________",
+      "_________666445_________",
+      "________4_6644555_______",
+      "________54__444445______",
+      "_______544444844445_____",
+      "_______4444448___66_____",
+      "______6668888_666_______",
+      "______666_____66685_____",
+      "______66__445_66684_____",
+      "__________4455___84_____",
+      "_______8____111__84_____",
+      "_______8____7777_84_____",
+      "_______8____7777_84_____",
+      "_______8___777_7_8______",
+      "________________________"
+    ]
+  },
+  ninja: {
+    palette: {"0":"#000000","1":"#ffffff","2":"#41a3fd","3":"#9cff00","4":"#ff1a17","5":"#f2e25a","6":"#fed796","7":"#976e16","8":"#136aec","9":"#0d1da5"},
+    rows: [
+      "________________________",
+      "________8888889_________",
+      "_______888888889________",
+      "______5888885589________",
+      "______5885555889________",
+      "______555__55889________",
+      "__________6_5889________",
+      "_______6216_5889________",
+      "_______6216_58889_______",
+      "_______8888_58555_______",
+      "_______8888_55__________",
+      "________88__5988________",
+      "______81__1898888_______",
+      "_____8981188888888______",
+      "_____8988888_95568______",
+      "____6668888_66656_______",
+      "____666_515_6886________",
+      "____66__585_688_________",
+      "________8888____________",
+      "________888889__________",
+      "_________88889__________",
+      "__________555___________",
+      "_________88888__________",
+      "________________________"
+    ]
+  },
+  dragoon: {
+    palette: {"0":"#000000","1":"#ffffff","2":"#41a3fd","3":"#590da5","4":"#ff1a17","5":"#785af2","6":"#fed796","7":"#976e16","8":"#136aec","9":"#0d1da5"},
+    rows: [
+      "________________________",
+      "______________2222______",
+      "_________22222277_______",
+      "________222222766_______",
+      "________2244822222______",
+      "_______2244822766_______",
+      "______222222_227________",
+      "_____2229___28_2________",
+      "_____2___21_29822_______",
+      "________621_222__22_____",
+      "_____28_666_2___22______",
+      "______2_2292_2_822______",
+      "_______2_89_2_82288_____",
+      "______82___22_22222_____",
+      "______222822222_________",
+      "_______280822__355______",
+      "_____66__6___66635______",
+      "_____666__82_6663_2_____",
+      "_____66___82_666_82_____",
+      "__________2_9___982_____",
+      "___________228__982_____",
+      "__________5_289__82_____",
+      "_________553_89___2_____",
+      "________________________"
+    ]
+  }
+};
+let hitShakeUntil = 0, hitShakeStart = 0, hitShakeCenterR = 12, hitShakeCenterC = 12, hitShakeVectors = [], hitShakeDist = 0;
+function triggerHitShake(dmg){
+  hitShakeUntil = Date.now() + 500;
+  hitShakeStart = Date.now();
+  hitShakeDist = dmg*10;
+  const sprite = PIXEL_SPRITES[player.job];
+  const rows = sprite.rows;
+  const candidates = [];
+  for(let r=1; r<rows.length-1; r++){
+    for(let c=1; c<rows[r].length-1; c++){
+      if(rows[r][c] !== "_") candidates.push([r,c]);
+    }
+  }
+  const pick = candidates.length ? candidates[Math.floor(Math.random()*candidates.length)] : [12,12];
+  hitShakeCenterR = pick[0];
+  hitShakeCenterC = pick[1];
+  hitShakeVectors = [];
+  for(let i=0; i<9; i++) hitShakeVectors.push(Math.random()*Math.PI*2);
 }
-function mirrorRow(leftPairs){
-  const left = buildPixelRow(leftPairs); // 16 chars, left half
-  return left + left.split("").reverse().join(""); // 32 chars, symmetric
-}
-const FL_ROWS = [
-  mirrorRow([12,'.',4,'Y']),
-  mirrorRow([10,'.',6,'Y']),
-  mirrorRow([9,'.',7,'Y']),
-  mirrorRow([8,'.',8,'Y']),
-  mirrorRow([8,'.',8,'Y']),
-  mirrorRow([8,'.',3,'Y',5,'S']),
-  buildPixelRow([8,'.',2,'Y',4,'S',1,'K',2,'S',1,'K',4,'S',2,'Y',8,'.']),
-  mirrorRow([8,'.',2,'Y',6,'S']),
-  mirrorRow([8,'.',2,'Y',6,'S']),
-  mirrorRow([8,'.',8,'S']),
-  mirrorRow([9,'.',7,'S']),
-  mirrorRow([10,'.',6,'S']),
-  mirrorRow([10,'.',6,'S']),
-  mirrorRow([7,'.',9,'T']),
-  mirrorRow([6,'.',10,'T']),
-  mirrorRow([5,'.',11,'T']),
-  mirrorRow([5,'.',2,'S',9,'T']),
-  mirrorRow([5,'.',2,'S',9,'T']),
-  mirrorRow([5,'.',11,'T']),
-  mirrorRow([5,'.',11,'T']),
-  mirrorRow([5,'.',11,'L']),
-  mirrorRow([5,'.',11,'T']),
-  mirrorRow([6,'.',10,'T']),
-  mirrorRow([7,'.',9,'P']),
-  mirrorRow([7,'.',3,'P',2,'.',4,'P']),
-  mirrorRow([7,'.',3,'P',2,'.',4,'P']),
-  mirrorRow([7,'.',3,'P',2,'.',4,'P']),
-  mirrorRow([7,'.',3,'P',2,'.',4,'P']),
-  mirrorRow([7,'.',3,'B',2,'.',4,'B']),
-  mirrorRow([7,'.',3,'B',2,'.',4,'B']),
-  mirrorRow([7,'.',3,'B',2,'.',4,'B']),
-  mirrorRow([7,'.',3,'B',2,'.',4,'B'])
-];
-const FL_PALETTE = {Y:"#7a4a2a",S:"#e0b98a",K:"#1a1a1a",T:"#4d7a4a",L:"#4a3020",P:"#5a4a3a",B:"#2a1f14"};
-const FL_CELL = 4, FL_ORIGIN_X = -64, FL_ORIGIN_Y = -76;
-function drawFreelancerPixels(pctx){
-  for(let r=0; r<FL_ROWS.length; r++){
-    const row = FL_ROWS[r];
+function drawPixelSprite(pctx, jobId){
+  const sprite = PIXEL_SPRITES[jobId];
+  const rows = sprite.rows;
+  const shaking = Date.now() < hitShakeUntil;
+  const duration = 500;
+  const progress = shaking ? Math.min(1, (Date.now()-hitShakeStart)/duration) : 0;
+  const burst = Math.sin(progress*Math.PI) * hitShakeDist; // flies out, then returns
+  for(let r=0; r<rows.length; r++){
+    const row = rows[r];
     for(let c=0; c<row.length; c++){
       const ch = row[c];
-      if(ch===".") continue;
-      pctx.fillStyle = FL_PALETTE[ch];
-      pctx.fillRect(FL_ORIGIN_X+c*FL_CELL, FL_ORIGIN_Y+r*FL_CELL, FL_CELL, FL_CELL);
+      if(ch==="_") continue;
+      pctx.fillStyle = sprite.palette[ch];
+      const dr = r-hitShakeCenterR, dc = c-hitShakeCenterC;
+      const inBlock = shaking && Math.abs(dr)<=1 && Math.abs(dc)<=1;
+      const px = PIXEL_ORIGIN_X+c*PIXEL_CELL, py = PIXEL_ORIGIN_Y+r*PIXEL_CELL;
+      if(inBlock){
+        const ang = hitShakeVectors[(dr+1)*3+(dc+1)];
+        const ox = Math.cos(ang)*burst, oy = Math.sin(ang)*burst;
+        pctx.fillRect(px+ox, py+oy, PIXEL_CELL, PIXEL_CELL);
+      } else {
+        pctx.fillRect(px, py, PIXEL_CELL, PIXEL_CELL);
+      }
     }
   }
 }
-function freelancerSvgRects(){
+
+let enemyShakeUntil = 0, enemyShakeStart = 0, enemyShakeCenterR = 12, enemyShakeCenterC = 12, enemyShakeVectors = [], enemyShakeDist = 0;
+function triggerEnemyHitShake(dmg){
+  if(!MONSTER_PIXEL_SPRITES[enemy.shape]) return; // scatter effect only applies to pixel-art monsters
+  enemyShakeUntil = Date.now() + 500;
+  enemyShakeStart = Date.now();
+  enemyShakeDist = dmg*10;
+  const rows = MONSTER_PIXEL_SPRITES[enemy.shape].rows;
+  const candidates = [];
+  for(let r=1; r<rows.length-1; r++){
+    for(let c=1; c<rows[r].length-1; c++){
+      if(rows[r][c] !== "_") candidates.push([r,c]);
+    }
+  }
+  const pick = candidates.length ? candidates[Math.floor(Math.random()*candidates.length)] : [12,12];
+  enemyShakeCenterR = pick[0];
+  enemyShakeCenterC = pick[1];
+  enemyShakeVectors = [];
+  for(let i=0; i<9; i++) enemyShakeVectors.push(Math.random()*Math.PI*2);
+}
+function pixelSpriteSvgRects(jobId){
+  const sprite = PIXEL_SPRITES[jobId];
   let out = "";
-  FL_ROWS.forEach((row,r)=>{
+  sprite.rows.forEach((row,r)=>{
     for(let c=0; c<row.length; c++){
       const ch = row[c];
-      if(ch===".") continue;
-      out += '<rect x="'+(FL_ORIGIN_X+c*FL_CELL)+'" y="'+(FL_ORIGIN_Y+r*FL_CELL)+'" width="'+FL_CELL+'" height="'+FL_CELL+'" fill="'+FL_PALETTE[ch]+'"/>';
+      if(ch==="_") continue;
+      out += '<rect x="'+(PIXEL_ORIGIN_X+c*PIXEL_CELL)+'" y="'+(PIXEL_ORIGIN_Y+r*PIXEL_CELL)+'" width="'+PIXEL_CELL+'" height="'+PIXEL_CELL+'" fill="'+sprite.palette[ch]+'"/>';
     }
   });
   return out;
@@ -958,8 +1310,9 @@ function drawPlayerFigure(pctx, x, y, jobId, scale){
   pctx.save();
   pctx.translate(x,y);
   pctx.scale(scale,scale);
-  if(jobId==="freelancer"){
-    drawFreelancerPixels(pctx);
+  if(PIXEL_SPRITES[jobId]){
+    pctx.scale(-1,1); // pixel art defaults to facing left; face the enemy (right) in battle
+    drawPixelSprite(pctx, jobId);
     pctx.restore();
     return;
   }
@@ -1005,10 +1358,33 @@ function drawPlayerFigure(pctx, x, y, jobId, scale){
 }
 
 function drawPlayerMapSprite(pctx, cx, cy, jobId, faceLeft){
+  if(PIXEL_SPRITES[jobId]){
+    pctx.save();
+    if(!faceLeft){ pctx.translate(cx*2,0); pctx.scale(-1,1); } // pixel art is drawn facing left by default
+    drawPixelSpriteAt(pctx, cx, cy, jobId, TILE*0.9);
+    pctx.restore();
+    return;
+  }
   pctx.save();
   if(faceLeft){ pctx.translate(cx*2,0); pctx.scale(-1,1); }
   drawPlayerFigure(pctx, cx, cy, jobId, 0.34);
   pctx.restore();
+}
+function drawPixelSpriteAt(pctx, cx, cy, jobId, size){
+  const sprite = PIXEL_SPRITES[jobId];
+  const rows = sprite.rows;
+  const n = rows.length;
+  const cell = size/n;
+  const origin = -size/2;
+  for(let r=0; r<n; r++){
+    const row = rows[r];
+    for(let c=0; c<row.length; c++){
+      const ch = row[c];
+      if(ch==="_") continue;
+      pctx.fillStyle = sprite.palette[ch];
+      pctx.fillRect(cx+origin+c*cell, cy+origin+r*cell, cell, cell);
+    }
+  }
 }
 
 let battleAnimT = 0, battleRAF = null;
@@ -1082,6 +1458,7 @@ function log(t){ $("battleLog").textContent = t; }
 function playerAttack(){
   const dmg = Math.max(1, player.atk + currentAtkBonus() + Math.floor(Math.random()*4) - enemy.def);
   enemy.hp -= dmg;
+  triggerEnemyHitShake(dmg);
   updateEnemyBar();
   log(player.jobName + " の攻撃！ " + enemy.name + " に " + dmg + " のダメージ");
   setTimeout(()=>{
@@ -1095,6 +1472,7 @@ function playerMagic(){
   player.mp -= 4;
   const dmg = Math.max(1, player.mag*2 + Math.floor(Math.random()*4) - enemy.def);
   enemy.hp -= dmg;
+  triggerEnemyHitShake(dmg);
   log("魔法を唱えた！ " + enemy.name + " に " + dmg + " のダメージ");
   updateEnemyBar();
   updateBars();
@@ -1150,6 +1528,7 @@ function playerRun(){
 function enemyTurn(){
   const dmg = Math.max(1, enemy.atk + Math.floor(Math.random()*3) - player.def - currentDefBonus());
   player.hp -= dmg;
+  triggerHitShake(dmg);
   log(enemy.name + " の攻撃！ " + dmg + " のダメージ");
   updateBars();
   setTimeout(()=>{
@@ -1179,7 +1558,7 @@ function openStatusScreen(){
   const box = document.createElement("div");
   box.className = "sub-list"; box.id = "statusOverlay";
   const rows = [
-    "クラス：" + player.jobName,
+    "ジョブ：" + player.jobName,
     "レベル：" + player.level,
     "EXP：" + player.exp + " / " + expToNext(player.level),
     "HP：" + player.hp + " / " + player.maxhp,
@@ -1275,8 +1654,8 @@ function updateBestLabel(){
 updateBestLabel();
 
 function jobIconSVG(job){
-  if(job.id==="freelancer"){
-    return `<svg viewBox="-60 -90 120 150" shape-rendering="crispEdges">${freelancerSvgRects()}</svg>`;
+  if(PIXEL_SPRITES[job.id]){
+    return `<svg viewBox="-60 -90 120 150" shape-rendering="crispEdges">${pixelSpriteSvgRects(job.id)}</svg>`;
   }
   const base = `<circle cx="0" cy="-45" r="12"/><path d="M0,-33 L0,15 M-20,-10 L20,-10 M0,15 L-15,50 M0,15 L15,50"/>`;
   let extra = "";
@@ -1314,9 +1693,22 @@ function openClassChange(){
     card.className = "job-card";
     card.style.opacity = unlocked ? "1" : "0.4";
     const statusTag = isCurrent ? "（現在）" : (unlocked ? "（変更可）" : "（ロック中）");
+    let statsHtml;
+    if(isCurrent){
+      statsHtml = "HP- MP- ATK"+player.atk+" MAG"+player.mag+" DEF"+player.def+" SPD"+player.spd;
+    } else if(!unlocked){
+      const pairs = [["ATK",player.atk,j.atk],["MAG",player.mag,j.mag],["DEF",player.def,j.def],["SPD",player.spd,j.spd]];
+      const colored = pairs.map(([label,pv,jv])=>{
+        const color = pv>jv ? "#39ff14" : (pv<jv ? "#ff1a17" : "#ffffff");
+        return '<span style="color:'+color+'">'+label+jv+'</span>';
+      }).join(" ");
+      statsHtml = "HP"+j.hp+" MP"+j.mp+" "+colored;
+    } else {
+      statsHtml = "HP"+j.hp+" MP"+j.mp+" ATK"+j.atk+" MAG"+j.mag+" DEF"+j.def+" SPD"+j.spd;
+    }
     card.innerHTML = jobIconSVG(j) +
       `<div class="job-info"><div class="job-name">${j.name}${statusTag}</div>
-       <div class="job-stat">HP${j.hp} MP${j.mp} ATK${j.atk} MAG${j.mag} DEF${j.def} SPD${j.spd}</div>
+       <div class="job-stat">${statsHtml}</div>
        <div class="job-stat">${j.desc}</div></div>`;
     if(unlocked && !isCurrent){
       card.onclick = ()=> changeClass(j);
@@ -1387,6 +1779,7 @@ view.addEventListener("touchend", e=>{
   if(e.changedTouches && e.changedTouches[0]) onCanvasTap(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
 }, {passive:true});
 
+$("cmdAtk").addEventListener("click", ()=>{ if(state==="battle") playerAttack(); });
 $("cmdMag").addEventListener("click", ()=>{ if(state==="battle") playerMagic(); });
 $("cmdItem").addEventListener("click", ()=>{ if(state==="battle") playerItem(); });
 $("cmdRun").addEventListener("click", ()=>{ if(state==="battle") playerRun(); });
