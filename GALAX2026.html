@@ -198,6 +198,10 @@
         <div class="item-header"><span class="item-icon">T</span><span class="item-name">THUNDER</span></div>
         <div class="item-desc">Chain lightning that jumps between targets. Levels all the way to 7.</div>
       </div>
+      <div class="item-entry" data-weapon="REFECT">
+        <div class="item-header"><span class="item-icon">R</span><span class="item-name">REFECT</span></div>
+        <div class="item-desc">Pierces enemies, zig-zagging every 100px it travels.</div>
+      </div>
       <div class="item-entry" data-weapon="SPARK">
         <div class="item-header"><span class="item-icon">S</span><span class="item-name">SPARK <span style="font-size:6px;">(SUMIDAGAWA HANABI FES.)</span></span></div>
         <div class="item-desc">Fireworks alternating normal/spread bursts. Levels to 7.</div>
@@ -301,7 +305,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-01 23:50';
+const LAST_UPDATED = '2026-09-02 08:05';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -361,8 +365,8 @@ function qbezier(p0, p1, p2, t) {
 function dist2(ax, ay, bx, by) { const dx = ax-bx, dy = ay-by; return dx*dx + dy*dy; }
 function rand(a, b) { return a + Math.random() * (b - a); }
 function weaponMaxLevel(type) {
-  // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/WIDE/DOUBLE/SPARK uniquely level up to 7, every other weapon caps at 5
-  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'WIDE' || type === 'DOUBLE' || type === 'SPARK') ? 7 : 5;
+  // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/WIDE/DOUBLE/SPARK/REFECT uniquely level up to 7, every other weapon caps at 5
+  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'WIDE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT') ? 7 : 5;
 }
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function formatScore(n) { return Math.round(n).toLocaleString('en-US'); }
@@ -419,7 +423,7 @@ function resetPlayer() {
 }
 
 // ---------- items ----------
-const ITEM_TYPES = ['DOUBLE', 'WIDE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER'];
+const ITEM_TYPES = ['DOUBLE', 'WIDE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT'];
 const ITEM_COLORS = { DOUBLE: '#4ef0ff', WIDE: '#ffd23f', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00' };
 let items = [];
 let killCount = 0;
@@ -656,7 +660,7 @@ function updateItems(dt) {
     }
   }
 }
-const ITEM_GLYPHS = { DOUBLE: 'D', WIDE: 'W', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T' };
+const ITEM_GLYPHS = { DOUBLE: 'D', WIDE: 'W', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R' };
 function drawItems() {
   ctx.lineWidth = 1;
   items.forEach(it => {
@@ -799,7 +803,7 @@ const SPARK_COOLDOWNS = [0, 0.3, 0.3, 0.3, 0.3, 0.3]; // fixed 0.3s regardless o
 // "wait until the screen is clear of your own bullets" gate for these weapons
 const WEAPON_FIRE_COOLDOWNS = {
   NORMAL: 0.3, DOUBLE: 0.3, WIDE: 1.2, HOMING: 0.8, LASER: 1.0,
-  GRAVITY: 0.8, BUBBLE: 0.5, CURVE: 0.5, THUNDER: 0.5,
+  GRAVITY: 0.8, BUBBLE: 0.5, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.5,
 };
 const LASER_SPECS = [null,
   { length: 200, pierce: 5, speed: 300 },
@@ -934,6 +938,19 @@ function fireWeapon() {
       length: 50, chaining: false, dying: false, finished: false, hitSet: new Set(), chainPath: [], loopsLeft: THUNDER_LOOP_COUNTS[lvl],
       chainTimer: 0, family: { active: 1 }, maxResets,
     });
+  } else if (player.weapon === 'REFECT') {
+    // fires `level` shots from the ship's very apex, each starting within ±15 degrees
+    // of straight up, then zig-zagging (see updateBullets) every 100px; pierces
+    // through enemies; always zig-zags exactly 8 times regardless of level, then fades
+    const apexX = player.x, apexY = player.y - player.r * 1.9 * 1.4;
+    for (let k = 0; k < lvl; k++) {
+      const rad = rand(-20, 20) * Math.PI / 180;
+      playerBullets.push({
+        x: apexX, y: apexY, vx: Math.sin(rad) * 800, vy: -Math.cos(rad) * 800, r: 3, power: 3,
+        refect: true, refectAngle: rad, refectBaseAngle: rad, refectSign: rad < 0 ? -1 : 1, refectDist: 0, pierceLeft: 999, hitSet: new Set(),
+        zigzagsLeft: 8, refectLegDist: 50 + lvl * 10, fullTrail: [{ x: apexX, y: apexY, t: 0 }], refectAge: 0, noTrail: true,
+      });
+    }
   } else {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, power: 5 });
   }
@@ -2207,7 +2224,7 @@ let showingEquip = false;
 let debugStartWeapon = null;
 let debugStartAtBoss = false; // set via tapping the tier-A icon on the title screen
 let debugStartMaxLevel = false; // set via tapping the tier-E icon on the title screen
-const EQUIP_CHOICES = ['DOUBLE', 'WIDE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'THUNDER', 'SPARK']; // no NORMAL
+const EQUIP_CHOICES = ['DOUBLE', 'WIDE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'THUNDER', 'REFECT', 'SPARK']; // no NORMAL
 function showEquipSelect() {
   showingEquip = true;
   titleScreen.classList.add('hidden');
@@ -2244,6 +2261,8 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["1 beam.", "2 beams.", "3 beams.", "4 beams.", "5 beams.", "6 beams.", "7 beams, covers nearly the whole top row."] },
   THUNDER: { intro: "A yellow bolt that, on its first hit, ignites a chain reaction, jumping rapidly to the nearest untouched target within a huge range and then the next, forming a single unbroken line of lightning rather than branching apart, dealing solid damage with every single jump. If it ever runs out of nearby untouched targets while jumps still remain, it clears its own memory of who it's already hit and keeps going, letting the same handful of targets get chained through again rather than fizzling out early — this reset is capped per bolt so it can't loop forever, and that cap itself grows a little further at the very top levels. The chain caps out at thirty-two total jumps by level five, and THUNDER uniquely keeps growing two levels further still, not for more jumps but for a chain that's simply more persistent and harder to run dry, letting a maxed-out bolt chew through entire waves off a single well-placed hit.",
     levels: ["2 jumps, up to 3 resets.", "4 jumps, up to 3 resets.", "8 jumps, up to 3 resets.", "16 jumps, up to 3 resets.", "32 jumps, up to 3 resets.", "32 jumps, up to 4 resets.", "32 jumps, up to 5 resets."] },
+  REFECT: { intro: "Fires bolts that launch within just a few degrees of straight up, then bounce back and forth as they climb: after covering a fixed short stretch, each bolt flips over to the mirror-image angle and keeps going, tracing a zig-zagging path up the screen. Unlike most weapons, it doesn't stop or vanish on contact — it punches straight through anything in its way and keeps traveling afterward, so a single bolt can rack up hits against several enemies caught along its path. Leveling up simply adds more bolts to each volley, all launching from the same point with their own independently-randomized starting angle. REFECT uniquely keeps growing all the way to level seven, two levels further than most weapons, for a genuinely dense wall of crisscrossing bolts at max level.",
+    levels: ["1 bolt.", "2 bolts.", "3 bolts.", "4 bolts.", "5 bolts.", "6 bolts.", "7 bolts, dense zig-zagging coverage."] },
   SPARK: { intro: "A rare power-up themed after a fireworks festival, and one of the hardest weapon pickups to come across. Twin sparks rise gently into the air before bursting into a shower of scattering fragments. SPARK alternates between two burst modes on a permanent, repeating forty-second loop: a calmer normal mode (8, 10, or 12-way bursts, picked at random each time that mode begins) and a wild spread mode (64, 128, or 256-way bursts), cycling back to normal again once the loop completes rather than ever running out. Leveling up shifts the balance between the two — low levels favor a long stretch of normal bursts with just a short spread finale, while high levels flip that almost entirely into spread mode for a screen-filling barrage. Items still drop normally while it's active, just like with any other weapon.",
     levels: ["35s normal / 5s spread.", "30s normal / 10s spread.", "25s normal / 15s spread.", "20s normal / 20s spread.", "15s normal / 25s spread.", "10s normal / 30s spread.", "5s normal / 35s spread, mostly a spread barrage."] },
 };
@@ -2285,7 +2304,7 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 5000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['DOUBLE', 'WIDE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'THUNDER'];
+const EQUIP_UPDATED = ['REFECT'];
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -2300,7 +2319,7 @@ EQUIP_CHOICES.forEach(type => {
   if (EQUIP_UPDATED.includes(type)) {
     const tag = document.createElement('span');
     tag.className = 'equip-update-tag';
-    tag.textContent = 'UPDATE';
+    tag.textContent = 'NEW';
     item.appendChild(tag);
   }
   item.addEventListener('click', () => { debugStartWeapon = type; beginGame(); });
@@ -2597,6 +2616,50 @@ function updateBullets(dt) {
         }
       }
     }
+    if (b.refect) {
+      // zig-zags: travels at its current angle for (50 + level×10)px, then bends to
+      // a randomized 20-50 degree angle off its own ORIGINAL launch angle (not
+      // straight up), alternating side each time — a consistent zig-zag pattern
+      // centered on however it was actually fired. The trajectory itself continuously
+      // fades as it ages (each point fades out 2s after being drawn, like a comet
+      // tail — not just a single fade-out at the very end); once it's completed its
+      // level-based number of zig-zags, the bolt itself stops moving and fades out
+      // separately over 0.5s
+      b.refectAge = (b.refectAge || 0) + dt;
+      if (!b.refectDone) {
+        const spd = Math.hypot(b.vx, b.vy) || 800;
+        const legDist = b.refectLegDist || 100;
+        b.refectDist = (b.refectDist || 0) + spd * dt;
+        if (b.fullTrail) b.fullTrail.push({ x: b.x, y: b.y, t: b.refectAge });
+        // prune points older than the 2s trail-fade window so the array stays bounded
+        while (b.fullTrail && b.fullTrail.length > 1 && b.refectAge - b.fullTrail[0].t > 2.0) {
+          b.fullTrail.shift();
+        }
+        if (b.refectDist >= legDist) {
+          b.refectDist -= legDist;
+          b.refectSign = -(b.refectSign || 1);
+          b.refectAngle = (b.refectBaseAngle || 0) + b.refectSign * rand(20, 50) * Math.PI / 180;
+          b.vx = Math.sin(b.refectAngle) * spd;
+          b.vy = -Math.cos(b.refectAngle) * spd;
+          b.zigzagsLeft = (b.zigzagsLeft || 1) - 1;
+          if (b.zigzagsLeft <= 0) {
+            b.refectDone = true; b.refectFadeT = 0;
+            b.refectFrozenAngle = Math.atan2(b.vy, b.vx) + Math.PI / 2; // lock the visual angle before stopping
+            b.vx = 0; b.vy = 0;
+          }
+        }
+      } else {
+        // still prune the aging trail even after the bolt itself has stopped
+        while (b.fullTrail && b.fullTrail.length > 1 && b.refectAge - b.fullTrail[0].t > 2.0) {
+          b.fullTrail.shift();
+        }
+        b.refectFadeT = (b.refectFadeT || 0) + dt;
+        if (b.refectFadeT >= 0.5 && (!b.fullTrail || b.fullTrail.length <= 1)) {
+          playerBullets.splice(i, 1);
+          continue;
+        }
+      }
+    }
     if (b.laserCurve && b.dying) {
       // erase the trail from the front (near the ship) until it's fully gone
       const removeCount = Math.max(1, Math.ceil(b.fullTrail.length * dt / 1.5));
@@ -2806,6 +2869,24 @@ function closestPointOnLaser(b, px, py) {
   t = Math.max(0, Math.min(1, t));
   return { x: tailX + segX * t, y: tailY + segY * t };
 }
+function closestDistSqOnPolyline(points, px, py) {
+  // used by REFECT: its whole accumulated trajectory has collision, not just the
+  // current tip, for as long as that trajectory stays drawn
+  if (!points || points.length === 0) return Infinity;
+  if (points.length === 1) return dist2(points[0].x, points[0].y, px, py);
+  let best = Infinity;
+  for (let i = 1; i < points.length; i++) {
+    const x1 = points[i - 1].x, y1 = points[i - 1].y, x2 = points[i].x, y2 = points[i].y;
+    const segX = x2 - x1, segY = y2 - y1;
+    const segLenSq = segX * segX + segY * segY || 1;
+    let t = ((px - x1) * segX + (py - y1) * segY) / segLenSq;
+    t = Math.max(0, Math.min(1, t));
+    const cx = x1 + segX * t, cy = y1 + segY * t;
+    const d = dist2(cx, cy, px, py);
+    if (d < best) best = d;
+  }
+  return best;
+}
 function handleCollisions() {
   // player bullets vs enemies
   for (let j = playerBullets.length - 1; j >= 0; j--) {
@@ -2878,6 +2959,26 @@ function handleCollisions() {
           }
           if (wasTarget) b.dying = true; // reached its locked (topmost) target — journey ends here
           break;
+        }
+      }
+    } else if (b.refect) {
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        if (b.hitSet.has(e)) continue;
+        const rr = (e.def.r + b.r) * (e.def.r + b.r);
+        // the ENTIRE accumulated trajectory has collision, not just the current tip
+        if (closestDistSqOnPolyline(b.fullTrail, e.x, e.y) < rr) {
+          if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
+          b.hitSet.add(e);
+          e.hp -= (b.power || 3);
+          score += 10; // +10 for dealing damage
+          if (e.hp <= 0) {
+            handleEnemyDeath(e);
+            enemies.splice(i, 1);
+          } else if (e.type !== 'GIANTBOSS') {
+            spawnDeathParticles(e.x, e.y, e.def.color, 3);
+          }
+          // pierces through — never removed on hit, just keeps flying
         }
       }
     } else {
@@ -3120,19 +3221,8 @@ function drawPolygonDown(cx, cy, r, sides) {
 
 // ---------- asteroid belt wave ----------
 function updateBossWave(dt) {
-  // random-tier (A-E) enemies keep streaming in from the top every 2s (2 at a time),
-  // alongside the giant boss, for as long as it's alive
-  if (!waveActive) return;
-  const m = ((wave - 1) % CYCLE_LEN) + 1;
-  const kind = CYCLE_KIND[m - 1];
-  if (kind !== 'BOSS') return;
-  if (bossDefeated) return;
-  bossMinionTimer -= dt;
-  if (bossMinionTimer <= 0) {
-    spawnBossWaveMinion();
-    spawnBossWaveMinion();
-    bossMinionTimer = 2.0;
-  }
+  // escort minions no longer spawn during the boss fight — just the boss itself now
+  return;
 }
 function updateAsteroidWave(dt) {
   if (!waveActive) return;
@@ -3318,6 +3408,19 @@ function handleAsteroidCollisions() {
           registerAsteroidDamage(2, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
           break;
+        }
+      }
+    } else if (b.refect) {
+      for (let i = 0; i < asteroids.length; i++) {
+        const a = asteroids[i];
+        if (b.hitSet.has(a)) continue;
+        const rr = (a.r + b.r) * (a.r + b.r);
+        if (closestDistSqOnPolyline(b.fullTrail, a.x, a.y) < rr) {
+          b.hitSet.add(a);
+          score += wave * 20;
+          registerAsteroidDamage(b.power || 3, a);
+          spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
+          // pierces through — never removed on hit, just keeps flying
         }
       }
     } else {
@@ -3609,6 +3712,40 @@ function drawBullets() {
         }
         ctx.lineWidth = 1;
       }
+    } else if (b.refect) {
+      // pierce bolt tracing a zig-zag path; the trajectory continuously fades as it
+      // ages — each point/segment fades out 2s after being drawn, like a comet tail,
+      // rather than the whole path persisting until a single fade-out at the end. It
+      // also has collision along its whole (still-visible) length, not just the tip.
+      // The bolt itself is drawn as a distinct bright 2px segment at the current tip,
+      // single solid blue (no gradient), which fades separately over 0.5s once the
+      // bolt itself finishes its zig-zags and stops.
+      const fadeAlpha = b.refectDone ? Math.max(0, 1 - (b.refectFadeT || 0) / 0.5) : 1;
+      if (b.fullTrail && b.fullTrail.length > 1) {
+        ctx.lineWidth = 1;
+        for (let k = 1; k < b.fullTrail.length; k++) {
+          const age = (b.refectAge || 0) - b.fullTrail[k].t;
+          const segAlpha = Math.max(0, 1 - age / 2.0) * 0.5;
+          if (segAlpha <= 0) continue;
+          ctx.strokeStyle = hexToRgba('#4ad4ff', segAlpha);
+          ctx.beginPath();
+          ctx.moveTo(b.fullTrail[k - 1].x, b.fullTrail[k - 1].y);
+          ctx.lineTo(b.fullTrail[k].x, b.fullTrail[k].y);
+          ctx.stroke();
+        }
+      }
+      const ang = b.refectDone ? b.refectFrozenAngle : (Math.atan2(b.vy, b.vx) + Math.PI / 2);
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(ang);
+      ctx.strokeStyle = hexToRgba('#4ad4ff', 0.75 * fadeAlpha);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 1);
+      ctx.lineTo(0, -1);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+      ctx.restore();
     } else if (b.homing) {
       // isosceles triangle, base 5.6px/height 8.4px at Lv1 (70% of the original 8x12);
       // width stays fixed across levels, only height grows +2px per level above 1;
