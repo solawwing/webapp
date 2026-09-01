@@ -305,7 +305,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-02 08:05';
+const LAST_UPDATED = '2026-09-02 08:25';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -803,7 +803,7 @@ const SPARK_COOLDOWNS = [0, 0.3, 0.3, 0.3, 0.3, 0.3]; // fixed 0.3s regardless o
 // "wait until the screen is clear of your own bullets" gate for these weapons
 const WEAPON_FIRE_COOLDOWNS = {
   NORMAL: 0.3, DOUBLE: 0.3, WIDE: 1.2, HOMING: 0.8, LASER: 1.0,
-  GRAVITY: 0.8, BUBBLE: 0.5, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.5,
+  GRAVITY: 0.8, BUBBLE: 0.5, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8,
 };
 const LASER_SPECS = [null,
   { length: 200, pierce: 5, speed: 300 },
@@ -946,9 +946,9 @@ function fireWeapon() {
     for (let k = 0; k < lvl; k++) {
       const rad = rand(-20, 20) * Math.PI / 180;
       playerBullets.push({
-        x: apexX, y: apexY, vx: Math.sin(rad) * 800, vy: -Math.cos(rad) * 800, r: 3, power: 3,
+        x: apexX, y: apexY, vx: Math.sin(rad) * 1600, vy: -Math.cos(rad) * 1600, r: 3, power: 2,
         refect: true, refectAngle: rad, refectBaseAngle: rad, refectSign: rad < 0 ? -1 : 1, refectDist: 0, pierceLeft: 999, hitSet: new Set(),
-        zigzagsLeft: 8, refectLegDist: 50 + lvl * 10, fullTrail: [{ x: apexX, y: apexY, t: 0 }], refectAge: 0, noTrail: true,
+        zigzagsLeft: 8, refectLegDist: 120, fullTrail: [{ x: apexX, y: apexY, t: 0 }], refectAge: 0, noTrail: true,
       });
     }
   } else {
@@ -2627,12 +2627,12 @@ function updateBullets(dt) {
       // separately over 0.5s
       b.refectAge = (b.refectAge || 0) + dt;
       if (!b.refectDone) {
-        const spd = Math.hypot(b.vx, b.vy) || 800;
+        const spd = Math.hypot(b.vx, b.vy) || 1600;
         const legDist = b.refectLegDist || 100;
         b.refectDist = (b.refectDist || 0) + spd * dt;
         if (b.fullTrail) b.fullTrail.push({ x: b.x, y: b.y, t: b.refectAge });
         // prune points older than the 2s trail-fade window so the array stays bounded
-        while (b.fullTrail && b.fullTrail.length > 1 && b.refectAge - b.fullTrail[0].t > 2.0) {
+        while (b.fullTrail && b.fullTrail.length > 1 && b.refectAge - b.fullTrail[0].t > 1.0) {
           b.fullTrail.shift();
         }
         if (b.refectDist >= legDist) {
@@ -2650,7 +2650,7 @@ function updateBullets(dt) {
         }
       } else {
         // still prune the aging trail even after the bolt itself has stopped
-        while (b.fullTrail && b.fullTrail.length > 1 && b.refectAge - b.fullTrail[0].t > 2.0) {
+        while (b.fullTrail && b.fullTrail.length > 1 && b.refectAge - b.fullTrail[0].t > 1.0) {
           b.fullTrail.shift();
         }
         b.refectFadeT = (b.refectFadeT || 0) + dt;
@@ -2970,7 +2970,7 @@ function handleCollisions() {
         if (closestDistSqOnPolyline(b.fullTrail, e.x, e.y) < rr) {
           if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
           b.hitSet.add(e);
-          e.hp -= (b.power || 3);
+          e.hp -= (e.type === 'GIANTBOSS' ? 5 : (b.power || 2));
           score += 10; // +10 for dealing damage
           if (e.hp <= 0) {
             handleEnemyDeath(e);
@@ -3418,7 +3418,7 @@ function handleAsteroidCollisions() {
         if (closestDistSqOnPolyline(b.fullTrail, a.x, a.y) < rr) {
           b.hitSet.add(a);
           score += wave * 20;
-          registerAsteroidDamage(b.power || 3, a);
+          registerAsteroidDamage(b.power || 2, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
           // pierces through — never removed on hit, just keeps flying
         }
@@ -3725,7 +3725,7 @@ function drawBullets() {
         ctx.lineWidth = 1;
         for (let k = 1; k < b.fullTrail.length; k++) {
           const age = (b.refectAge || 0) - b.fullTrail[k].t;
-          const segAlpha = Math.max(0, 1 - age / 2.0) * 0.5;
+          const segAlpha = Math.max(0, 1 - age / 1.0) * 0.5;
           if (segAlpha <= 0) continue;
           ctx.strokeStyle = hexToRgba('#4ad4ff', segAlpha);
           ctx.beginPath();
