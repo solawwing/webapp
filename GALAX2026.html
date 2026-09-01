@@ -301,7 +301,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-01 10:44';
+const LAST_UPDATED = '2026-09-01 23:50';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -489,7 +489,7 @@ function updateShockwaves(dt) {
           score += wave * 20;
           registerAsteroidDamage(1, target);
           spawnDeathParticles(tx, ty, target.isCrystal ? '#7CFFF0' : '#bbbbbb', 3);
-        } else if (!(target.type === 'GIANTBOSS' && !target.hasFiredFirstShot)) {
+        } else if (!(target.type === 'GIANTBOSS' && !isBossVulnerable(target))) {
           target.hp -= 1;
           score += 10; // +10 for dealing damage
           if (target.hp <= 0) {
@@ -540,7 +540,7 @@ function applyGravitySplash(x, y, radius, excludeEnemy) {
     const e = enemies[i];
     if (e === excludeEnemy) continue;
     if (dist2(x, y, e.x, e.y) <= radius * radius) {
-      if (e.type === 'GIANTBOSS' && !e.hasFiredFirstShot) continue;
+      if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
       e.hp -= 5;
       score += 10; // +10 for dealing damage
       if (e.hp <= 0) {
@@ -976,7 +976,7 @@ function applyPhantomTickDamage(f) {
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i];
     if (e.x >= f.x && e.x <= f.x + f.w && e.y >= f.y && e.y <= f.y + f.h) {
-      if (e.type === 'GIANTBOSS' && !e.hasFiredFirstShot) continue;
+      if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
       e.hp -= (e.type === 'GIANTBOSS' ? 10 : 5);
       score += 10;
       if (e.hp <= 0) {
@@ -995,6 +995,22 @@ function applyPhantomTickDamage(f) {
       spawnDeathParticles(a.x, a.y, '#bbbbbb', 4);
     }
   }
+  enemies.forEach(e => {
+    if (e.type !== 'GIANTBOSS' || !e.miniBossHp) return;
+    for (let vk = 0; vk < e.def.sides; vk++) {
+      if (e.miniBossHp[vk] <= 0) continue;
+      const pos = bossVertexWorldPos(e, vk);
+      if (pos.x >= f.x && pos.x <= f.x + f.w && pos.y >= f.y && pos.y <= f.y + f.h) {
+        e.miniBossHp[vk] -= 10;
+        score += 10;
+        if (e.miniBossHp[vk] <= 0) {
+          spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220);
+        } else {
+          spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
+        }
+      }
+    }
+  });
 }
 function updatePhantomFlashes(dt) {
   for (let i = phantomFlashes.length - 1; i >= 0; i--) {
@@ -1044,7 +1060,7 @@ function firePhantomFlash() {
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i];
     if (e.x >= left && e.x <= right && e.y >= top && e.y <= bottom) {
-      if (e.type === 'GIANTBOSS' && !e.hasFiredFirstShot) continue;
+      if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
       e.hp -= (e.type === 'GIANTBOSS' ? 15 : 5);
       score += 10; // +10 for dealing damage
       if (e.hp <= 0) {
@@ -1063,6 +1079,23 @@ function firePhantomFlash() {
       spawnDeathParticles(a.x, a.y, '#bbbbbb', 10);
     }
   }
+  // mini-bosses at any boss's vertices caught in the flash zone
+  enemies.forEach(e => {
+    if (e.type !== 'GIANTBOSS' || !e.miniBossHp) return;
+    for (let vk = 0; vk < e.def.sides; vk++) {
+      if (e.miniBossHp[vk] <= 0) continue;
+      const pos = bossVertexWorldPos(e, vk);
+      if (pos.x >= left && pos.x <= right && pos.y >= top && pos.y <= bottom) {
+        e.miniBossHp[vk] -= 5;
+        score += 10;
+        if (e.miniBossHp[vk] <= 0) {
+          spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220);
+        } else {
+          spawnDeathParticles(pos.x, pos.y, e.def.color, 3);
+        }
+      }
+    }
+  });
 }
 
 const SPARK_PHASE_TIMES = [null,
@@ -1336,15 +1369,18 @@ function tryAdvanceWavePattern() {
 }
 
 const BOSS_TYPES = {
-  X: { color: '#ff2e2e', sides: 3 },
-  Y: { color: '#ff8c1a', sides: 4 },
-  Z: { color: '#fff01a', sides: 5 },
-  V: { color: '#2e6bff', sides: 6 },
-  W: { color: '#a52eff', sides: 8 },
+  S: { color: '#ff2e2e', sides: 3 },
+  T: { color: '#ff8c1a', sides: 4 },
+  U: { color: '#fff01a', sides: 5 },
+  V: { color: '#2eff6b', sides: 6 },
+  W: { color: '#2ee6ff', sides: 7 },
+  X: { color: '#2e6bff', sides: 8 },
+  Y: { color: '#a52eff', sides: 9 },
+  Z: { color: '#a0a0a0', sides: 10 },
 };
 function makeBossEnemy() {
   const bossHp = 800;
-  const key = choice(['X', 'Y', 'Z', 'V', 'W']);
+  const key = choice(['S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']);
   const bossType = BOSS_TYPES[key];
   const t = { hp: bossHp, score: 100, color: bossType.color, r: 120, sides: bossType.sides };
   const startX = W / 2, startY = -100;
@@ -1358,7 +1394,13 @@ function makeBossEnemy() {
     angle: 0, swayPhase: 0,
     bossT: 0, fireTimer: rand(0.4, 2.0),
     trail: [], hasFiredFirstShot: false,
+    miniBossHp: new Array(bossType.sides).fill(200), // each mini-boss has its own separate HP now
   };
+}
+function isBossVulnerable(e) {
+  // the main boss body stays fully invulnerable until every mini-boss at its vertices
+  // has been individually destroyed
+  return !e.miniBossHp || e.miniBossHp.every(hp => hp <= 0);
 }
 
 let starReverse = false;
@@ -1387,12 +1429,12 @@ function spawnBossWaveMinion() {
 }
 let bossExplosionBurstTimer = 0;
 function inBossNextStagePhase() {
-  // the 5s window after the boss's death-burst sequence finishes, before the actual
-  // wave transition: starfield jumps to 10x speed and "NEXT STAGE" shows centered
+  // the 10s window after the boss's death-burst sequence finishes, before the actual
+  // wave transition: starfield jumps to 5x speed and "GOOD JOB! / NEXT STAGE" shows centered
   if (!bossDefeated) return false;
   const cycleM = ((wave - 1) % CYCLE_LEN) + 1;
   if (CYCLE_KIND[cycleM - 1] !== 'BOSS') return false;
-  return waveClearTimer >= 5.0 && waveClearTimer < 10.0;
+  return waveClearTimer >= 5.0 && waveClearTimer < 15.0;
 }
 let lastBossColor = '#ff2e6b';
 
@@ -1943,22 +1985,29 @@ function fireBossBarrage(e) {
   // bullets fired in all directions (omnidirectional), pattern varies by boss type;
   // bullet count also scales up as the boss's HP drops
   const tier = e.hp >= 400 ? 0 : e.hp >= 200 ? 1 : 2;
-  const counts = { X: [12, 20, 28], Y: [6, 12, 18], Z: [16, 20, 24], V: [24, 28, 32], W: [8, 16, 24] };
-  const n = (counts[e.bossKey] || counts.X)[tier];
+  const counts = {
+    S: [12, 20, 28], W: [12, 20, 28],
+    T: [6, 12, 18], X: [6, 12, 18],
+    U: [24, 28, 32], Y: [24, 28, 32],
+    V: [8, 16, 24], Z: [8, 16, 24],
+  };
+  const spiralKeys = ['T', 'X', 'V', 'Z'];
+  const n = (counts[e.bossKey] || counts.S)[tier];
   const spd = 220 * (2 / 3);
   const offset = e.barrageAngle || 0;
   for (let k = 0; k < n; k++) {
     const a = offset + (k / n) * Math.PI * 2;
     enemyBullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, r: 4 });
   }
-  if (e.bossKey === 'Y' || e.bossKey === 'W') {
-    // Y/W: continuous barrage, rotate slightly each volley for a spinning coverage effect
+  if (spiralKeys.includes(e.bossKey)) {
+    // spiral types: continuous barrage, rotate slightly each volley for a spinning coverage effect
     e.barrageAngle = offset + 0.2;
   }
   // mini-bosses stationed at each vertex fire the same pattern too, at 1/4 the bullet count
   const miniN = Math.max(1, Math.round(n / 4));
   const sides = e.def.sides;
   for (let vk = 0; vk < sides; vk++) {
+    if (e.miniBossHp && e.miniBossHp[vk] <= 0) continue; // destroyed mini-bosses don't fire
     const pos = bossVertexWorldPos(e, vk);
     for (let mk = 0; mk < miniN; mk++) {
       const a = offset + (mk / miniN) * Math.PI * 2;
@@ -1979,23 +2028,44 @@ function bossVertexWorldPos(e, k) {
 
 function checkMiniBossHits(e) {
   // mini-bosses have their own hit detection extending beyond the main boss's
-  // collision radius, but any damage they take is applied to the main boss's HP
+  // collision radius, and now their own individual HP pool (200 each) — they're
+  // always damageable regardless of the main boss's own invulnerability, since
+  // destroying all of them is what lifts that invulnerability. Special weapon
+  // effects (LASER's full beam, GRAVITY's splash+shockwave) are handled properly
+  // here too, not just simple point-radius contact.
   const miniR = e.def.r / 6;
   const sides = e.def.sides;
+  e.miniBossMarkers = e.miniBossMarkers || [];
   for (let vk = 0; vk < sides; vk++) {
+    if (!e.miniBossHp || e.miniBossHp[vk] <= 0) continue; // already destroyed
+    if (!e.miniBossMarkers[vk]) e.miniBossMarkers[vk] = {}; // stable identity for piercing weapons' hitSets
+    const marker = e.miniBossMarkers[vk];
     const pos = bossVertexWorldPos(e, vk);
     for (let j = playerBullets.length - 1; j >= 0; j--) {
       const b = playerBullets[j];
       if (b.spawnDelay > 0) continue;
+      if (b.hitSet && b.hitSet.has(marker)) continue; // piercing weapons only hit each mini-boss once per flight
       const br = b.r || 3;
-      const rr = (miniR + br) * (miniR + br);
-      if (dist2(pos.x, pos.y, b.x, b.y) < rr) {
-        if (!e.hasFiredFirstShot) continue;
-        e.hp -= (b.power || 1);
-        score += 10;
-        spawnDeathParticles(pos.x, pos.y, e.def.color, 3);
-        if (!b.laser && !b.thunder && !b.laserCurve) playerBullets.splice(j, 1);
+      let hit = false;
+      if (b.laser) {
+        const closest = closestPointOnLaser(b, pos.x, pos.y);
+        hit = dist2(pos.x, pos.y, closest.x, closest.y) < (miniR + br) * (miniR + br);
+      } else {
+        hit = dist2(pos.x, pos.y, b.x, b.y) < (miniR + br) * (miniR + br);
       }
+      if (!hit) continue;
+      e.miniBossHp[vk] -= (b.power || 1);
+      score += 10;
+      if (e.miniBossHp[vk] <= 0) {
+        spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); // bigger burst on actual destruction
+      } else {
+        spawnDeathParticles(pos.x, pos.y, e.def.color, 3);
+      }
+      if (b.gravity) {
+        applyGravitySplash(pos.x, pos.y, b.gravityRadius || 40, null); // gravity's splash+shockwave also center on the mini-boss it hit
+      }
+      if (b.hitSet) b.hitSet.add(marker);
+      if (!b.laser && !b.thunder && !b.laserCurve) playerBullets.splice(j, 1);
     }
   }
 }
@@ -2561,7 +2631,7 @@ function updateBullets(dt) {
           next = findNearestEnemyExcluding(last.x, last.y, b.hitSet);
           inRange = next && dist2(last.x, last.y, next.x, next.y) < 2560 * 2560;
         }
-        if (next && next.type === 'GIANTBOSS' && !next.hasFiredFirstShot) {
+        if (next && next.type === 'GIANTBOSS' && !isBossVulnerable(next)) {
           next = null; // invulnerable boss can't be chained through — treat as no target
         }
         if (next && inRange && b.loopsLeft > 0) {
@@ -2680,7 +2750,7 @@ function handleOptionCollisions() {
       const e = enemies[i];
       const rr = (e.def.r + optR) * (e.def.r + optR);
       if (dist2(opt.x, opt.y, e.x, e.y) < rr) {
-        if (e.type === 'GIANTBOSS' && !e.hasFiredFirstShot) continue;
+        if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
         e.hp -= 1;
         score += 10;
         if (e.hp <= 0) {
@@ -2751,7 +2821,7 @@ function handleCollisions() {
         const closest = closestPointOnLaser(b, e.x, e.y);
         const rr = (e.def.r + b.r) * (e.def.r + b.r);
         if (dist2(e.x, e.y, closest.x, closest.y) < rr) {
-          if (e.type === 'GIANTBOSS' && !e.hasFiredFirstShot) continue;
+          if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
           b.hitSet.add(e);
           e.hp -= (b.power || 1);
           score += 10; // +10 for dealing damage
@@ -2771,7 +2841,7 @@ function handleCollisions() {
         const e = enemies[i];
         const rr = (e.def.r + b.r) * (e.def.r + b.r);
         if (dist2(e.x, e.y, b.x, b.y) < rr) {
-          if (e.type === 'GIANTBOSS' && !e.hasFiredFirstShot) continue;
+          if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
           b.hitSet.add(e);
           e.hp -= (e.type === 'GIANTBOSS' ? 5 : (b.power || 3));
           score += 10; // +10 for dealing damage
@@ -2795,7 +2865,7 @@ function handleCollisions() {
         // addition to the normal radius-based vertical reach (applies to pierce hits too)
         const dx = Math.abs(e.x - b.x), dy = Math.abs(e.y - b.y);
         if (dx <= e.def.r + 20 && dy <= e.def.r + b.r) {
-          if (e.type === 'GIANTBOSS' && !e.hasFiredFirstShot) continue;
+          if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
           const wasTarget = e === b.target;
           b.hitSet.add(e);
           e.hp -= wasTarget ? (e.type === 'GIANTBOSS' ? 2 : 5) : 2; // locked target takes 5 (2 vs boss), incidental pierced targets take 2
@@ -2818,7 +2888,7 @@ function handleCollisions() {
           playerBullets.splice(j, 1);
           const ex = e.x, ey = e.y;
           const isBoss = e.type === 'GIANTBOSS';
-          if (!(isBoss && !e.hasFiredFirstShot)) {
+          if (!(isBoss && !isBossVulnerable(e))) {
             e.hp -= (b.gravity && isBoss) ? 5 : (b.lenMul && isBoss) ? 2 : (b.power || 1);
             score += 10; // +10 for dealing damage
           }
@@ -2899,14 +2969,14 @@ function checkWaveClear() {
     asteroids = [];
     dyingAsteroids = [];
     waveClearTimer += 1/60;
-    const burstPhaseDuration = 5.0, nextStagePhaseDuration = 5.0;
+    const burstPhaseDuration = 5.0, nextStagePhaseDuration = 10.0;
     const clearDelay = kind === 'BOSS' ? (burstPhaseDuration + nextStagePhaseDuration) : 1.2; // let the boss explosion + "next stage" beat play out fully
     if (kind === 'BOSS' && waveClearTimer < burstPhaseDuration) {
       bossExplosionBurstTimer -= 1/60;
       if (bossExplosionBurstTimer <= 0) {
         const px = rand(0, W), py = rand(0, H * 0.7);
         spawnDeathParticles(px, py, lastBossColor, 20, 300);
-        spawnItem(px, py); // items also drop throughout the burst sequence
+        spawnItem(px, 0); // items drop in from the top of the screen, above the burst's x position
         bossExplosionBurstTimer = rand(0.3, 0.6);
       }
     }
@@ -3050,8 +3120,8 @@ function drawPolygonDown(cx, cy, r, sides) {
 
 // ---------- asteroid belt wave ----------
 function updateBossWave(dt) {
-  // random-tier (A-E) enemies keep streaming in from the top every 2s, alongside the
-  // giant boss, for as long as it's alive — replaces the old one-time escort formation
+  // random-tier (A-E) enemies keep streaming in from the top every 2s (2 at a time),
+  // alongside the giant boss, for as long as it's alive
   if (!waveActive) return;
   const m = ((wave - 1) % CYCLE_LEN) + 1;
   const kind = CYCLE_KIND[m - 1];
@@ -3060,7 +3130,8 @@ function updateBossWave(dt) {
   bossMinionTimer -= dt;
   if (bossMinionTimer <= 0) {
     spawnBossWaveMinion();
-    bossMinionTimer = 1.0;
+    spawnBossWaveMinion();
+    bossMinionTimer = 2.0;
   }
 }
 function updateAsteroidWave(dt) {
@@ -3334,10 +3405,12 @@ function drawEnemy(e) {
     // continuously; drawn in this same local (translated+rotated) coordinate frame
     const miniR = r / 6;
     for (let vk = 0; vk < e.def.sides; vk++) {
+      if (e.miniBossHp && e.miniBossHp[vk] <= 0) continue; // destroyed, no longer drawn
       const theta = (vk * 2 * Math.PI) / e.def.sides;
       const vx = r * Math.sin(theta), vy = r * Math.cos(theta);
       ctx.save();
       ctx.translate(vx, vy);
+      ctx.save();
       ctx.rotate(e.miniAngle || 0);
       ctx.beginPath();
       drawPolygonDown(0, 0, miniR, e.def.sides);
@@ -3345,6 +3418,16 @@ function drawEnemy(e) {
       ctx.fill();
       ctx.strokeStyle = e.def.color;
       ctx.stroke();
+      ctx.restore();
+      // numeric HP readout, kept upright (not spun with the shape OR the boss body itself)
+      ctx.save();
+      ctx.rotate(-(e.angle || 0));
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '300 8px "Montserrat", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(Math.max(0, Math.ceil(e.miniBossHp ? e.miniBossHp[vk] : 0))), 0, 0);
+      ctx.restore();
       ctx.restore();
     }
   } else {
