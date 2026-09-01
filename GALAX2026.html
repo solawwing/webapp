@@ -305,7 +305,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-02 08:25';
+const LAST_UPDATED = '2026-09-02 08:32';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -4241,23 +4241,33 @@ if (qrModal) {
 // equipment-select screen) to begin directly at the Boss stage instead of wave 1
 const tierAIcon = document.getElementById('tierAIcon');
 if (tierAIcon) {
+  let tierALastTap = 0;
   tierAIcon.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     e.preventDefault();
-    debugStartAtBoss = true;
-    showEquipSelect();
+    const now = Date.now();
+    if (now - tierALastTap < 300) {
+      debugStartAtBoss = true;
+      showEquipSelect();
+    }
+    tierALastTap = now;
   });
 }
 
-// tapping the tier-E icon on the title screen flags the next game start to begin
-// with the chosen weapon already at its max level, instead of Lv1
+// double-tapping the tier-E icon on the title screen flags the next game start to
+// begin with the chosen weapon already at its max level, instead of Lv1
 const tierEIcon = document.getElementById('tierEIcon');
 if (tierEIcon) {
+  let tierELastTap = 0;
   tierEIcon.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     e.preventDefault();
-    debugStartMaxLevel = true;
-    showEquipSelect();
+    const now = Date.now();
+    if (now - tierELastTap < 300) {
+      debugStartMaxLevel = true;
+      showEquipSelect();
+    }
+    tierELastTap = now;
   });
 }
 
