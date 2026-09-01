@@ -111,6 +111,7 @@
 <div id="overlay">
   <div id="titleScreen">
     <div class="title" id="titleText" style="font-size:clamp(8px,3.5vw,18px); cursor:pointer; pointer-events:auto;">GALAX2026</div>
+    <div style="font-size:14px; opacity:0.6; letter-spacing:2px; margin-top:2px; text-shadow:none;">version 2.0</div>
     <svg width="360" height="26" viewBox="0 0 360 26" style="display:block; margin:0 auto 0;">
       <defs>
         <linearGradient id="titleArcFade" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -300,7 +301,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-01 00:28';
+const LAST_UPDATED = '2026-09-01 10:44';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -3951,12 +3952,11 @@ resize();
 initStars();
 requestAnimationFrame(frame);
 
-// title screen (5s), item legend (5s), and cycle explanation (5s) rotate in sequence
+// title screen (7s), item legend (7s), and cycle explanation (7s) rotate in sequence
 let titleShowingItems = false; // kept for any other code checking this flag
 let titleScreenIndex = 0; // 0=title, 1=items, 2=cycle
 function scheduleTitleToggle() {
-  // title/items each show for 5s, the cycle screen for 10s
-  const delay = titleScreenIndex === 2 ? 10000 : 5000;
+  const delay = 7000;
   setTimeout(() => {
     if (state === STATE.TITLE && !showingEquip) {
       titleScreenIndex = (titleScreenIndex + 1) % 3;
