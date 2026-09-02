@@ -305,7 +305,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-02 08:32';
+const LAST_UPDATED = '2026-09-02 19:48';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -3738,11 +3738,11 @@ function drawBullets() {
       ctx.save();
       ctx.translate(b.x, b.y);
       ctx.rotate(ang);
-      ctx.strokeStyle = hexToRgba('#4ad4ff', 0.75 * fadeAlpha);
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = hexToRgba('#4ad4ff', 1.0 * fadeAlpha);
+      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(0, 1);
-      ctx.lineTo(0, -1);
+      ctx.moveTo(0, 0.5);
+      ctx.lineTo(0, -0.5);
       ctx.stroke();
       ctx.lineWidth = 1;
       ctx.restore();
