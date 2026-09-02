@@ -305,7 +305,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-02 19:48';
+const LAST_UPDATED = '2026-09-02 22:00';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -939,16 +939,19 @@ function fireWeapon() {
       chainTimer: 0, family: { active: 1 }, maxResets,
     });
   } else if (player.weapon === 'REFECT') {
-    // fires `level` shots from the ship's very apex, each starting within ±15 degrees
-    // of straight up, then zig-zagging (see updateBullets) every 100px; pierces
-    // through enemies; always zig-zags exactly 8 times regardless of level, then fades
-    const apexX = player.x, apexY = player.y - player.r * 1.9 * 1.4;
+    // fires `level` shots from the ship's center, each starting within ±20 degrees of
+    // straight DOWN for the first zig-zag leg (traveling backward/away first, only
+    // 50px before its first bend), then reverses to travel forward (straight up ±
+    // the same angle) from the second zig-zag onward, using the normal leg distance;
+    // always zig-zags exactly 8 times regardless of level, then fades
+    const centerX = player.x, centerY = player.y;
     for (let k = 0; k < lvl; k++) {
       const rad = rand(-20, 20) * Math.PI / 180;
       playerBullets.push({
-        x: apexX, y: apexY, vx: Math.sin(rad) * 1600, vy: -Math.cos(rad) * 1600, r: 3, power: 2,
+        x: centerX, y: centerY, vx: Math.sin(rad) * 1600, vy: Math.cos(rad) * 1600, r: 3, power: 2,
         refect: true, refectAngle: rad, refectBaseAngle: rad, refectSign: rad < 0 ? -1 : 1, refectDist: 0, pierceLeft: 999, hitSet: new Set(),
-        zigzagsLeft: 8, refectLegDist: 120, fullTrail: [{ x: apexX, y: apexY, t: 0 }], refectAge: 0, noTrail: true,
+        refectFirstLeg: true,
+        zigzagsLeft: 8, refectLegDist: 50, refectNormalLegDist: 120, fullTrail: [{ x: centerX, y: centerY, t: 0 }], refectAge: 0, noTrail: true,
       });
     }
   } else {
@@ -2637,10 +2640,22 @@ function updateBullets(dt) {
         }
         if (b.refectDist >= legDist) {
           b.refectDist -= legDist;
-          b.refectSign = -(b.refectSign || 1);
-          b.refectAngle = (b.refectBaseAngle || 0) + b.refectSign * rand(20, 50) * Math.PI / 180;
-          b.vx = Math.sin(b.refectAngle) * spd;
-          b.vy = -Math.cos(b.refectAngle) * spd;
+          if (b.refectFirstLeg) {
+            // first leg finished (traveled backward/down) — now reverse to travel
+            // forward (upward) along the same original angle, then normal zig-zag
+            // bending takes over from the second leg onward, using the normal
+            // (longer) leg distance from here on
+            b.refectFirstLeg = false;
+            b.refectLegDist = b.refectNormalLegDist || 120;
+            b.refectAngle = b.refectBaseAngle || 0;
+            b.vx = Math.sin(b.refectAngle) * spd;
+            b.vy = -Math.cos(b.refectAngle) * spd;
+          } else {
+            b.refectSign = -(b.refectSign || 1);
+            b.refectAngle = (b.refectBaseAngle || 0) + b.refectSign * rand(20, 50) * Math.PI / 180;
+            b.vx = Math.sin(b.refectAngle) * spd;
+            b.vy = -Math.cos(b.refectAngle) * spd;
+          }
           b.zigzagsLeft = (b.zigzagsLeft || 1) - 1;
           if (b.zigzagsLeft <= 0) {
             b.refectDone = true; b.refectFadeT = 0;
@@ -2887,6 +2902,19 @@ function closestDistSqOnPolyline(points, px, py) {
   }
   return best;
 }
+function refectTurn90(b) {
+  // on hitting a target, REFECT no longer pierces straight through — instead its
+  // current travel direction rotates 90 degrees (alternating turn side each hit),
+  // and this new heading becomes its base angle for any further zig-zag bending
+  const spd = Math.hypot(b.vx, b.vy) || 1600;
+  const turnSign = -(b.refectSign || 1);
+  b.refectSign = turnSign;
+  b.refectAngle = (b.refectAngle || 0) + turnSign * (Math.PI / 2);
+  b.refectBaseAngle = b.refectAngle;
+  b.vx = Math.sin(b.refectAngle) * spd;
+  b.vy = -Math.cos(b.refectAngle) * spd;
+  b.refectDist = 0; // restart the current leg's distance count from this new heading
+}
 function handleCollisions() {
   // player bullets vs enemies
   for (let j = playerBullets.length - 1; j >= 0; j--) {
@@ -2978,7 +3006,7 @@ function handleCollisions() {
           } else if (e.type !== 'GIANTBOSS') {
             spawnDeathParticles(e.x, e.y, e.def.color, 3);
           }
-          // pierces through — never removed on hit, just keeps flying
+          refectTurn90(b); // turns 90° on hit instead of piercing straight through
         }
       }
     } else {
@@ -3420,7 +3448,7 @@ function handleAsteroidCollisions() {
           score += wave * 20;
           registerAsteroidDamage(b.power || 2, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
-          // pierces through — never removed on hit, just keeps flying
+          refectTurn90(b); // turns 90° on hit instead of piercing straight through
         }
       }
     } else {
