@@ -305,7 +305,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-02 22:00';
+const LAST_UPDATED = '2026-09-02 22:03';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -3755,7 +3755,7 @@ function drawBullets() {
           const age = (b.refectAge || 0) - b.fullTrail[k].t;
           const segAlpha = Math.max(0, 1 - age / 1.0) * 0.5;
           if (segAlpha <= 0) continue;
-          ctx.strokeStyle = hexToRgba('#4ad4ff', segAlpha);
+          ctx.strokeStyle = hexToRgba('#00e5ff', segAlpha);
           ctx.beginPath();
           ctx.moveTo(b.fullTrail[k - 1].x, b.fullTrail[k - 1].y);
           ctx.lineTo(b.fullTrail[k].x, b.fullTrail[k].y);
@@ -3766,7 +3766,7 @@ function drawBullets() {
       ctx.save();
       ctx.translate(b.x, b.y);
       ctx.rotate(ang);
-      ctx.strokeStyle = hexToRgba('#4ad4ff', 1.0 * fadeAlpha);
+      ctx.strokeStyle = hexToRgba('#00e5ff', 1.0 * fadeAlpha);
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(0, 0.5);
