@@ -305,7 +305,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-04 08:15';
+const LAST_UPDATED = '2026-09-04 08:24';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1436,7 +1436,7 @@ function makeBossEnemy() {
   const bossHp = 800;
   const key = choice(['S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']);
   const bossType = BOSS_TYPES[key];
-  const t = { hp: bossHp, score: 100, color: bossType.color, r: 120, sides: bossType.sides };
+  const t = { hp: bossHp, score: 100, color: bossType.color, r: 120, baseR: 120, sides: bossType.sides };
   const startX = W / 2, startY = -100;
   const target = { x: W / 2, y: H * 0.2 };
   return {
@@ -2146,6 +2146,11 @@ function updateEnemies(dt) {
 
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i];
+    if (e.type === 'GIANTBOSS' && e.def.baseR) {
+      // shrinks as it takes damage, down to a minimum of 25% of its original size
+      const frac = Math.max(0.25, e.hp / e.maxHp);
+      e.def.r = e.def.baseR * frac;
+    }
     const ox = e.x, oy = e.y;
     // GRAVITY shockwave slow effect: enemies inside an active shockwave move/act at half speed
     let slowedByShockwave = false;
