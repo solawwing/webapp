@@ -305,7 +305,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-03 23:00';
+const LAST_UPDATED = '2026-09-03 23:08';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -891,8 +891,9 @@ function fireWeapon() {
     // reworked: length/speed ignore level for now — a long, clean, straight beam
     // that pierces every enemy in its path and keeps ticking damage repeatedly to
     // anything still overlapping it, rather than a single hit per target. Power
-    // does scale with level though: +2 per level above 1.
-    playerBullets.push({ x: bx, y: by, vx: 0, vy: -500, r: 3, laser: true, length: 900, pierceLeft: 999999, hitSet: new Set(), power: 1 + (lvl - 1) * 2, laserLevel: 1, spawnX: bx, spawnY: by, laserTickTimer: 0 });
+    // scales with level (+2 per level above 1), and so does the hitbox's width:
+    // 10px around the beam's centerline at Lv1, +10px per level (Lv7=70px).
+    playerBullets.push({ x: bx, y: by, vx: 0, vy: -500, r: 10 * lvl, laser: true, length: 900, pierceLeft: 999999, hitSet: new Set(), power: 1 + (lvl - 1) * 2, laserLevel: 1, spawnX: bx, spawnY: by, laserTickTimer: 0 });
   } else if (player.weapon === 'GRAVITY') {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -450, r: 3, power: 2, gravity: true, gravityRadius: lvl * 30 });
   } else if (player.weapon === 'BUBBLE') {
