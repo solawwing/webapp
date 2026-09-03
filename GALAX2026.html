@@ -162,9 +162,9 @@
         <div class="item-header"><span class="item-icon">D</span><span class="item-name">DOUBLE</span></div>
         <div class="item-desc">Twin shots plus trailing options that fire and fight alongside you.</div>
       </div>
-      <div class="item-entry" data-weapon="WIDE">
-        <div class="item-header"><span class="item-icon">W</span><span class="item-name">WIDE</span></div>
-        <div class="item-desc">Fan of growing horizontal bars that widen as they fly. Levels to 7.</div>
+      <div class="item-entry" data-weapon="MISSILE">
+        <div class="item-header"><span class="item-icon">M</span><span class="item-name">MISSILE</span></div>
+        <div class="item-desc">Loops back then arcs forward, splitting in two. Levels to 7.</div>
       </div>
       <div class="item-entry" data-weapon="HOMING">
         <div class="item-header"><span class="item-icon">H</span><span class="item-name">HOMING</span></div>
@@ -305,7 +305,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-03 12:58';
+const LAST_UPDATED = '2026-09-03 23:00';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -365,8 +365,8 @@ function qbezier(p0, p1, p2, t) {
 function dist2(ax, ay, bx, by) { const dx = ax-bx, dy = ay-by; return dx*dx + dy*dy; }
 function rand(a, b) { return a + Math.random() * (b - a); }
 function weaponMaxLevel(type) {
-  // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/WIDE/DOUBLE/SPARK/REFECT uniquely level up to 7, every other weapon caps at 5
-  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'WIDE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT') ? 7 : 5;
+  // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT uniquely level up to 7, every other weapon caps at 5
+  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT') ? 7 : 5;
 }
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function formatScore(n) { return Math.round(n).toLocaleString('en-US'); }
@@ -423,8 +423,8 @@ function resetPlayer() {
 }
 
 // ---------- items ----------
-const ITEM_TYPES = ['DOUBLE', 'WIDE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT'];
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', WIDE: '#ffd23f', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00' };
+const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT'];
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -578,7 +578,7 @@ function drawParticles() {
   ctx.lineWidth = 1;
   particles.forEach(p => {
     const frac = p.t / p.duration;
-    ctx.globalAlpha = 1 - frac;
+    ctx.globalAlpha = (1 - frac) * (p.alphaMul !== undefined ? p.alphaMul : 1);
     ctx.strokeStyle = p.color;
     ctx.save();
     ctx.translate(p.x, p.y);
@@ -660,7 +660,7 @@ function updateItems(dt) {
     }
   }
 }
-const ITEM_GLYPHS = { DOUBLE: 'D', WIDE: 'W', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R' };
+const ITEM_GLYPHS = { DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R' };
 function drawItems() {
   ctx.lineWidth = 1;
   items.forEach(it => {
@@ -793,7 +793,6 @@ function xOffsets(n, spacing) {
   return arr;
 }
 const DOUBLE_COUNTS = [0, 2, 4, 6, 8, 10];
-const WIDE_COUNTS = [0, 3, 5, 7, 9, 11, 13, 15];
 const HOMING_COUNTS = [0, 1, 2, 3, 4, 5];
 const BUBBLE_COUNTS = [0, 6, 10, 14, 18, 22, 26, 30]; // linear, +4 per level
 const VULCAN_COUNTS = [0, 2, 4, 6, 8, 10, 12, 14]; // +2 shots per level, up to Lv7
@@ -802,7 +801,7 @@ const SPARK_COOLDOWNS = [0, 0.3, 0.3, 0.3, 0.3, 0.3]; // fixed 0.3s regardless o
 // per-weapon fire cooldown (seconds between shots), replacing the old one-size-fits-all
 // "wait until the screen is clear of your own bullets" gate for these weapons
 const WEAPON_FIRE_COOLDOWNS = {
-  NORMAL: 0.3, DOUBLE: 0.3, WIDE: 0.7, HOMING: 0.8, LASER: 1.0,
+  NORMAL: 0.3, DOUBLE: 0.3, MISSILE: 1.0, HOMING: 0.8, LASER: 1.0,
   GRAVITY: 0.8, BUBBLE: 0.5, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8,
 };
 const LASER_SPECS = [null,
@@ -846,26 +845,27 @@ function fireWeapon() {
     player.options.forEach(opt => {
       fireDoublePattern(opt.x, opt.y - player.r);
     });
-  } else if (player.weapon === 'WIDE') {
-    const n = WIDE_COUNTS[lvl];
-    // fanned out at an angle (like WIDE always used to be), each bolt now identical to
-    // LASER's own Lv1 main beam (length/pierce/speed), regardless of WIDE's own level;
-    // fires from the ship's true apex (topmost point). Each shot's own fan-step
-    // distance from center (m) equals the level it was FIRST unlocked at (center shot
-    // exists from Lv1, the outermost pair only exists at max level) — so shots present
-    // since a lower level always stay at the same fixed offset, looked up per step
-    // (neither axis is a clean formula, hence explicit tables).
-    const WIDE_H_OFFSETS = [0, 10, 20, 30, 40, 50, 60, 70];
-    const WIDE_V_OFFSETS = [0, 2, 2, 2, 2, 2, 2, 2];
-    const baseX = bx, baseY = player.y - player.r * 1.9 * 1.4;
-    for (let i = 0; i < n; i++) {
-      const step = i - (n - 1) / 2;
-      const m = Math.abs(step);
-      const rad = step * 3 * Math.PI / 180;
-      const offsetDist = WIDE_H_OFFSETS[m] || 0;
-      const vertOffset = WIDE_V_OFFSETS[m] || 0;
-      const sx = baseX + (step < 0 ? -offsetDist : offsetDist), sy = baseY + vertOffset;
-      playerBullets.push({ x: sx, y: sy, vx: Math.sin(rad) * 400, vy: -Math.cos(rad) * 400, r: 3, laser: true, length: 200, pierceLeft: 1, hitSet: new Set(), power: 2, wide: true, angle: rad, spawnX: sx, spawnY: sy, speed: 400, maxSpeed: 800, rampAge: 0 });
+  } else if (player.weapon === 'MISSILE') {
+    // fires 2 missiles per level (Lv1=2 up to Lv7=14), alternating spawn from the
+    // ship's rear-left and rear-right; each missile: launches backward/outward first,
+    // arcs through a parabolic turn to reverse into forward flight, continues forward
+    // for a while, then splits diagonally left/right into two fragments. Missiles
+    // that fly off-screen steer back in rather than being destroyed (see updateBullets).
+    const leftX = player.x - player.r * 0.7, rightX = player.x + player.r * 0.7;
+    const baseY = player.y + player.r * 0.5;
+    // each level's newly-added pair fires 2° wider than the last: pair 0 (unlocked
+    // at Lv1) uses ±2°, pair 1 (Lv2) uses ±4°, ... up to pair 6 (Lv7) at ±14°
+    for (let p = 0; p < lvl; p++) {
+      const angDeg = 2 + p * 2;
+      [-1, 1].forEach(side => {
+        const sx = side < 0 ? leftX : rightX;
+        const backAngle = side * (angDeg * Math.PI / 180); // launches down and slightly outward first
+        playerBullets.push({
+          x: sx, y: baseY, vx: Math.sin(backAngle) * 260, vy: Math.cos(backAngle) * 260, r: 3, power: 2,
+          missile: true, missileSide: side, missilePhase: 'back', missileT: 0, missileGen: 0, missilePair: p,
+          trail: [], spawnDelay: (p * 0.2),
+        });
+      });
     }
   } else if (player.weapon === 'HOMING') {
     // per level: angle pairs start at 10 degrees and step up by 30 degrees each, always
@@ -2223,7 +2223,7 @@ let showingEquip = false;
 let debugStartWeapon = null;
 let debugStartAtBoss = false; // set via tapping the tier-A icon on the title screen
 let debugStartMaxLevel = false; // set via tapping the tier-E icon on the title screen
-const EQUIP_CHOICES = ['DOUBLE', 'WIDE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'THUNDER', 'REFECT', 'SPARK']; // no NORMAL
+const EQUIP_CHOICES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'THUNDER', 'REFECT', 'SPARK']; // no NORMAL
 function showEquipSelect() {
   showingEquip = true;
   titleScreen.classList.add('hidden');
@@ -2242,8 +2242,8 @@ document.querySelectorAll('#itemsScreen .item-entry[data-weapon]').forEach(el =>
 const EQUIP_LONG_DESCRIPTIONS = {
   DOUBLE: { intro: "Fires a tight pair of light-blue shots side by side, both always angled just one degree outward, no matter what level you're at. What really sets DOUBLE apart is its trailing options: rotating cyan squares that follow behind the ship, one more joining the chain each level starting from your very first level-up, each one keeping its distance from the one ahead of it rather than crowding together. Every option fires the exact same twin-shot volley as the ship itself, multiplying your firepower across several points on screen at once. They also physically bump anything they touch for their own chip damage and will swat enemy bullets right out of the air. When you stop moving, the options stop chasing too, though they never stop spinning. A fresh wave always resets them to overlap the ship exactly, ready to fan back out as soon as you move again. DOUBLE uniquely keeps growing all the way to level seven, two levels further than most weapons, so a maxed-out ship trails a full formation of seven options all firing in unison.",
     levels: ["1 option.", "2 options.", "3 options.", "4 options.", "5 options.", "6 options.", "7 options, full formation."] },
-  WIDE: { intro: "Sprays a green fan of shots across a wide arc, from 3-way up to fifteen-way at max level with seven degrees between each shot. Each bolt isn't a simple dot either, it's a short horizontal bar that keeps widening the farther it travels, growing four pixels on each side for every hundred pixels flown, so a bolt that's crossed most of the screen ends up several times wider than when it left the ship. Unlike DOUBLE's narrow stream, WIDE trades a tight formation for breadth on two axes at once: the fan spreads sideways across the screen while each individual bolt also spreads sideways as it flies, letting you tag multiple enemies scattered across the screen with a single volley instead of stacking damage on one target. WIDE uniquely keeps growing all the way to level seven, two levels further than most weapons, so a maxed-out volley can blanket nearly the entire width of the screen, excelling at clearing loose formations and juggling several diving enemies at once, though lone tough targets will take longer to bring down than with a more focused weapon.",
-    levels: ["3-way fan.", "5-way fan.", "7-way fan.", "9-way fan.", "11-way fan.", "13-way fan.", "15-way, full coverage."] },
+  MISSILE: { intro: "Fires pairs of orange missiles from the ship's rear corners. Each one launches backward and outward first, arcs smoothly through a parabolic turn to reverse into forward flight, climbs for a while, then splits into two fragments angling diagonally outward. Missiles that stray off the edge of the screen curve back in rather than being lost, so a volley keeps sweeping the play field instead of flying away for good. Leveling up simply launches more pairs at once, all following the same loop-and-split pattern. MISSILE uniquely keeps growing all the way to level seven, two levels further than most weapons, so a maxed-out volley fills the screen with looping, splitting missiles.",
+    levels: ["2 missiles.", "4 missiles.", "6 missiles.", "8 missiles.", "10 missiles.", "12 missiles.", "14 missiles, screen-filling swarm."] },
   HOMING: { intro: "Each shot locks onto its own distinct target, enemies, asteroids, and crystals all count, so a full volley can track that many different threats simultaneously. Shots launch twenty pixels off the ship's tip along a fixed firing angle, travel two hundred pixels dead straight while steadily accelerating, then curve in toward whatever they're locked onto once that opening stretch ends. Leveling up doesn't just add more shots, it widens the angles those shots launch at too, starting at just ten degrees off center and stepping outward by thirty more with each new pair, tapering off at exactly directly-behind for the widest possible spread rather than overshooting past it. HOMING uniquely keeps growing all the way to level seven, two levels further than most weapons, so a maxed-out volley can blanket the entire area around the ship and lock onto far more targets than the early levels can manage.",
     levels: ["2 shots at ±10°.", "4 shots, up to ±40°.", "6 shots, up to ±70°.", "8 shots, up to ±100°.", "10 shots, up to ±130°.", "12 shots, up to ±160°.", "14 shots, up to ±180°."] },
   LASER: { intro: "A piercing cyan beam that cuts through several targets at once, plus two independent side beams firing on their own faster rhythm from just beside the ship. The main beam and the side beams share the same per-level length, pierce count, and travel speed, so every level-up improves all three beams together rather than just one. The main beam also visibly thickens by a pixel every level up through level five, then thickens twice as fast for the final two levels, so by max level it's an enormous, unmistakable shaft of light that stretches nearly the full height of the screen, punches through ten targets in a row, and travels faster than almost anything else in your arsenal. LASER uniquely keeps growing all the way to level seven, two levels further than most weapons, turning a maxed-out beam into one of the most dominant long-range picks for late-game waves and tough boss fights.",
@@ -2303,7 +2303,7 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 5000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['REFECT'];
+const EQUIP_UPDATED = ['REFECT', 'MISSILE'];
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -2571,7 +2571,7 @@ function updateBullets(dt) {
     if (b.maxSpeed && b.rampAge !== undefined) {
       // gradually accelerates from its spawn speed up to maxSpeed over ~1s, quadratically
       // (speed grows with t^2, not linearly), preserving its fixed firing direction
-      // (used by WIDE instead of holding in place)
+      // (accelerating-launch ramp, used by HOMING)
       b.rampAge += dt;
       if (b.spawnSpeedVal === undefined) b.spawnSpeedVal = b.speed; // capture once, before this ramp starts overwriting b.speed
       const spawnSpeed = b.spawnSpeedVal;
@@ -2584,7 +2584,7 @@ function updateBullets(dt) {
     if (!b.bubble && !b.noTrail) {
       if (!b.trail) b.trail = [];
       b.trail.push({ x: b.x, y: b.y, rot: b.angle !== undefined ? b.angle : b.rot, traveled: b.traveled });
-      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.wide ? 4 : b.double ? 24 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
+      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.missile ? 10 : b.double ? 24 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
       if (b.trail.length > maxTrail) b.trail.shift();
     }
     if (b.homing) {
@@ -2616,6 +2616,121 @@ function updateBullets(dt) {
           b.vx += (dvx - b.vx) * turn;
           b.vy += (dvy - b.vy) * turn;
         }
+      }
+    }
+    if (b.missile) {
+      if (b.missileStuckBoss) {
+        // stuck to a mini-boss vertex: follows its position, deals 1dmg every 0.5s,
+        // for up to 3s or until that mini-boss is destroyed, whichever comes first
+        const boss = b.missileStuckBoss, vk = b.missileStuckVertex;
+        if (!enemies.includes(boss) || !boss.miniBossHp || boss.miniBossHp[vk] <= 0) {
+          playerBullets.splice(i, 1);
+          continue;
+        }
+        const pos = bossVertexWorldPos(boss, vk);
+        b.x = pos.x; b.y = pos.y;
+        b.missileStickT = (b.missileStickT || 0) + dt;
+        if (b.missileStickT >= 3.0) { playerBullets.splice(i, 1); continue; }
+        b.missileTickTimer = (b.missileTickTimer || 0) + dt;
+        if (b.missileTickTimer >= 0.2) {
+          b.missileTickTimer -= 0.2;
+          boss.miniBossHp[vk] -= 1;
+          score += 10;
+          if (boss.miniBossHp[vk] <= 0) {
+            spawnDeathParticles(pos.x, pos.y, boss.def.color, 14, 220);
+            playerBullets.splice(i, 1);
+            continue;
+          } else {
+            spawnDeathParticles(pos.x, pos.y, boss.def.color, 2);
+          }
+        }
+        continue;
+      }
+      if (b.missileStuckTo) {
+        // stuck to its target (enemy or asteroid/crystal): follows its position,
+        // deals 1dmg every 0.5s, for up to 3s or until destroyed, whichever's first
+        const target = b.missileStuckTo;
+        const isAsteroidTarget = b.missileStuckKind === 'asteroid';
+        const stillAlive = isAsteroidTarget ? asteroids.includes(target) : enemies.includes(target);
+        if (!stillAlive) { playerBullets.splice(i, 1); continue; }
+        b.x = target.x; b.y = target.y;
+        b.missileStickT = (b.missileStickT || 0) + dt;
+        if (b.missileStickT >= 3.0) { playerBullets.splice(i, 1); continue; }
+        b.missileTickTimer = (b.missileTickTimer || 0) + dt;
+        if (b.missileTickTimer >= 0.2) {
+          b.missileTickTimer -= 0.2;
+          if (isAsteroidTarget) {
+            score += wave * 20;
+            registerAsteroidDamage(1, target);
+            spawnDeathParticles(target.x, target.y, target.isCrystal ? '#7CFFF0' : '#bbbbbb', 2);
+          } else {
+            target.hp -= 1;
+            score += 10;
+            if (target.hp <= 0) {
+              handleEnemyDeath(target);
+              const idx = enemies.indexOf(target);
+              if (idx !== -1) enemies.splice(idx, 1);
+              playerBullets.splice(i, 1);
+              continue;
+            } else if (target.type !== 'GIANTBOSS') {
+              spawnDeathParticles(target.x, target.y, target.def.color, 2);
+            }
+          }
+        }
+        continue;
+      }
+      // phase machine: back (launch down/outward) -> curve (parabolic reversal into
+      // forward flight) -> forward (climbs) -> split (spawns 2 diagonal fragments,
+      // gen-capped so fragments don't split again). Off-screen missiles steer back
+      // toward the screen instead of being destroyed.
+      b.missileT = (b.missileT || 0) + dt;
+      const BACK_DUR = 0.3 + (b.missilePair || 0) * 0.08, CURVE_DUR = 0.25, FORWARD_DUR = 0.6;
+      const spd = 260;
+      if (b.missilePhase === 'back' && b.missileT >= BACK_DUR) {
+        b.missilePhase = 'curve';
+        b.missileT = 0;
+        b.missileFromAngle = Math.atan2(b.vx, -b.vy); // current heading, standard "0=up" convention
+        b.missileToAngle = b.missileSide * (15 * Math.PI / 180); // forward, slight outward lean
+      } else if (b.missilePhase === 'curve') {
+        const t = Math.min(1, b.missileT / CURVE_DUR);
+        const eased = t * t * (3 - 2 * t); // smoothstep, for a parabolic feel
+        const ang = b.missileFromAngle + (b.missileToAngle - b.missileFromAngle) * eased;
+        b.vx = Math.sin(ang) * spd;
+        b.vy = -Math.cos(ang) * spd;
+        if (t >= 1) { b.missilePhase = 'forward'; b.missileT = 0; }
+      } else if (b.missilePhase === 'forward' && b.missileGen < 1 && b.missileT >= FORWARD_DUR) {
+        // split into two diagonal fragments; the original bullet is replaced.
+        // asymmetric: the fragment continuing the missile's own lean (outward, away
+        // from center) angles wider (15°) than the one crossing back inward (10°)
+        const missileSide = b.missileSide || 1;
+        [{ side: missileSide, deg: 15 }, { side: -missileSide, deg: 10 }].forEach(({ side, deg }) => {
+          const ang = side * (deg * Math.PI / 180);
+          playerBullets.push({
+            x: b.x, y: b.y, vx: Math.sin(ang) * spd, vy: -Math.cos(ang) * spd, r: 3, power: b.power || 2,
+            missile: true, missileSide: side, missilePhase: 'forward', missileT: 0, missileGen: (b.missileGen || 0) + 1,
+            trail: [],
+          });
+        });
+        playerBullets.splice(i, 1);
+        continue;
+      }
+      // off-screen return: only the BACK edge (bottom of the screen) bounces —
+      // not homing/guided, just a plain reflection; other edges let it go through
+      // to the generic off-screen cleanup like any other bullet
+      const margin = 30;
+      if (b.y > H - margin && b.vy > 0) b.vy = -b.vy;
+      // scatters tiny 1px sparks backward from its tail as it flies (engine exhaust)
+      b.missileSparkTimer = (b.missileSparkTimer || 0) + dt;
+      if (b.missileSparkTimer >= 0.03) {
+        b.missileSparkTimer -= 0.03;
+        const backAng = Math.atan2(b.vy, b.vx) + Math.PI; // opposite the direction of travel
+        const scatterAng = backAng + rand(-0.5, 0.5);
+        const sparkSpd = rand(30, 90);
+        particles.push({
+          x: b.x, y: b.y, vx: Math.cos(scatterAng) * sparkSpd, vy: Math.sin(scatterAng) * sparkSpd,
+          angle: rand(0, Math.PI * 2), spin: rand(-6, 6),
+          r: 1, t: 0, duration: rand(0.2, 0.4), color: '#ccff00', alphaMul: rand(0.3, 1),
+        });
       }
     }
     if (b.refect) {
@@ -2777,9 +2892,6 @@ function updateBullets(dt) {
       b.r = 1 + (b.traveled / 20) * 2; // starts at 1px, grows +2px in radius for every 20px traveled (uncapped)
       if (b.traveled >= b.maxTravel) { playerBullets.splice(i, 1); continue; }
     }
-    if (b.wide) {
-      b.traveled += Math.hypot(b.vx, b.vy) * dt; // widens the bullet as it flies, see drawBullets
-    }
     if (b.spark && !b.burst && b.y <= b.burstY) {
       burstSpark(b);
       playerBullets.splice(i, 1);
@@ -2794,7 +2906,7 @@ function updateBullets(dt) {
     if (b.y < -20 || b.y > H + 20 || b.x < -20 || b.x > W + 20) {
       if (b.laserCurve) { b.dying = true; }
       else if (b.laser) { b.dying = true; b.dyingT = 0; } // fade out instead of vanishing instantly
-      else { playerBullets.splice(i, 1); }
+      else { playerBullets.splice(i, 1); } // missiles now removed like normal bullets except off the bottom, which bounces before ever reaching here
     }
   }
   for (let i = enemyBullets.length - 1; i >= 0; i--) {
@@ -2869,7 +2981,7 @@ function handleOptionCollisions() {
 function laserSegmentEnds(b) {
   // returns the beam's current tip (b.x,b.y) and tail, accounting for its firing
   // angle (0 = straight up) — generalizes the old vertical-only assumption. While
-  // holding in place (holdTimer > 0, e.g. WIDE's pre-launch pause), b.x/b.y is the
+  // holding in place (holdTimer > 0, unused by any current weapon), b.x/b.y is the
   // muzzle anchor point and the full beam is shown extending FORWARD from it (the
   // direction it's about to launch in), not backward through the ship; otherwise the
   // effective length is capped by how far the beam has actually traveled since it
@@ -2940,6 +3052,51 @@ function handleCollisions() {
     if (b.dying) continue; // erasing its trail, no longer active
     if (b.spark) continue; // no hit detection until it bursts
     if (b.chaining) continue; // thunder: handled entirely in updateBullets once chaining starts
+    if (b.missile) {
+      if (b.missileStuckTo || b.missileStuckBoss) continue; // already attached, ticking damage in updateBullets
+      let attached = false;
+      for (let i = enemies.length - 1; i >= 0 && !attached; i--) {
+        const e = enemies[i];
+        if (e.type === 'GIANTBOSS') {
+          if (e.miniBossHp) {
+            for (let vk = 0; vk < e.def.sides; vk++) {
+              if (e.miniBossHp[vk] <= 0) continue;
+              const pos = bossVertexWorldPos(e, vk);
+              const miniR = (e.def.r / 3) * 0.7;
+              const rr = (miniR + b.r) * (miniR + b.r);
+              if (dist2(pos.x, pos.y, b.x, b.y) < rr) {
+                b.missileStuckBoss = e;
+                b.missileStuckVertex = vk;
+                b.missileStickT = 0;
+                b.missileTickTimer = 0;
+                b.vx = 0; b.vy = 0;
+                attached = true;
+                break;
+              }
+            }
+          }
+          if (attached || !isBossVulnerable(e)) continue;
+          const rr = (e.def.r + b.r) * (e.def.r + b.r);
+          if (dist2(e.x, e.y, b.x, b.y) < rr) {
+            b.missileStuckTo = e; b.missileStuckKind = 'enemy';
+            b.missileStickT = 0; b.missileTickTimer = 0;
+            b.vx = 0; b.vy = 0;
+            attached = true;
+          }
+        } else {
+          const rr = (e.def.r + b.r) * (e.def.r + b.r);
+          if (dist2(e.x, e.y, b.x, b.y) < rr) {
+            // sticks to the target instead of being destroyed: deals 1dmg every 0.5s
+            // for up to 3s, or until the target is destroyed, whichever comes first
+            b.missileStuckTo = e; b.missileStuckKind = 'enemy';
+            b.missileStickT = 0; b.missileTickTimer = 0;
+            b.vx = 0; b.vy = 0;
+            attached = true;
+          }
+        }
+      }
+      continue;
+    }
     if (b.laser && b.laserTickTimer !== undefined) {
       // reworked main LASER beam: pierces every enemy in its path and keeps ticking
       // damage repeatedly (every 0.1s) to anything still overlapping it, instead of
@@ -3440,6 +3597,22 @@ function handleAsteroidCollisions() {
     if (b.dying) continue; // erasing its trail, no longer active
     if (b.spark) continue; // no hit detection until it bursts
     if (b.chaining) continue; // thunder: handled entirely in updateBullets once chaining starts
+    if (b.missile) {
+      if (b.missileStuckTo || b.missileStuckBoss) continue; // already attached, ticking damage in updateBullets
+      for (let i = 0; i < asteroids.length; i++) {
+        const a = asteroids[i];
+        const rr = (a.r + b.r) * (a.r + b.r);
+        if (dist2(a.x, a.y, b.x, b.y) < rr) {
+          // sticks to the target instead of being destroyed: deals 1dmg every 0.5s
+          // for up to 3s, or until the target is destroyed, whichever comes first
+          b.missileStuckTo = a; b.missileStuckKind = 'asteroid';
+          b.missileStickT = 0; b.missileTickTimer = 0;
+          b.vx = 0; b.vy = 0;
+          break;
+        }
+      }
+      continue;
+    }
     if (b.laser && b.laserTickTimer !== undefined) {
       // reworked main LASER beam: same repeated-tick damage against asteroids/crystals
       if (b.laserShouldTick) {
@@ -3727,30 +3900,35 @@ function drawBullets() {
   ctx.lineWidth = 1;
   playerBullets.forEach(b => {
     if (b.spawnDelay > 0) return; // not fired yet, stay invisible
-    if (b.wide) {
-      // 10x2px horizontal bar, always axis-aligned (never rotates to an angle) —
-      // drawn separately from the shared LASER beam code even though WIDE still
-      // uses that code for its piercing collision. Leaves a long, smooth fading
-      // afterimage: one continuous filled shape from the oldest trail point to the
-      // current position, gradient fading 40%→0% opacity along its length.
-      if (b.trail && b.trail.length > 0) {
-        const tail = b.trail[0];
-        const grad = ctx.createLinearGradient(b.x, b.y, tail.x, tail.y);
-        grad.addColorStop(0, 'rgba(173,255,47,0.4)');
-        grad.addColorStop(1, 'rgba(173,255,47,0)');
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = 10; // matches the bullet's own 10px width
-        ctx.beginPath();
-        ctx.moveTo(b.x, b.y);
-        ctx.lineTo(tail.x, tail.y);
-        ctx.stroke();
+    if (b.missile) {
+      // small rocket shape (triangle nose + short body), oriented to its current
+      // travel direction, with a short fading fluorescent yellow-green trail
+      const ang = Math.atan2(b.vy, b.vx) + Math.PI / 2;
+      if (b.trail && b.trail.length > 1) {
+        for (let k = 1; k < b.trail.length; k++) {
+          const t = k / b.trail.length;
+          ctx.strokeStyle = `rgba(204,255,0,${0.4 * t})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(b.trail[k - 1].x, b.trail[k - 1].y);
+          ctx.lineTo(b.trail[k].x, b.trail[k].y);
+          ctx.stroke();
+        }
         ctx.lineWidth = 1;
       }
-      ctx.fillStyle = '#adff2f';
-      ctx.fillRect(b.x - 5, b.y - 1, 10, 2);
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(ang);
+      ctx.fillStyle = '#ccff00';
+      ctx.beginPath();
+      ctx.moveTo(0, -6);
+      ctx.lineTo(3, 3);
+      ctx.lineTo(-3, 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
     } else if (b.laser) {
-      // gradient beam: bright at the head (tip), dull at the tail (near origin) —
-      // WIDE's own bolts use shocking pink instead of LASER's cyan. Fades out over
+      // gradient beam: bright cyan head, dull tail. Fades out over
       // 0.3s instead of vanishing instantly once it's gone off-screen.
       if (b.dying) {
         ctx.save();
@@ -3759,7 +3937,7 @@ function drawBullets() {
       ctx.lineWidth = b.subLaser ? 1 : laserThickness(b.laserLevel || 1); // main beam grows +1px per level (Lv1-5), then +2px for Lv6/Lv7
       const { tailX, tailY } = laserSegmentEnds(b);
       const grad = ctx.createLinearGradient(b.x, b.y, tailX, tailY);
-      const beamColor = b.wide ? '#adff2f' : '#39fff3';
+      const beamColor = '#39fff3';
       if (b.subLaser) {
         grad.addColorStop(0, 'rgba(57,255,243,0.3)');
         grad.addColorStop(1, 'rgba(20,60,58,0.3)');
