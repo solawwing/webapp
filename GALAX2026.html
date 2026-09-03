@@ -305,7 +305,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-02 23:35';
+const LAST_UPDATED = '2026-09-03 12:58';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -407,7 +407,7 @@ function resetPlayer() {
   player.trailHistory = [{ x: W / 2, y: H - 90 }]; // fresh path history for a brand-new game
   player.lives = 3; player.alive = true; player.invT = 2.0; player.fireCd = 0;
   player.weapon = debugStartWeapon || 'NORMAL';
-  player.weaponLevel = debugStartWeapon ? (debugStartMaxLevel ? weaponMaxLevel(debugStartWeapon) : 1) : 0;
+  player.weaponLevel = debugStartWeapon ? (debugStartMaxLevel ? weaponMaxLevel(debugStartWeapon) : debugStartAtBoss ? 3 : 1) : 0;
   player.rapidLevel = 0; player.burstRemaining = 0; player.burstTimer = 0;
   player.vulcanBurstRemaining = 0; player.vulcanBurstTimer = 0; player.vulcanShotInterval = 0.1; player.vulcanXOffset = 0;
   player.laserSubCooldown = 0;
@@ -802,7 +802,7 @@ const SPARK_COOLDOWNS = [0, 0.3, 0.3, 0.3, 0.3, 0.3]; // fixed 0.3s regardless o
 // per-weapon fire cooldown (seconds between shots), replacing the old one-size-fits-all
 // "wait until the screen is clear of your own bullets" gate for these weapons
 const WEAPON_FIRE_COOLDOWNS = {
-  NORMAL: 0.3, DOUBLE: 0.3, WIDE: 1.2, HOMING: 0.8, LASER: 1.0,
+  NORMAL: 0.3, DOUBLE: 0.3, WIDE: 0.7, HOMING: 0.8, LASER: 1.0,
   GRAVITY: 0.8, BUBBLE: 0.5, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8,
 };
 const LASER_SPECS = [null,
@@ -855,17 +855,17 @@ function fireWeapon() {
     // exists from Lv1, the outermost pair only exists at max level) — so shots present
     // since a lower level always stay at the same fixed offset, looked up per step
     // (neither axis is a clean formula, hence explicit tables).
-    const WIDE_H_OFFSETS = [0, 5, 5, 10, 10, 15, 15, 15];
-    const WIDE_V_OFFSETS = [0, 2, 2, 4, 4, 8, 8, 12];
+    const WIDE_H_OFFSETS = [0, 10, 20, 30, 40, 50, 60, 70];
+    const WIDE_V_OFFSETS = [0, 2, 2, 2, 2, 2, 2, 2];
     const baseX = bx, baseY = player.y - player.r * 1.9 * 1.4;
     for (let i = 0; i < n; i++) {
       const step = i - (n - 1) / 2;
       const m = Math.abs(step);
-      const rad = step * 7 * Math.PI / 180;
+      const rad = step * 3 * Math.PI / 180;
       const offsetDist = WIDE_H_OFFSETS[m] || 0;
       const vertOffset = WIDE_V_OFFSETS[m] || 0;
       const sx = baseX + (step < 0 ? -offsetDist : offsetDist), sy = baseY + vertOffset;
-      playerBullets.push({ x: sx, y: sy, vx: Math.sin(rad) * 400, vy: -Math.cos(rad) * 400, r: 3, laser: true, length: 200, pierceLeft: 5, hitSet: new Set(), power: 2, wide: true, angle: rad, spawnX: sx, spawnY: sy, speed: 400, maxSpeed: 800, rampAge: 0 });
+      playerBullets.push({ x: sx, y: sy, vx: Math.sin(rad) * 400, vy: -Math.cos(rad) * 400, r: 3, laser: true, length: 200, pierceLeft: 1, hitSet: new Set(), power: 2, wide: true, angle: rad, spawnX: sx, spawnY: sy, speed: 400, maxSpeed: 800, rampAge: 0 });
     }
   } else if (player.weapon === 'HOMING') {
     // per level: angle pairs start at 10 degrees and step up by 30 degrees each, always
@@ -960,21 +960,6 @@ function fireWeapon() {
   } else {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, power: 5 });
   }
-}
-
-function fireLaserSubs() {
-  // sub-lasers fire from both sides on their own independent 0.25s timer, one level
-  // below the main beam (Lv1 uses Lv1 too, since there's no Lv0), at reduced power.
-  // On hitting an enemy, each bends 10 degrees outward (left bends further left,
-  // right bends further right) instead of flying straight, via subSide ±1.
-  const bx = player.x, by = player.y - player.r;
-  const lvl = player.weaponLevel;
-  const subLvl = lvl === 1 ? 1 : lvl - 1;
-  const subSpec = LASER_SPECS[subLvl];
-  [-5, 5].forEach(ox => {
-    const subSide = ox < 0 ? -1 : 1;
-    playerBullets.push({ x: bx + ox, y: by, vx: 0, vy: -subSpec.speed, r: 3, laser: true, length: subSpec.length, pierceLeft: subSpec.pierce, hitSet: new Set(), power: 0.5, subLaser: true, subSide, subAngle: 0 });
-  });
 }
 
 function fireVulcanShot() {
@@ -1420,7 +1405,7 @@ function makeBossEnemy() {
     angle: 0, swayPhase: 0,
     bossT: 0, fireTimer: rand(0.4, 2.0),
     trail: [], hasFiredFirstShot: false,
-    miniBossHp: new Array(bossType.sides).fill(200), // each mini-boss has its own separate HP now
+    miniBossHp: new Array(bossType.sides).fill(50), // each mini-boss has its own separate HP now
   };
 }
 function isBossVulnerable(e) {
@@ -1454,6 +1439,7 @@ function spawnBossWaveMinion() {
   enemies.push(e);
 }
 let bossExplosionBurstTimer = 0;
+let bossPostDeathBonusTimer = 0;
 function inBossNextStagePhase() {
   // the 10s window after the boss's death-burst sequence finishes, before the actual
   // wave transition: starfield jumps to 5x speed and "GOOD JOB! / NEXT STAGE" shows centered
@@ -2059,7 +2045,7 @@ function checkMiniBossHits(e) {
   // destroying all of them is what lifts that invulnerability. Special weapon
   // effects (LASER's full beam, GRAVITY's splash+shockwave) are handled properly
   // here too, not just simple point-radius contact.
-  const miniR = e.def.r / 6;
+  const miniR = (e.def.r / 3) * 0.7;
   const sides = e.def.sides;
   e.miniBossMarkers = e.miniBossMarkers || [];
   for (let vk = 0; vk < sides; vk++) {
@@ -2507,15 +2493,6 @@ function updatePlayer(dt) {
     }
   }
 
-  // LASER sub-lasers: fire on their own independent 0.5s timer, decoupled from the main beam
-  if (player.weapon === 'LASER' && player.alive) {
-    player.laserSubCooldown -= dt;
-    if (player.laserSubCooldown <= 0) {
-      fireLaserSubs();
-      player.laserSubCooldown = 0.25;
-    }
-  }
-
   // rapid-fire burst: extra volleys fired quickly, bypassing the "screen clear" gate
   if (player.burstRemaining > 0) {
     player.burstTimer -= dt;
@@ -2841,6 +2818,7 @@ function handleEnemyDeath(e) {
     globalSpeedBonus += 0.2;
     bossDefeated = true;
     bossExplosionBurstTimer = 0.3;
+    bossPostDeathBonusTimer = 0.2;
   } else {
     spawnDeathParticles(e.x, e.y, e.def.color, 18);
   }
@@ -3162,6 +3140,15 @@ function checkWaveClear() {
     waveClearTimer += 1/60;
     const burstPhaseDuration = 5.0, nextStagePhaseDuration = 10.0;
     const clearDelay = kind === 'BOSS' ? (burstPhaseDuration + nextStagePhaseDuration) : 1.2; // let the boss explosion + "next stage" beat play out fully
+    if (kind === 'BOSS') {
+      // every 0.5s from the moment the boss is destroyed until the wave actually
+      // clears, award a random (1-100)×100 score bonus
+      bossPostDeathBonusTimer -= 1/60;
+      if (bossPostDeathBonusTimer <= 0) {
+        score += Math.floor(rand(1, 101)) * 100;
+        bossPostDeathBonusTimer = 0.2;
+      }
+    }
     if (kind === 'BOSS' && waveClearTimer < burstPhaseDuration) {
       bossExplosionBurstTimer -= 1/60;
       if (bossExplosionBurstTimer <= 0) {
@@ -3611,7 +3598,7 @@ function drawEnemy(e) {
     ctx.stroke();
     // mini-bosses stationed at each vertex: same shape, 1/6 the size, spinning
     // continuously; drawn in this same local (translated+rotated) coordinate frame
-    const miniR = r / 6;
+    const miniR = (r / 3) * 0.7;
     for (let vk = 0; vk < e.def.sides; vk++) {
       if (e.miniBossHp && e.miniBossHp[vk] <= 0) continue; // destroyed, no longer drawn
       const theta = (vk * 2 * Math.PI) / e.def.sides;
@@ -3621,20 +3608,23 @@ function drawEnemy(e) {
       ctx.save();
       ctx.rotate(e.miniAngle || 0);
       ctx.beginPath();
-      drawPolygonDown(0, 0, miniR, e.def.sides);
+      drawPolygonDown(0, 0, miniR, 4); // mini-bosses are always squares, regardless of the main boss's own shape
       ctx.fillStyle = bossFillStyle;
       ctx.fill();
       ctx.strokeStyle = e.def.color;
       ctx.stroke();
       ctx.restore();
-      // numeric HP readout, kept upright (not spun with the shape OR the boss body itself)
+      // HP bar, kept upright (not spun with the shape OR the boss body itself),
+      // positioned just below the mini-boss
       ctx.save();
       ctx.rotate(-(e.angle || 0));
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '300 8px "Montserrat", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(String(Math.max(0, Math.ceil(e.miniBossHp ? e.miniBossHp[vk] : 0))), 0, 0);
+      const barW = miniR * 1.1, barH = 3, barY = miniR + 5;
+      const hpFrac = Math.max(0, Math.min(1, (e.miniBossHp ? e.miniBossHp[vk] : 0) / 50));
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(-barW / 2, barY, barW, barH);
+      ctx.fillStyle = '#ff2e2e';
+      ctx.fillRect(-barW / 2, barY, barW * hpFrac, barH);
       ctx.restore();
       ctx.restore();
     }
@@ -3737,7 +3727,28 @@ function drawBullets() {
   ctx.lineWidth = 1;
   playerBullets.forEach(b => {
     if (b.spawnDelay > 0) return; // not fired yet, stay invisible
-    if (b.laser) {
+    if (b.wide) {
+      // 10x2px horizontal bar, always axis-aligned (never rotates to an angle) —
+      // drawn separately from the shared LASER beam code even though WIDE still
+      // uses that code for its piercing collision. Leaves a long, smooth fading
+      // afterimage: one continuous filled shape from the oldest trail point to the
+      // current position, gradient fading 40%→0% opacity along its length.
+      if (b.trail && b.trail.length > 0) {
+        const tail = b.trail[0];
+        const grad = ctx.createLinearGradient(b.x, b.y, tail.x, tail.y);
+        grad.addColorStop(0, 'rgba(173,255,47,0.4)');
+        grad.addColorStop(1, 'rgba(173,255,47,0)');
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 10; // matches the bullet's own 10px width
+        ctx.beginPath();
+        ctx.moveTo(b.x, b.y);
+        ctx.lineTo(tail.x, tail.y);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+      }
+      ctx.fillStyle = '#adff2f';
+      ctx.fillRect(b.x - 5, b.y - 1, 10, 2);
+    } else if (b.laser) {
       // gradient beam: bright at the head (tip), dull at the tail (near origin) —
       // WIDE's own bolts use shocking pink instead of LASER's cyan. Fades out over
       // 0.3s instead of vanishing instantly once it's gone off-screen.
@@ -3918,11 +3929,6 @@ function drawBullets() {
       ctx.fillStyle = '#ff6a00';
       ctx.fillRect(b.x - 3.5, b.y - 2.5, 2, 5);
       ctx.fillRect(b.x + 1.5, b.y - 2.5, 2, 5);
-    } else if (b.wide) {
-      // fixed 30x1px horizontal bar, always axis-aligned (never rotates to an angle),
-      // travels straight up, no afterimage trail
-      ctx.fillStyle = '#39ff14';
-      ctx.fillRect(b.x - 15, b.y - 0.5, 30, 1);
     } else if (b.double) {
       // single bar "|", 2x5px — just one of VULCAN's two bars; ONE long trailing line
       // (not multiple discrete copies) that fades from the bullet to fully transparent
