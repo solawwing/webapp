@@ -305,7 +305,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-03 23:08';
+const LAST_UPDATED = '2026-09-04 08:15';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -480,19 +480,28 @@ function updateShockwaves(dt) {
       }
     }
     const cx = s.x + s.jitterX, cy = s.y + s.jitterY;
-    // while inside the shockwave's current radius, enemies/asteroids/crystals take
-    // 1 damage every 0.5s (repeating for as long as they stay inside, not a one-time hit)
-    const tickTarget = (target, tx, ty, tr, isAsteroid) => {
+    // while inside the shockwave's current radius, enemies/asteroids/crystals/mini-
+    // bosses take 1 damage every 0.5s (repeating for as long as they stay inside,
+    // not a one-time hit)
+    const tickTarget = (target, tx, ty, tr, kind, boss, vk) => {
       const d = Math.hypot(tx - cx, ty - cy);
       if (d > ringR + tr) { s.damageTimers.delete(target); return; }
       let timer = s.damageTimers.get(target);
       if (timer === undefined) timer = 0; // damage immediately on entry
       timer -= dt;
       if (timer <= 0) {
-        if (isAsteroid) {
+        if (kind === 'asteroid') {
           score += wave * 20;
           registerAsteroidDamage(1, target);
           spawnDeathParticles(tx, ty, target.isCrystal ? '#7CFFF0' : '#bbbbbb', 3);
+        } else if (kind === 'miniboss') {
+          boss.miniBossHp[vk] -= 1;
+          score += 10;
+          if (boss.miniBossHp[vk] <= 0) {
+            spawnDeathParticles(tx, ty, boss.def.color, 14, 220);
+          } else {
+            spawnDeathParticles(tx, ty, boss.def.color, 2);
+          }
         } else if (!(target.type === 'GIANTBOSS' && !isBossVulnerable(target))) {
           target.hp -= 1;
           score += 10; // +10 for dealing damage
@@ -510,11 +519,21 @@ function updateShockwaves(dt) {
     };
     for (let j = enemies.length - 1; j >= 0; j--) {
       const e = enemies[j];
-      tickTarget(e, e.x, e.y, e.def.r || 10, false);
+      tickTarget(e, e.x, e.y, e.def.r || 10, 'enemy');
+      if (e.type === 'GIANTBOSS' && e.miniBossHp) {
+        e.miniBossMarkers = e.miniBossMarkers || [];
+        for (let vk = 0; vk < e.def.sides; vk++) {
+          if (e.miniBossHp[vk] <= 0) continue;
+          if (!e.miniBossMarkers[vk]) e.miniBossMarkers[vk] = {};
+          const pos = bossVertexWorldPos(e, vk);
+          const miniR = (e.def.r / 3) * 0.7;
+          tickTarget(e.miniBossMarkers[vk], pos.x, pos.y, miniR, 'miniboss', e, vk);
+        }
+      }
     }
     for (let j = asteroids.length - 1; j >= 0; j--) {
       const a = asteroids[j];
-      tickTarget(a, a.x, a.y, a.r, true);
+      tickTarget(a, a.x, a.y, a.r, 'asteroid');
     }
   }
 }
@@ -744,6 +763,29 @@ function findNearestEnemyExcluding(x, y, excludeSet) {
     if (excludeSet.has(a)) return;
     const d = dist2(x, y, a.x, a.y);
     if (d < bestD) { bestD = d; best = a; }
+  });
+  return best;
+}
+function findNearestChainTargetExcluding(x, y, excludeSet) {
+  // used by THUNDER's chain: same as findNearestEnemyExcluding, but also considers
+  // mini-boss vertices as valid jump targets (via their stable per-vertex marker
+  // objects), and skips the main boss body while it's still invulnerable
+  let best = findNearestEnemyExcluding(x, y, excludeSet);
+  let bestD = best ? dist2(x, y, best.x, best.y) : Infinity;
+  if (best && best.type === 'GIANTBOSS' && !isBossVulnerable(best)) { best = null; bestD = Infinity; }
+  enemies.forEach(e => {
+    if (e.type !== 'GIANTBOSS' || !e.miniBossHp) return;
+    e.miniBossMarkers = e.miniBossMarkers || [];
+    for (let vk = 0; vk < e.def.sides; vk++) {
+      if (e.miniBossHp[vk] <= 0) continue;
+      if (!e.miniBossMarkers[vk]) e.miniBossMarkers[vk] = {};
+      const marker = e.miniBossMarkers[vk];
+      if (excludeSet.has(marker)) continue;
+      const pos = bossVertexWorldPos(e, vk);
+      marker.x = pos.x; marker.y = pos.y; marker.isMiniBoss = true; marker.bossRef = e; marker.vertexIndex = vk;
+      const d = dist2(x, y, pos.x, pos.y);
+      if (d < bestD) { bestD = d; best = marker; }
+    }
   });
   return best;
 }
@@ -1406,7 +1448,8 @@ function makeBossEnemy() {
     angle: 0, swayPhase: 0,
     bossT: 0, fireTimer: rand(0.4, 2.0),
     trail: [], hasFiredFirstShot: false,
-    miniBossHp: new Array(bossType.sides).fill(50), // each mini-boss has its own separate HP now
+    miniBossHp: new Array(bossType.sides).fill(Math.max(1, player.weaponLevel || 1) * 50), // each mini-boss has its own separate HP, scaled to the player's weapon level when the boss stage starts
+    miniBossMaxHp: Math.max(1, player.weaponLevel || 1) * 50,
   };
 }
 function isBossVulnerable(e) {
@@ -2057,6 +2100,8 @@ function checkMiniBossHits(e) {
     for (let j = playerBullets.length - 1; j >= 0; j--) {
       const b = playerBullets[j];
       if (b.spawnDelay > 0) continue;
+      if (b.missile) continue; // MISSILE has its own dedicated mini-boss stick/attach mechanic elsewhere
+      if (b.thunder) continue; // THUNDER has its own dedicated mini-boss chain-jump handling elsewhere
       if (b.laser && b.laserTickTimer !== undefined) {
         if (!b.laserShouldTick) continue; // main LASER: same 0.1s tick cadence here too
       } else if (b.hitSet && b.hitSet.has(marker)) {
@@ -2081,8 +2126,9 @@ function checkMiniBossHits(e) {
       if (b.gravity) {
         applyGravitySplash(pos.x, pos.y, b.gravityRadius || 40, null); // gravity's splash+shockwave also center on the mini-boss it hit
       }
+      if (b.refect) refectTurn90(b); // turns 90° on hitting a mini-boss too, instead of piercing/vanishing
       if (b.hitSet) b.hitSet.add(marker);
-      if (!b.laser && !b.thunder && !b.laserCurve) playerBullets.splice(j, 1);
+      if (!b.laser && !b.thunder && !b.laserCurve && !b.refect) playerBullets.splice(j, 1);
     }
   }
 }
@@ -2814,14 +2860,14 @@ function updateBullets(dt) {
       b.chainTimer -= dt;
       if (b.chainTimer <= 0) {
         const last = b.chainPath[b.chainPath.length - 1];
-        let next = findNearestEnemyExcluding(last.x, last.y, b.hitSet);
+        let next = findNearestChainTargetExcluding(last.x, last.y, b.hitSet);
         let inRange = next && dist2(last.x, last.y, next.x, next.y) < 2560 * 2560;
         if ((!next || !inRange) && b.loopsLeft > 0 && (b.resetLoops || 0) < (b.maxResets || 3)) {
           // jumps remain but no un-hit target is left in range — reset the hit list
           // and keep chaining, up to 3 resets total
           b.hitSet.clear();
           b.resetLoops = (b.resetLoops || 0) + 1;
-          next = findNearestEnemyExcluding(last.x, last.y, b.hitSet);
+          next = findNearestChainTargetExcluding(last.x, last.y, b.hitSet);
           inRange = next && dist2(last.x, last.y, next.x, next.y) < 2560 * 2560;
         }
         if (next && next.type === 'GIANTBOSS' && !isBossVulnerable(next)) {
@@ -2829,7 +2875,16 @@ function updateBullets(dt) {
         }
         if (next && inRange && b.loopsLeft > 0) {
           b.hitSet.add(next);
-          if (next.isAsteroidObj) {
+          if (next.isMiniBoss) {
+            const boss = next.bossRef, vk = next.vertexIndex;
+            boss.miniBossHp[vk] -= 2;
+            score += 10;
+            if (boss.miniBossHp[vk] <= 0) {
+              spawnDeathParticles(next.x, next.y, boss.def.color, 14, 220);
+            } else {
+              spawnDeathParticles(next.x, next.y, boss.def.color, 3);
+            }
+          } else if (next.isAsteroidObj) {
             score += wave * 20;
             registerAsteroidDamage(2, next);
             spawnDeathParticles(next.x, next.y, '#bbbbbb', 3);
@@ -2940,13 +2995,31 @@ function handleEnemyDeath(e) {
 }
 
 function handleOptionCollisions() {
-  // DOUBLE's trailing options: touching an enemy/boss/asteroid/crystal deals 1dmg
-  // (option itself is unaffected/indestructible), touching an enemy bullet destroys it
+  // DOUBLE's trailing options: touching an enemy/boss/mini-boss/asteroid/crystal
+  // deals 1dmg (option itself is unaffected/indestructible), touching an enemy
+  // bullet destroys it
   if (!player.options || player.options.length === 0) return;
   const optR = 5; // roughly half the 15x5 rectangle's longer dimension
   player.options.forEach(opt => {
     for (let i = enemies.length - 1; i >= 0; i--) {
       const e = enemies[i];
+      if (e.type === 'GIANTBOSS' && e.miniBossHp) {
+        for (let vk = 0; vk < e.def.sides; vk++) {
+          if (e.miniBossHp[vk] <= 0) continue;
+          const pos = bossVertexWorldPos(e, vk);
+          const miniR = (e.def.r / 3) * 0.7;
+          const rr2 = (miniR + optR) * (miniR + optR);
+          if (dist2(opt.x, opt.y, pos.x, pos.y) < rr2) {
+            e.miniBossHp[vk] -= 1;
+            score += 10;
+            if (e.miniBossHp[vk] <= 0) {
+              spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220);
+            } else {
+              spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
+            }
+          }
+        }
+      }
       const rr = (e.def.r + optR) * (e.def.r + optR);
       if (dist2(opt.x, opt.y, e.x, e.y) < rr) {
         if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
@@ -3144,6 +3217,37 @@ function handleCollisions() {
       }
       if (b.pierceLeft <= 0) playerBullets.splice(j, 1);
     } else if (b.thunder) {
+      let hitMini = false;
+      for (let bi = enemies.length - 1; bi >= 0 && !hitMini; bi--) {
+        const boss = enemies[bi];
+        if (boss.type !== 'GIANTBOSS' || !boss.miniBossHp) continue;
+        boss.miniBossMarkers = boss.miniBossMarkers || [];
+        for (let vk = 0; vk < boss.def.sides; vk++) {
+          if (boss.miniBossHp[vk] <= 0) continue;
+          const pos = bossVertexWorldPos(boss, vk);
+          const miniR = (boss.def.r / 3) * 0.7;
+          const rr = (miniR + b.r) * (miniR + b.r);
+          if (dist2(pos.x, pos.y, b.x, b.y) < rr) {
+            if (!boss.miniBossMarkers[vk]) boss.miniBossMarkers[vk] = {};
+            const marker = boss.miniBossMarkers[vk];
+            marker.x = pos.x; marker.y = pos.y; marker.isMiniBoss = true; marker.bossRef = boss; marker.vertexIndex = vk;
+            b.hitSet.add(marker);
+            boss.miniBossHp[vk] -= 2;
+            score += 10;
+            if (boss.miniBossHp[vk] <= 0) {
+              spawnDeathParticles(pos.x, pos.y, boss.def.color, 14, 220);
+            } else {
+              spawnDeathParticles(pos.x, pos.y, boss.def.color, 3);
+            }
+            b.chaining = true;
+            b.chainPath = [{ x: pos.x, y: pos.y }];
+            b.chainTimer = 0.02;
+            hitMini = true;
+            break;
+          }
+        }
+      }
+      if (hitMini) continue;
       for (let i = enemies.length - 1; i >= 0; i--) {
         const e = enemies[i];
         const rr = (e.def.r + b.r) * (e.def.r + b.r);
@@ -3793,7 +3897,7 @@ function drawEnemy(e) {
       ctx.save();
       ctx.rotate(-(e.angle || 0));
       const barW = miniR * 1.1, barH = 3, barY = miniR + 5;
-      const hpFrac = Math.max(0, Math.min(1, (e.miniBossHp ? e.miniBossHp[vk] : 0) / 50));
+      const hpFrac = Math.max(0, Math.min(1, (e.miniBossHp ? e.miniBossHp[vk] : 0) / (e.miniBossMaxHp || 50)));
       ctx.strokeStyle = 'rgba(255,255,255,0.5)';
       ctx.lineWidth = 1;
       ctx.strokeRect(-barW / 2, barY, barW, barH);
