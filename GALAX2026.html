@@ -305,7 +305,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-04 08:24';
+const LAST_UPDATED = '2026-09-04 09:59';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -2075,11 +2075,50 @@ function fireBossBarrage(e) {
 function bossVertexWorldPos(e, k) {
   const sides = e.def.sides;
   const theta = (k * 2 * Math.PI) / sides;
-  const vx = e.def.r * Math.sin(theta), vy = e.def.r * Math.cos(theta);
+  const extra = (e.miniBossOffset && e.miniBossOffset[k]) || 0; // occasional diagonal drift-out
+  const dist = e.def.r + extra;
+  const vx = dist * Math.sin(theta), vy = dist * Math.cos(theta);
   return {
     x: e.x + vx * Math.cos(e.angle) - vy * Math.sin(e.angle),
     y: e.y + vx * Math.sin(e.angle) + vy * Math.cos(e.angle),
   };
+}
+function updateMiniBossDrift(e, dt) {
+  // occasionally, a mini-boss slowly drifts outward (diagonally away from the boss
+  // center, 50px extra distance), holds there for 3s, then slowly drifts back
+  if (!e.miniBossHp) return;
+  const sides = e.def.sides;
+  if (!e.miniBossOffset) e.miniBossOffset = new Array(sides).fill(0);
+  if (!e.miniBossDriftPhase) e.miniBossDriftPhase = new Array(sides).fill('idle');
+  if (!e.miniBossDriftTimer) e.miniBossDriftTimer = new Array(sides).fill(0).map(() => rand(3, 8));
+  const MOVE_DUR = 1.0, HOLD_DUR = 3.0, MAX_OFFSET = 50;
+  for (let vk = 0; vk < sides; vk++) {
+    if (e.miniBossHp[vk] <= 0) continue;
+    const phase = e.miniBossDriftPhase[vk];
+    if (phase === 'idle') {
+      e.miniBossDriftTimer[vk] -= dt;
+      if (e.miniBossDriftTimer[vk] <= 0) {
+        e.miniBossDriftPhase[vk] = 'out';
+        e.miniBossDriftTimer[vk] = 0;
+      }
+    } else if (phase === 'out') {
+      e.miniBossDriftTimer[vk] += dt;
+      const t = Math.min(1, e.miniBossDriftTimer[vk] / MOVE_DUR);
+      e.miniBossOffset[vk] = MAX_OFFSET * (t * t * (3 - 2 * t)); // smoothstep ease
+      if (t >= 1) { e.miniBossDriftPhase[vk] = 'hold'; e.miniBossDriftTimer[vk] = 0; }
+    } else if (phase === 'hold') {
+      e.miniBossDriftTimer[vk] += dt;
+      if (e.miniBossDriftTimer[vk] >= HOLD_DUR) { e.miniBossDriftPhase[vk] = 'in'; e.miniBossDriftTimer[vk] = 0; }
+    } else if (phase === 'in') {
+      e.miniBossDriftTimer[vk] += dt;
+      const t = Math.min(1, e.miniBossDriftTimer[vk] / MOVE_DUR);
+      e.miniBossOffset[vk] = MAX_OFFSET * (1 - t * t * (3 - 2 * t)); // ease back to 0
+      if (t >= 1) {
+        e.miniBossDriftPhase[vk] = 'idle';
+        e.miniBossDriftTimer[vk] = rand(3, 8);
+      }
+    }
+  }
 }
 
 function checkMiniBossHits(e) {
@@ -2116,7 +2155,7 @@ function checkMiniBossHits(e) {
         hit = dist2(pos.x, pos.y, b.x, b.y) < (miniR + br) * (miniR + br);
       }
       if (!hit) continue;
-      e.miniBossHp[vk] -= (b.power || 1);
+      e.miniBossHp[vk] -= (b.refect ? 5 : (b.power || 1));
       score += 10;
       if (e.miniBossHp[vk] <= 0) {
         spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); // bigger burst on actual destruction
@@ -2150,6 +2189,7 @@ function updateEnemies(dt) {
       // shrinks as it takes damage, down to a minimum of 25% of its original size
       const frac = Math.max(0.25, e.hp / e.maxHp);
       e.def.r = e.def.baseR * frac;
+      updateMiniBossDrift(e, fullDt);
     }
     const ox = e.x, oy = e.y;
     // GRAVITY shockwave slow effect: enemies inside an active shockwave move/act at half speed
@@ -3793,7 +3833,7 @@ function handleAsteroidCollisions() {
         if (closestDistSqOnPolyline(b.fullTrail, a.x, a.y) < rr) {
           b.hitSet.add(a);
           score += wave * 20;
-          registerAsteroidDamage(b.power || 2, a);
+          registerAsteroidDamage(5, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
           refectTurn90(b); // turns 90° on hit instead of piercing straight through
         }
@@ -3885,7 +3925,9 @@ function drawEnemy(e) {
     for (let vk = 0; vk < e.def.sides; vk++) {
       if (e.miniBossHp && e.miniBossHp[vk] <= 0) continue; // destroyed, no longer drawn
       const theta = (vk * 2 * Math.PI) / e.def.sides;
-      const vx = r * Math.sin(theta), vy = r * Math.cos(theta);
+      const extra = (e.miniBossOffset && e.miniBossOffset[vk]) || 0;
+      const dist = r + extra;
+      const vx = dist * Math.sin(theta), vy = dist * Math.cos(theta);
       ctx.save();
       ctx.translate(vx, vy);
       ctx.save();
