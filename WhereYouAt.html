@@ -902,6 +902,30 @@
     text-align:center;
     word-break:break-all;
   }
+
+  /* 分割ビュー: 「文字表示」ボタンのダブルタップで、地図(左半分)と単一駅情報(右半分)を同時表示する */
+  body.splitView .mapPane #map{
+    right:50%;
+  }
+  body.splitView .mapPane .infoModalOverlay{
+    left:50%;
+    background:transparent;
+  }
+  body.splitView .mapPane .infoModal{
+    width:100%;
+    height:100%;
+    border-radius:0;
+    border-top:none;
+    border-right:none;
+    border-bottom:none;
+  }
+  body.splitView .recenterBtn,
+  body.splitView .mapModeBtn{
+    right:calc(50% + 14px);
+  }
+  body.splitView .grayToggleBtn{
+    right:calc(50% + 32px);
+  }
 </style>
 </head>
 <body>
@@ -1770,22 +1794,51 @@
   const mapModeBtn = document.getElementById('mapModeBtn');
   const grayToggleBtn = document.getElementById('grayToggleBtn');
 
+  let splitViewActive = false;
+
   function openInfoModal(){
     infoModal.classList.remove('singleMode'); // 常に一覧から開く
     infoModalOverlay.classList.add('open');
   }
   function closeInfoModal(){
+    if(splitViewActive) return; // 分割ビュー中はタップで閉じない
     infoModalOverlay.classList.remove('open');
     stopDirStars(); // ウィンドウが閉じている間、無駄にアニメーションループを回さない
   }
   function toggleInfoModalMode(){
+    if(splitViewActive) return; // 分割ビュー中は単一駅モードに固定する
     infoModal.classList.toggle('singleMode');
   }
 
+  // 「文字表示」ボタンのダブルタップで、地図(左半分)と単一駅情報(右半分)を同時表示する分割ビューを切り替える
+  function toggleSplitView(){
+    splitViewActive = !splitViewActive;
+    document.body.classList.toggle('splitView', splitViewActive);
+    if(splitViewActive){
+      infoModal.classList.add('singleMode');
+      infoModalOverlay.classList.add('open');
+    } else {
+      infoModalOverlay.classList.remove('open');
+      stopDirStars();
+    }
+    // 地図コンテナのサイズが変わるため、レイアウト確定後にLeafletへ再計算させる
+    setTimeout(()=>{ map.invalidateSize(); }, 400);
+  }
+
+  let mapModeBtnClickTimer = null;
   if(mapModeBtn){
     mapModeBtn.addEventListener('click', (ev)=>{
       ev.stopPropagation();
-      openInfoModal();
+      if(mapModeBtnClickTimer){
+        clearTimeout(mapModeBtnClickTimer);
+        mapModeBtnClickTimer = null;
+        toggleSplitView(); // 短時間で2回タップされたらダブルタップとして扱う
+      } else {
+        mapModeBtnClickTimer = setTimeout(()=>{
+          mapModeBtnClickTimer = null;
+          openInfoModal();
+        }, 300);
+      }
     });
   }
 
