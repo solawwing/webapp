@@ -1127,6 +1127,8 @@
       recenterLabel: '現在地に戻る',
       mapModeAriaLabel: '最寄り駅一覧を表示',
       mapModeLabel: '文字<br>表示',
+      splitViewAriaLabel: '分割表示に切り替え',
+      splitViewLabel: '分割<br>表示',
       orientationDenied: '方角センサーの利用が許可されませんでした。',
       orientationFailed: '方角センサーを有効化できませんでした。',
       geoNotSupported: 'このブラウザは位置情報に対応していません。',
@@ -1190,6 +1192,8 @@
       recenterLabel: 'Return to current location',
       mapModeAriaLabel: 'Show nearest station list',
       mapModeLabel: 'List<br>View',
+      splitViewAriaLabel: 'Switch to split view',
+      splitViewLabel: 'Split<br>View',
       orientationDenied: 'Permission to use the orientation sensor was denied.',
       orientationFailed: 'Could not enable the orientation sensor.',
       geoNotSupported: 'This browser does not support geolocation.',
@@ -1268,6 +1272,7 @@
   const tickerInitialMsgEl = document.getElementById('tickerInitialMsg');
   const recenterBtnEl = document.getElementById('recenterBtn');
   const mapModeBtnEl = document.getElementById('mapModeBtn');
+  const splitViewBtnEl = document.getElementById('splitViewBtn');
   const langGimmickEl = document.getElementById('langGimmick');
   const mapWaitOverlayEl = document.getElementById('mapWaitOverlay');
   const mapWaitTextEl = document.getElementById('mapWaitText');
@@ -1320,6 +1325,10 @@
     if(mapModeBtnEl){
       mapModeBtnEl.setAttribute('aria-label', t('mapModeAriaLabel'));
       mapModeBtnEl.innerHTML = t('mapModeLabel');
+    }
+    if(splitViewBtnEl){
+      splitViewBtnEl.setAttribute('aria-label', t('splitViewAriaLabel'));
+      splitViewBtnEl.innerHTML = t('splitViewLabel');
     }
     if(gyroBtn) gyroBtn.textContent = gyroListenerAttached ? t('gyroOn') : t('gyroOff');
     if(typeof fetchStatusLabel !== 'undefined' && fetchStatusLabel) fetchStatusLabel.textContent = t('statusWaiting');
