@@ -954,7 +954,7 @@
   body.splitView .infoModal.singleMode .infoSingleView{
     display:grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto auto auto auto auto;
+    grid-template-rows: auto auto auto auto auto;
     align-items:center;
     justify-items:center;
     column-gap:10px;
@@ -964,16 +964,16 @@
     grid-column: 1 / -1;
     grid-row: 1 / -1;
   }
-  /* 1行目〜2行目: 駅名・路線名を左右結合で幅いっぱいに表示 */
+  /* 1行目: 駅名を左右結合で幅いっぱいに表示(路線名は非表示) */
   body.splitView .singleStationName{ grid-column:1 / -1; grid-row:1; font-size:38px; }
-  body.splitView .singleStationLine{ grid-column:1 / -1; grid-row:2; }
-  /* 3〜5行目: 左に方位(縦中央揃え)、右に距離・徒歩時間・速度を縦に並べる */
-  body.splitView .singleStationDirWrap{ grid-column:1; grid-row:3 / 6; align-self:center; margin-top:0; }
-  body.splitView .singleStationDist{ grid-column:2; grid-row:3; margin-top:0; }
-  body.splitView .singleStationTime{ grid-column:2; grid-row:4; }
-  body.splitView .singleStationSpeed{ grid-column:2; grid-row:5; }
-  /* 6行目: 住所を左右結合で幅いっぱいに表示 */
-  body.splitView .singleStationAddress{ grid-column:1 / -1; grid-row:6; margin-top:0; }
+  body.splitView .singleStationLine{ display:none; }
+  /* 2〜4行目: 左に方位(縦中央揃え)、右に距離・徒歩時間・速度を縦に並べる */
+  body.splitView .singleStationDirWrap{ grid-column:1; grid-row:2 / 5; align-self:center; margin-top:0; }
+  body.splitView .singleStationDist{ grid-column:2; grid-row:2; margin-top:0; }
+  body.splitView .singleStationTime{ grid-column:2; grid-row:3; }
+  body.splitView .singleStationSpeed{ grid-column:2; grid-row:4; }
+  /* 5行目: 住所を左右結合で幅いっぱいに表示 */
+  body.splitView .singleStationAddress{ grid-column:1 / -1; grid-row:5; margin-top:0; }
 </style>
 </head>
 <body>
