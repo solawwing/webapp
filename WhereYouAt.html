@@ -223,6 +223,16 @@
   }
   .grayToggleBtn:active{ background:rgba(57,255,20,.15); }
   .grayToggleBtn.active{ background:#888888; }
+  .splitViewBtn{
+    position:absolute; top:104px; right:14px; z-index:500;
+    width:50px; height:50px; border-radius:50%;
+    background:#000000; border:1px solid #39FF14;
+    color:#39FF14; display:none; align-items:center; justify-content:center;
+    font-family: var(--mono);
+    font-size:12px; line-height:1.3; text-align:center;
+    -webkit-appearance:none; cursor:pointer;
+  }
+  .splitViewBtn:active{ background:rgba(57,255,20,.15); }
 
   /* header */
   .head{
@@ -937,6 +947,9 @@
   body.splitView .mapModeBtn{
     display:none !important;
   }
+  body.splitView .splitViewBtn{
+    display:none !important;
+  }
   /* カーモード時の単一駅画面: 左カラムに距離・徒歩・速度・住所、右カラムに駅名・路線名・方角を配置する */
   body.splitView .infoModal.singleMode .infoSingleView{
     display:grid;
@@ -1017,6 +1030,7 @@
     <button class="recenterBtn" id="recenterBtn" aria-label="現在地に戻る">◎</button>
     <button class="mapModeBtn" id="mapModeBtn" aria-label="最寄り駅一覧を表示">文字<br>表示</button>
     <button class="grayToggleBtn" id="grayToggleBtn" aria-label="保存済み駅(遠方)の表示切替"></button>
+    <button class="splitViewBtn" id="splitViewBtn" aria-label="分割表示に切り替え">分割<br>表示</button>
 
     <div class="mapWaitOverlay" id="mapWaitOverlay">
       <span class="mapWaitText" id="mapWaitText">・・・　しばらくお待ち下さい　・・・</span>
@@ -1860,20 +1874,18 @@
     setTimeout(()=>{ map.invalidateSize(); }, 400);
   }
 
-  let mapModeBtnClickTimer = null;
   if(mapModeBtn){
     mapModeBtn.addEventListener('click', (ev)=>{
       ev.stopPropagation();
-      if(mapModeBtnClickTimer){
-        clearTimeout(mapModeBtnClickTimer);
-        mapModeBtnClickTimer = null;
-        toggleSplitView(); // 短時間で2回タップされたらダブルタップとして扱う
-      } else {
-        mapModeBtnClickTimer = setTimeout(()=>{
-          mapModeBtnClickTimer = null;
-          openInfoModal();
-        }, 300);
-      }
+      openInfoModal();
+    });
+  }
+
+  const splitViewBtn = document.getElementById('splitViewBtn');
+  if(splitViewBtn){
+    splitViewBtn.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      toggleSplitView();
     });
   }
 
@@ -1988,9 +2000,11 @@
     if(cachedStations.length > 0){
       mapModeBtn.style.display = 'flex';
       if(grayToggleBtn) grayToggleBtn.style.display = 'flex';
+      if(splitViewBtn) splitViewBtn.style.display = 'flex';
     } else {
       mapModeBtn.style.display = 'none';
       if(grayToggleBtn) grayToggleBtn.style.display = 'none';
+      if(splitViewBtn) splitViewBtn.style.display = 'none';
     }
   }
 
