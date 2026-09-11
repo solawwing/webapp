@@ -202,6 +202,10 @@
         <div class="item-header"><span class="item-icon">R</span><span class="item-name">REFECT</span></div>
         <div class="item-desc">Pierces enemies, zig-zagging every 100px it travels.</div>
       </div>
+      <div class="item-entry" data-weapon="ORBITAL">
+        <div class="item-header"><span class="item-icon">O</span><span class="item-name">ORBITAL</span></div>
+        <div class="item-desc">Orbiting rings that fire fine lasers forward. Levels to 7.</div>
+      </div>
       <div class="item-entry" data-weapon="SPARK">
         <div class="item-header"><span class="item-icon">S</span><span class="item-name">SPARK <span style="font-size:6px;">(SUMIDAGAWA HANABI FES.)</span></span></div>
         <div class="item-desc">Fireworks alternating normal/spread bursts. Levels to 7.</div>
@@ -305,7 +309,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-04 12:28';
+const LAST_UPDATED = '2026-09-12 03:11';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -365,8 +369,8 @@ function qbezier(p0, p1, p2, t) {
 function dist2(ax, ay, bx, by) { const dx = ax-bx, dy = ay-by; return dx*dx + dy*dy; }
 function rand(a, b) { return a + Math.random() * (b - a); }
 function weaponMaxLevel(type) {
-  // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT uniquely level up to 7, every other weapon caps at 5
-  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT') ? 7 : 5;
+  // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL uniquely level up to 7, every other weapon caps at 5
+  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL') ? 7 : 5;
 }
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function formatScore(n) { return Math.round(n).toLocaleString('en-US'); }
@@ -420,11 +424,12 @@ function resetPlayer() {
   player.prevWeapon = 'NORMAL'; player.prevWeaponLevel = 0; player.prevRapidLevel = 0;
   player.warping = false; player.warpT = 0; player.warpTrail = [];
   player.options = [];
+  player.orbitalRings = []; player.orbitalAngle = 0; player.orbitalEllipseAngle = 0;
 }
 
 // ---------- items ----------
-const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT'];
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00' };
+const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL'];
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -679,7 +684,7 @@ function updateItems(dt) {
     }
   }
 }
-const ITEM_GLYPHS = { DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R' };
+const ITEM_GLYPHS = { DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O' };
 function drawItems() {
   ctx.lineWidth = 1;
   items.forEach(it => {
@@ -1000,6 +1005,9 @@ function fireWeapon() {
         zigzagsLeft: 8, refectLegDist: 50, refectNormalLegDist: 120, fullTrail: [{ x: centerX, y: centerY, t: 0 }], refectAge: 0, noTrail: true,
       });
     }
+  } else if (player.weapon === 'ORBITAL') {
+    // no per-trigger action — ORBITAL fires continuously and independently from each
+    // ring's own timer, handled entirely in updatePlayer, not through this dispatch
   } else {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, power: 5 });
   }
@@ -2141,6 +2149,7 @@ function checkMiniBossHits(e) {
       if (b.spawnDelay > 0) continue;
       if (b.missile) continue; // MISSILE has its own dedicated mini-boss stick/attach mechanic elsewhere
       if (b.thunder) continue; // THUNDER has its own dedicated mini-boss chain-jump handling elsewhere
+      if (b.orbitalBolt) continue; // ORBITAL has its own dedicated mini-boss handling elsewhere
       if (b.laser && b.laserTickTimer !== undefined) {
         if (!b.laserShouldTick) continue; // main LASER: same 0.1s tick cadence here too
       } else if (b.hitSet && b.hitSet.has(marker)) {
@@ -2315,7 +2324,7 @@ let showingEquip = false;
 let debugStartWeapon = null;
 let debugStartAtBoss = false; // set via tapping the tier-A icon on the title screen
 let debugStartMaxLevel = false; // set via tapping the tier-E icon on the title screen
-const EQUIP_CHOICES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'THUNDER', 'REFECT', 'SPARK']; // no NORMAL
+const EQUIP_CHOICES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'THUNDER', 'REFECT', 'ORBITAL', 'SPARK']; // no NORMAL
 function showEquipSelect() {
   showingEquip = true;
   titleScreen.classList.add('hidden');
@@ -2354,6 +2363,8 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["2 jumps, up to 3 resets.", "4 jumps, up to 3 resets.", "8 jumps, up to 3 resets.", "16 jumps, up to 3 resets.", "32 jumps, up to 3 resets.", "32 jumps, up to 4 resets.", "32 jumps, up to 5 resets."] },
   REFECT: { intro: "Fires bolts that launch within just a few degrees of straight up, then bounce back and forth as they climb: after covering a fixed short stretch, each bolt flips over to the mirror-image angle and keeps going, tracing a zig-zagging path up the screen. Unlike most weapons, it doesn't stop or vanish on contact — it punches straight through anything in its way and keeps traveling afterward, so a single bolt can rack up hits against several enemies caught along its path. Leveling up simply adds more bolts to each volley, all launching from the same point with their own independently-randomized starting angle. REFECT uniquely keeps growing all the way to level seven, two levels further than most weapons, for a genuinely dense wall of crisscrossing bolts at max level.",
     levels: ["1 bolt.", "2 bolts.", "3 bolts.", "4 bolts.", "5 bolts.", "6 bolts.", "7 bolts, dense zig-zagging coverage."] },
+  ORBITAL: { intro: "Surrounds the ship with a set of wireframe rings, all sharing one elliptical orbit, evenly spaced around it and rotating together. The ellipse itself doesn't sit still either — it keeps slowly tumbling, reorienting its own long axis over time, so the whole formation traces a constantly shifting oval path around the ship rather than a fixed loop. Every ring periodically fires a fine, narrow laser straight ahead from wherever it currently sits, so the firing point sweeps around unpredictably as both the ring and the ellipse itself keep moving. On piercing through its first target, each bolt forks into two diverging shots instead of stopping. Leveling up adds two more rings to the same orbit, always in a diametrically opposite pair. ORBITAL uniquely keeps growing all the way to level seven, two levels further than most weapons, for a fully-layered defensive formation at max level.",
+    levels: ["2 rings.", "4 rings.", "6 rings.", "8 rings.", "10 rings.", "12 rings.", "14 rings, full coverage."] },
   SPARK: { intro: "A rare power-up themed after a fireworks festival, and one of the hardest weapon pickups to come across. Twin sparks rise gently into the air before bursting into a shower of scattering fragments. SPARK alternates between two burst modes on a permanent, repeating forty-second loop: a calmer normal mode (8, 10, or 12-way bursts, picked at random each time that mode begins) and a wild spread mode (64, 128, or 256-way bursts), cycling back to normal again once the loop completes rather than ever running out. Leveling up shifts the balance between the two — low levels favor a long stretch of normal bursts with just a short spread finale, while high levels flip that almost entirely into spread mode for a screen-filling barrage. Items still drop normally while it's active, just like with any other weapon.",
     levels: ["35s normal / 5s spread.", "30s normal / 10s spread.", "25s normal / 15s spread.", "20s normal / 20s spread.", "15s normal / 25s spread.", "10s normal / 30s spread.", "5s normal / 35s spread, mostly a spread barrage."] },
 };
@@ -2395,7 +2406,7 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 5000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['REFECT', 'MISSILE'];
+const EQUIP_UPDATED = ['ORBITAL'];
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -2573,6 +2584,35 @@ function updatePlayer(dt) {
     player.trailHistory = null;
   }
 
+  // ORBITAL: all rings share the SAME orbit (fixed 200px radius around the ship),
+  // evenly spaced around it, one ring added per level; every ring periodically fires
+  // a fine laser straight ahead from wherever it currently sits on the shared orbit
+  if (player.weapon === 'ORBITAL') {
+    const ringCount = player.weaponLevel * 2; // two rings per level, always diametrically opposite (evenly spaced around an even count)
+    const ORBIT_RX = 130, ORBIT_RY = 70; // elliptical orbit semi-axes
+    player.orbitalAngle = (player.orbitalAngle || 0) + dt * 3; // shared rotation speed for all rings around the ellipse (2x)
+    player.orbitalEllipseAngle = (player.orbitalEllipseAngle || 0) + dt * 0.6; // the ellipse's own orientation slowly tumbles
+    player.orbitalRings = player.orbitalRings || [];
+    player.orbitalRings.length = ringCount;
+    const cosE = Math.cos(player.orbitalEllipseAngle), sinE = Math.sin(player.orbitalEllipseAngle);
+    for (let ri = 0; ri < ringCount; ri++) {
+      if (!player.orbitalRings[ri]) player.orbitalRings[ri] = { fireTimer: rand(0, 0.5) };
+      const ring = player.orbitalRings[ri];
+      const angle = player.orbitalAngle + (ri * Math.PI * 2) / ringCount; // evenly spaced around the shared orbit
+      const ex = Math.sin(angle) * ORBIT_RX, ey = -Math.cos(angle) * ORBIT_RY; // point on the unrotated ellipse
+      const rx = player.x + ex * cosE - ey * sinE; // rotated into the ellipse's current tumbling orientation
+      const ry = player.y + ex * sinE + ey * cosE;
+      ring.x = rx; ring.y = ry;
+      ring.fireTimer -= dt;
+      if (ring.fireTimer <= 0 && player.alive) {
+        playerBullets.push({ x: rx, y: ry, vx: 0, vy: -900, r: 2, power: 2, orbitalBolt: true, hitSet: new Set(), orbitalGen: 0, trail: [] });
+        ring.fireTimer = 0.5;
+      }
+    }
+  } else {
+    player.orbitalRings = null;
+  }
+
   if (player.invT > 0) player.invT -= dt;
 
   // VULCAN multi-shot burst: fires individual shots from the player's current position
@@ -2676,7 +2716,7 @@ function updateBullets(dt) {
     if (!b.bubble && !b.noTrail) {
       if (!b.trail) b.trail = [];
       b.trail.push({ x: b.x, y: b.y, rot: b.angle !== undefined ? b.angle : b.rot, traveled: b.traveled });
-      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.missile ? 10 : b.double ? 24 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
+      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.missile ? 10 : b.orbitalBolt ? 24 : b.double ? 24 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
       if (b.trail.length > maxTrail) b.trail.shift();
     }
     if (b.homing) {
@@ -3097,6 +3137,63 @@ function handleOptionCollisions() {
   });
 }
 
+function handleOrbitalRingCollisions() {
+  // ORBITAL's rings: touching an enemy/boss/mini-boss/asteroid/crystal deals 1dmg
+  // (ring itself is unaffected/indestructible), touching an enemy bullet destroys it
+  if (!player.orbitalRings || player.orbitalRings.length === 0) return;
+  const ringR = 10; // matches the ring's own drawn radius
+  player.orbitalRings.forEach(ring => {
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const e = enemies[i];
+      if (e.type === 'GIANTBOSS' && e.miniBossHp) {
+        for (let vk = 0; vk < e.def.sides; vk++) {
+          if (e.miniBossHp[vk] <= 0) continue;
+          const pos = bossVertexWorldPos(e, vk);
+          const miniR = (e.def.r / 3) * 0.7;
+          const rr2 = (miniR + ringR) * (miniR + ringR);
+          if (dist2(ring.x, ring.y, pos.x, pos.y) < rr2) {
+            e.miniBossHp[vk] -= 1;
+            score += 10;
+            if (e.miniBossHp[vk] <= 0) {
+              spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220);
+            } else {
+              spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
+            }
+          }
+        }
+      }
+      const rr = (e.def.r + ringR) * (e.def.r + ringR);
+      if (dist2(ring.x, ring.y, e.x, e.y) < rr) {
+        if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
+        e.hp -= 1;
+        score += 10;
+        if (e.hp <= 0) {
+          handleEnemyDeath(e);
+          enemies.splice(i, 1);
+        } else if (e.type !== 'GIANTBOSS') {
+          spawnDeathParticles(e.x, e.y, e.def.color, 3);
+        }
+      }
+    }
+    for (let i = asteroids.length - 1; i >= 0; i--) {
+      const a = asteroids[i];
+      const rr = (a.r + ringR) * (a.r + ringR);
+      if (dist2(ring.x, ring.y, a.x, a.y) < rr) {
+        score += wave * 20;
+        registerAsteroidDamage(1, a);
+        spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 5);
+      }
+    }
+    for (let i = enemyBullets.length - 1; i >= 0; i--) {
+      const b = enemyBullets[i];
+      const rr = (ringR + b.r) * (ringR + b.r);
+      if (dist2(ring.x, ring.y, b.x, b.y) < rr) {
+        enemyBullets.splice(i, 1);
+      }
+    }
+  });
+}
+
 function laserSegmentEnds(b) {
   // returns the beam's current tip (b.x,b.y) and tail, accounting for its firing
   // angle (0 = straight up) — generalizes the old vertical-only assumption. While
@@ -3163,6 +3260,22 @@ function subLaserBendOnHit(b) {
   b.vx = Math.sin(b.subAngle) * spd;
   b.vy = -Math.cos(b.subAngle) * spd;
 }
+function splitOrbitalBoltOnHit(b) {
+  // every time it pierces through a target, an ORBITAL bolt forks into FIVE
+  // fragments fanning out from its current heading, each continuing to pierce
+  // further targets and splitting again on their own next hit — always returns
+  // true (caller should remove the original bolt it was called on)
+  const spd = Math.hypot(b.vx, b.vy) || 900;
+  const baseAngle = Math.atan2(b.vx, -b.vy); // current heading, 0=straight up
+  [-40, -20, 0, 20, 40].forEach(deg => {
+    const ang = baseAngle + deg * Math.PI / 180;
+    playerBullets.push({
+      x: b.x, y: b.y, vx: Math.sin(ang) * spd, vy: -Math.cos(ang) * spd, r: 2, power: b.power || 1,
+      orbitalBolt: true, hitSet: new Set(b.hitSet), orbitalGen: (b.orbitalGen || 0) + 1, trail: [],
+    });
+  });
+  return true;
+}
 function handleCollisions() {
   // player bullets vs enemies
   for (let j = playerBullets.length - 1; j >= 0; j--) {
@@ -3171,6 +3284,51 @@ function handleCollisions() {
     if (b.dying) continue; // erasing its trail, no longer active
     if (b.spark) continue; // no hit detection until it bursts
     if (b.chaining) continue; // thunder: handled entirely in updateBullets once chaining starts
+    if (b.orbitalBolt) {
+      let removed = false;
+      for (let i = enemies.length - 1; i >= 0 && !removed; i--) {
+        const e = enemies[i];
+        if (e.type === 'GIANTBOSS' && e.miniBossHp) {
+          e.miniBossMarkers = e.miniBossMarkers || [];
+          for (let vk = 0; vk < e.def.sides && !removed; vk++) {
+            if (e.miniBossHp[vk] <= 0) continue;
+            if (!e.miniBossMarkers[vk]) e.miniBossMarkers[vk] = {};
+            const marker = e.miniBossMarkers[vk];
+            if (b.hitSet.has(marker)) continue;
+            const pos = bossVertexWorldPos(e, vk);
+            const miniR = (e.def.r / 3) * 0.7;
+            const rr2 = (miniR + b.r) * (miniR + b.r);
+            if (dist2(pos.x, pos.y, b.x, b.y) < rr2) {
+              b.hitSet.add(marker);
+              e.miniBossHp[vk] -= (b.power || 1);
+              score += 10;
+              if (e.miniBossHp[vk] <= 0) {
+                spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220);
+              } else {
+                spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
+              }
+              if (splitOrbitalBoltOnHit(b)) { playerBullets.splice(j, 1); removed = true; }
+            }
+          }
+        }
+        if (removed || b.hitSet.has(e)) continue;
+        const rr = (e.def.r + b.r) * (e.def.r + b.r);
+        if (dist2(e.x, e.y, b.x, b.y) < rr) {
+          if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
+          b.hitSet.add(e);
+          e.hp -= (b.power || 1);
+          score += 10;
+          if (e.hp <= 0) {
+            handleEnemyDeath(e);
+            enemies.splice(i, 1);
+          } else if (e.type !== 'GIANTBOSS') {
+            spawnDeathParticles(e.x, e.y, e.def.color, 3);
+          }
+          if (splitOrbitalBoltOnHit(b)) { playerBullets.splice(j, 1); removed = true; }
+        }
+      }
+      continue;
+    }
     if (b.missile) {
       if (b.missileStuckTo || b.missileStuckBoss) continue; // already attached, ticking damage in updateBullets
       let attached = false;
@@ -3500,6 +3658,16 @@ function drawPlayer() {
       ctx.strokeRect(-7.5, -2.5, 15, 5);
       ctx.restore();
     });
+  } else if (player.weapon === 'ORBITAL' && player.orbitalRings) {
+    // ORBITAL's rings: all share one 150px orbit around the ship (no guide circle
+    // drawn), each ring itself drawn as a 20px wireframe circle at its position
+    ctx.strokeStyle = '#1560bd';
+    ctx.lineWidth = 1;
+    player.orbitalRings.forEach(ring => {
+      ctx.beginPath();
+      ctx.arc(ring.x, ring.y, 10, 0, Math.PI * 2);
+      ctx.stroke();
+    });
   }
   drawPlayerShape(player.x, player.y, '#7CFFF0');
 }
@@ -3747,6 +3915,21 @@ function handleAsteroidCollisions() {
     if (b.dying) continue; // erasing its trail, no longer active
     if (b.spark) continue; // no hit detection until it bursts
     if (b.chaining) continue; // thunder: handled entirely in updateBullets once chaining starts
+    if (b.orbitalBolt) {
+      for (let i = 0; i < asteroids.length; i++) {
+        const a = asteroids[i];
+        if (b.hitSet.has(a)) continue;
+        const rr = (a.r + b.r) * (a.r + b.r);
+        if (dist2(a.x, a.y, b.x, b.y) < rr) {
+          b.hitSet.add(a);
+          score += wave * 20;
+          registerAsteroidDamage(b.power || 1, a);
+          spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 5);
+          if (splitOrbitalBoltOnHit(b)) { playerBullets.splice(j, 1); break; }
+        }
+      }
+      continue;
+    }
     if (b.missile) {
       if (b.missileStuckTo || b.missileStuckBoss) continue; // already attached, ticking damage in updateBullets
       for (let i = 0; i < asteroids.length; i++) {
@@ -4052,6 +4235,36 @@ function drawBullets() {
   ctx.lineWidth = 1;
   playerBullets.forEach(b => {
     if (b.spawnDelay > 0) return; // not fired yet, stay invisible
+    if (b.orbitalBolt) {
+      // fine, narrow laser bolt fired straight ahead from wherever its ring
+      // currently sits; jubilee blue to match ORBITAL's rings. Rotates to match
+      // its current travel direction (relevant once it's forked). Leaves a faint,
+      // short fading afterimage behind it as it flies.
+      if (b.trail && b.trail.length > 1) {
+        for (let k = 1; k < b.trail.length; k++) {
+          const t = k / b.trail.length;
+          ctx.strokeStyle = `rgba(21,96,189,${0.18 * t})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(b.trail[k - 1].x, b.trail[k - 1].y);
+          ctx.lineTo(b.trail[k].x, b.trail[k].y);
+          ctx.stroke();
+        }
+      }
+      const ang = Math.atan2(b.vy, b.vx) + Math.PI / 2;
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(ang);
+      ctx.strokeStyle = '#1560bd';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, 12);
+      ctx.lineTo(0, -12);
+      ctx.stroke();
+      ctx.restore();
+      ctx.lineWidth = 1;
+      return;
+    }
     if (b.missile) {
       // small rocket shape (triangle nose + short body), oriented to its current
       // travel direction, with a short fading fluorescent yellow-green trail
@@ -4589,6 +4802,7 @@ function frame(now) {
     handleCollisions();
     handleAsteroidCollisions();
     handleOptionCollisions();
+    handleOrbitalRingCollisions();
     checkWaveClear();
   }
   if (!(state === STATE.PLAYING && paused)) {
