@@ -206,6 +206,10 @@
         <div class="item-header"><span class="item-icon">O</span><span class="item-name">ORBITAL</span></div>
         <div class="item-desc">Orbiting rings that fire fine lasers forward. Levels to 7.</div>
       </div>
+      <div class="item-entry" data-weapon="ZAPPER">
+        <div class="item-header"><span class="item-icon">Z</span><span class="item-name">ZAPPER</span></div>
+        <div class="item-desc">Drones dash to targets, zap them, then return. Levels to 7.</div>
+      </div>
       <div class="item-entry" data-weapon="SPARK">
         <div class="item-header"><span class="item-icon">S</span><span class="item-name">SPARK <span style="font-size:6px;">(SUMIDAGAWA HANABI FES.)</span></span></div>
         <div class="item-desc">Fireworks alternating normal/spread bursts. Levels to 7.</div>
@@ -309,7 +313,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-12 03:11';
+const LAST_UPDATED = '2026-09-12 10:15';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -369,8 +373,8 @@ function qbezier(p0, p1, p2, t) {
 function dist2(ax, ay, bx, by) { const dx = ax-bx, dy = ay-by; return dx*dx + dy*dy; }
 function rand(a, b) { return a + Math.random() * (b - a); }
 function weaponMaxLevel(type) {
-  // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL uniquely level up to 7, every other weapon caps at 5
-  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL') ? 7 : 5;
+  // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL/ZAPPER uniquely level up to 7, every other weapon caps at 5
+  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER') ? 7 : 5;
 }
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function formatScore(n) { return Math.round(n).toLocaleString('en-US'); }
@@ -425,11 +429,12 @@ function resetPlayer() {
   player.warping = false; player.warpT = 0; player.warpTrail = [];
   player.options = [];
   player.orbitalRings = []; player.orbitalAngle = 0; player.orbitalEllipseAngle = 0;
+  player.zapperSquares = [];
 }
 
 // ---------- items ----------
-const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL'];
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd' };
+const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER'];
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -684,7 +689,7 @@ function updateItems(dt) {
     }
   }
 }
-const ITEM_GLYPHS = { DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O' };
+const ITEM_GLYPHS = { DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z' };
 function drawItems() {
   ctx.lineWidth = 1;
   items.forEach(it => {
@@ -793,6 +798,86 @@ function findNearestChainTargetExcluding(x, y, excludeSet) {
     }
   });
   return best;
+}
+function findZapperTarget(x, y, excludeSet, allowShared) {
+  // ZAPPER's own target search: nearest valid target in any direction (no angle
+  // restriction); excludeSet is ignored entirely when allowShared is true (fallback
+  // for when nothing else is free)
+  let best = null, bestD = Infinity;
+  const consider = (obj, tx, ty) => {
+    if (!allowShared && excludeSet.has(obj)) return;
+    const d = dist2(x, y, tx, ty);
+    if (d < bestD) { bestD = d; best = obj; }
+  };
+  enemies.forEach(e => {
+    if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) return;
+    consider(e, e.x, e.y);
+  });
+  asteroids.forEach(a => consider(a, a.x, a.y));
+  enemies.forEach(e => {
+    if (e.type !== 'GIANTBOSS' || !e.miniBossHp) return;
+    e.miniBossMarkers = e.miniBossMarkers || [];
+    for (let vk = 0; vk < e.def.sides; vk++) {
+      if (e.miniBossHp[vk] <= 0) continue;
+      if (!e.miniBossMarkers[vk]) e.miniBossMarkers[vk] = {};
+      const marker = e.miniBossMarkers[vk];
+      const pos = bossVertexWorldPos(e, vk);
+      marker.x = pos.x; marker.y = pos.y; marker.isMiniBoss = true; marker.bossRef = e; marker.vertexIndex = vk;
+      consider(marker, pos.x, pos.y);
+    }
+  });
+  return best;
+}
+function zapperTargetPos(target) {
+  // returns the target's current live position, or null if it's no longer valid
+  // (destroyed, or an invulnerable boss body) — used by ZAPPER's drones
+  if (target.isMiniBoss) {
+    if (!enemies.includes(target.bossRef) || !target.bossRef.miniBossHp || target.bossRef.miniBossHp[target.vertexIndex] <= 0) return null;
+    return bossVertexWorldPos(target.bossRef, target.vertexIndex);
+  } else if (target.isAsteroidObj) {
+    if (!asteroids.includes(target)) return null;
+    return { x: target.x, y: target.y };
+  } else {
+    if (!enemies.includes(target)) return null;
+    if (target.type === 'GIANTBOSS' && !isBossVulnerable(target)) return null;
+    return { x: target.x, y: target.y };
+  }
+}
+function zapperDealDamage(target) {
+  // applies ZAPPER's damage tick to whatever kind of target it is: 2dmg against
+  // asteroids/crystals/mini-bosses/the boss body, 1dmg against regular enemies —
+  // plus +1 per RAPID level (stacks with RAPID same as other weapons). Returns
+  // true if that destroyed it (drone should return home), false if it should
+  // keep clinging
+  const rapidBonus = player.rapidLevel || 0;
+  if (target.isMiniBoss) {
+    const boss = target.bossRef, vk = target.vertexIndex;
+    const pos = bossVertexWorldPos(boss, vk);
+    boss.miniBossHp[vk] -= (2 + rapidBonus);
+    score += 10;
+    if (boss.miniBossHp[vk] <= 0) {
+      spawnDeathParticles(pos.x, pos.y, boss.def.color, 14, 220);
+      return true;
+    }
+    spawnDeathParticles(pos.x, pos.y, boss.def.color, 2);
+    return false;
+  } else if (target.isAsteroidObj) {
+    score += wave * 20;
+    registerAsteroidDamage(2 + rapidBonus, target);
+    spawnDeathParticles(target.x, target.y, target.isCrystal ? '#7CFFF0' : '#bbbbbb', 2);
+    return false; // asteroids/crystals are indestructible — drone keeps clinging until it splits away naturally
+  } else {
+    target.hp -= (target.type === 'GIANTBOSS' ? 2 : 1) + rapidBonus;
+    score += 10;
+    if (target.hp <= 0) {
+      handleEnemyDeath(target);
+      const idx = enemies.indexOf(target);
+      if (idx !== -1) enemies.splice(idx, 1);
+      return true;
+    }
+    if (target.type !== 'GIANTBOSS') spawnDeathParticles(target.x, target.y, target.def.color, 2);
+    return false;
+  }
 }
 function findNearestEnemyAhead(x, y, excludeSet, maxY) {
   // like findNearestEnemyExcluding, but ignores targets behind the reference point (y > maxY);
@@ -1008,6 +1093,9 @@ function fireWeapon() {
   } else if (player.weapon === 'ORBITAL') {
     // no per-trigger action — ORBITAL fires continuously and independently from each
     // ring's own timer, handled entirely in updatePlayer, not through this dispatch
+  } else if (player.weapon === 'ZAPPER') {
+    // no per-trigger action — ZAPPER's drones hunt/attack entirely on their own
+    // state machine in updatePlayer, not through this dispatch
   } else {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, power: 5 });
   }
@@ -2324,7 +2412,7 @@ let showingEquip = false;
 let debugStartWeapon = null;
 let debugStartAtBoss = false; // set via tapping the tier-A icon on the title screen
 let debugStartMaxLevel = false; // set via tapping the tier-E icon on the title screen
-const EQUIP_CHOICES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'THUNDER', 'REFECT', 'ORBITAL', 'SPARK']; // no NORMAL
+const EQUIP_CHOICES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'SPARK']; // no NORMAL
 function showEquipSelect() {
   showingEquip = true;
   titleScreen.classList.add('hidden');
@@ -2365,6 +2453,8 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["1 bolt.", "2 bolts.", "3 bolts.", "4 bolts.", "5 bolts.", "6 bolts.", "7 bolts, dense zig-zagging coverage."] },
   ORBITAL: { intro: "Surrounds the ship with a set of wireframe rings, all sharing one elliptical orbit, evenly spaced around it and rotating together. The ellipse itself doesn't sit still either — it keeps slowly tumbling, reorienting its own long axis over time, so the whole formation traces a constantly shifting oval path around the ship rather than a fixed loop. Every ring periodically fires a fine, narrow laser straight ahead from wherever it currently sits, so the firing point sweeps around unpredictably as both the ring and the ellipse itself keep moving. On piercing through its first target, each bolt forks into two diverging shots instead of stopping. Leveling up adds two more rings to the same orbit, always in a diametrically opposite pair. ORBITAL uniquely keeps growing all the way to level seven, two levels further than most weapons, for a fully-layered defensive formation at max level.",
     levels: ["2 rings.", "4 rings.", "6 rings.", "8 rings.", "10 rings.", "12 rings.", "14 rings, full coverage."] },
+  ZAPPER: { intro: "Stations a pair of small rotating squares just outside the ship, one on each side. Whenever a square is free, it locks onto the nearest available target — enemies, asteroids, crystals, mini-bosses, and the boss are all fair game — and dashes toward it at high speed. On contact it clings there, zapping away for repeated damage every tenth of a second until the target is destroyed, then races straight back to its resting spot beside the ship to wait for its next target. Every square always locks onto a different target than its partners, so the group spreads its attention across the field instead of piling onto one. Leveling up adds another pair further out from the ship. ZAPPER uniquely keeps growing all the way to level seven, two levels further than most weapons, for a small swarm of drones darting in and out at max level.",
+    levels: ["1 pair.", "2 pairs.", "3 pairs.", "4 pairs.", "5 pairs.", "6 pairs.", "7 pairs, full swarm."] },
   SPARK: { intro: "A rare power-up themed after a fireworks festival, and one of the hardest weapon pickups to come across. Twin sparks rise gently into the air before bursting into a shower of scattering fragments. SPARK alternates between two burst modes on a permanent, repeating forty-second loop: a calmer normal mode (8, 10, or 12-way bursts, picked at random each time that mode begins) and a wild spread mode (64, 128, or 256-way bursts), cycling back to normal again once the loop completes rather than ever running out. Leveling up shifts the balance between the two — low levels favor a long stretch of normal bursts with just a short spread finale, while high levels flip that almost entirely into spread mode for a screen-filling barrage. Items still drop normally while it's active, just like with any other weapon.",
     levels: ["35s normal / 5s spread.", "30s normal / 10s spread.", "25s normal / 15s spread.", "20s normal / 20s spread.", "15s normal / 25s spread.", "10s normal / 30s spread.", "5s normal / 35s spread, mostly a spread barrage."] },
 };
@@ -2406,7 +2496,7 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 5000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['ORBITAL'];
+const EQUIP_UPDATED = ['ORBITAL', 'ZAPPER'];
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -2611,6 +2701,67 @@ function updatePlayer(dt) {
     }
   } else {
     player.orbitalRings = null;
+  }
+
+  // ZAPPER: a pair of small diamonds stationed beside the ship per level, each one
+  // independently hunting down a distinct target, dashing to it, clinging on to deal
+  // repeated damage, then racing back to its resting spot with a brief cooldown
+  if (player.weapon === 'ZAPPER') {
+    const pairCount = player.weaponLevel;
+    player.zapperSquares = player.zapperSquares || [];
+    player.zapperSquares.length = pairCount * 2;
+    const claimed = new Set();
+    player.zapperSquares.forEach(sq => { if (sq && sq.target) claimed.add(sq.target); });
+    const ZAPPER_SPEED = 700;
+    const ZAPPER_HOME_OFFSET = 35; // fixed for every pair, regardless of level
+    for (let pi = 0; pi < pairCount; pi++) {
+      [-1, 1].forEach((side) => {
+        const idx = pi * 2 + (side < 0 ? 0 : 1);
+        if (!player.zapperSquares[idx]) {
+          player.zapperSquares[idx] = {
+            side, homeOffset: ZAPPER_HOME_OFFSET, x: player.x + side * ZAPPER_HOME_OFFSET, y: player.y,
+            state: 'idle', angle: rand(0, Math.PI * 2), attackTimer: 0, target: null, cooldownTimer: 0,
+          };
+        }
+        const sq = player.zapperSquares[idx];
+        sq.angle += dt * 2; // slow continuous spin
+        const homeX = player.x + sq.side * sq.homeOffset, homeY = player.y;
+        if (sq.state === 'idle') {
+          sq.x = homeX; sq.y = homeY;
+          if (sq.cooldownTimer > 0) {
+            sq.cooldownTimer -= dt;
+          } else {
+            let found = findZapperTarget(sq.x, sq.y, claimed, false);
+            if (!found) found = findZapperTarget(sq.x, sq.y, claimed, true); // no free target — sharing allowed as a fallback
+            if (found) { sq.target = found; claimed.add(found); sq.state = 'seeking'; }
+          }
+        } else if (sq.state === 'seeking' || sq.state === 'attacking') {
+          const pos = sq.target ? zapperTargetPos(sq.target) : null;
+          if (!pos) {
+            sq.state = 'returning'; sq.target = null;
+          } else if (sq.state === 'seeking') {
+            const dx = pos.x - sq.x, dy = pos.y - sq.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist < 15) { sq.state = 'attacking'; sq.attackTimer = 0; sq.x = pos.x; sq.y = pos.y; }
+            else { sq.x += dx / dist * ZAPPER_SPEED * dt; sq.y += dy / dist * ZAPPER_SPEED * dt; }
+          } else {
+            sq.x = pos.x; sq.y = pos.y;
+            sq.attackTimer -= dt;
+            if (sq.attackTimer <= 0) {
+              sq.attackTimer = 0.1;
+              if (zapperDealDamage(sq.target)) { sq.state = 'returning'; sq.target = null; }
+            }
+          }
+        } else if (sq.state === 'returning') {
+          const dx = homeX - sq.x, dy = homeY - sq.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 5) { sq.x = homeX; sq.y = homeY; sq.state = 'idle'; sq.cooldownTimer = 0.5; }
+          else { sq.x += dx / dist * ZAPPER_SPEED * dt; sq.y += dy / dist * ZAPPER_SPEED * dt; }
+        }
+      });
+    }
+  } else {
+    player.zapperSquares = null;
   }
 
   if (player.invT > 0) player.invT -= dt;
@@ -3667,6 +3818,19 @@ function drawPlayer() {
       ctx.beginPath();
       ctx.arc(ring.x, ring.y, 10, 0, Math.PI * 2);
       ctx.stroke();
+    });
+  } else if (player.weapon === 'ZAPPER' && player.zapperSquares) {
+    // ZAPPER's drones: small rotating fluorescent-pink squares, hunting/attacking/
+    // returning; grows to 25px while attacking (contact with its target), 10px otherwise
+    ctx.strokeStyle = '#ff2fd4';
+    ctx.lineWidth = 1;
+    player.zapperSquares.forEach(sq => {
+      const size = sq.state === 'attacking' ? 50 : 10;
+      ctx.save();
+      ctx.translate(sq.x, sq.y);
+      ctx.rotate(sq.angle || 0);
+      ctx.strokeRect(-size / 2, -size / 2, size, size);
+      ctx.restore();
     });
   }
   drawPlayerShape(player.x, player.y, '#7CFFF0');
