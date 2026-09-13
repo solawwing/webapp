@@ -325,7 +325,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-13 17:01';
+const LAST_UPDATED = '2026-09-13 19:08';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -3308,7 +3308,11 @@ function updateBullets(dt) {
 }
 
 function handleEnemyDeath(e) {
-  score += e.def.score * wave * 10;
+  if (e.type === 'GIANTBOSS') {
+    score += wave * 100000;
+  } else {
+    score += e.def.score * wave * 100;
+  }
   if (e.slot) e.slot.filled = false;
   killCount += 1;
   if (e.countsForPattern) { activeEnterCount--; e.countsForPattern = false; }
@@ -5305,7 +5309,7 @@ function drawLevelBar(name, level, maxLevel, rightX, y) {
 function drawPausedOverlay() {
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
   ctx.fillRect(0, 0, W, H);
-  drawSpacedText('PAUSED', W / 2, H / 2, 20, 12);
+  drawSpacedText('PAUSE', W / 2, H / 2, 20, 12);
 }
 function drawNextStageText() {
   ctx.fillStyle = '#7CFFF0';
