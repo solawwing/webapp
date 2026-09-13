@@ -325,7 +325,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-13 19:08';
+const LAST_UPDATED = '2026-09-13 19:38';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -670,7 +670,6 @@ function updateItems(dt) {
       if (it.type === 'RAPID') {
         if (player.rapidLevel >= 3) {
           score += 999990;
-          pickupTexts.push({ text: '+999990', x: player.x, y: player.y - player.r - 6, t: 0, duration: 2.0 });
         } else {
           player.rapidLevel = Math.min(3, player.rapidLevel + 1);
           pickupTexts.push({ text: 'RAPID Lv' + player.rapidLevel, x: player.x, y: player.y - player.r - 6, t: 0, duration: 2.0 });
@@ -3309,9 +3308,9 @@ function updateBullets(dt) {
 
 function handleEnemyDeath(e) {
   if (e.type === 'GIANTBOSS') {
-    score += wave * 100000;
+    score += wave * 10000;
   } else {
-    score += e.def.score * wave * 100;
+    score += e.def.score * wave * 10;
   }
   if (e.slot) e.slot.filled = false;
   killCount += 1;
@@ -5014,7 +5013,7 @@ function drawBullets() {
       // bolt itself finishes its zig-zags and stops.
       const fadeAlpha = b.refectDone ? Math.max(0, 1 - (b.refectFadeT || 0) / 0.5) : 1;
       if (b.fullTrail && b.fullTrail.length > 1) {
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 2;
         for (let k = 1; k < b.fullTrail.length; k++) {
           const age = (b.refectAge || 0) - b.fullTrail[k].t;
           const segAlpha = Math.max(0, 1 - age / 1.0) * 0.5;
@@ -5031,7 +5030,7 @@ function drawBullets() {
       ctx.translate(b.x, b.y);
       ctx.rotate(ang);
       ctx.strokeStyle = hexToRgba('#00e5ff', 1.0 * fadeAlpha);
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(0, 0.5);
       ctx.lineTo(0, -0.5);
@@ -5309,7 +5308,9 @@ function drawLevelBar(name, level, maxLevel, rightX, y) {
 function drawPausedOverlay() {
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
   ctx.fillRect(0, 0, W, H);
-  drawSpacedText('PAUSE', W / 2, H / 2, 20, 12);
+  ctx.fillStyle = '#7CFFF0';
+  const fontPx = clamp(W * 0.035, 8, 18);
+  drawSpacedText('PAUSE', W / 2, H / 2, fontPx, 20);
 }
 function drawNextStageText() {
   ctx.fillStyle = '#7CFFF0';
@@ -5336,10 +5337,11 @@ function drawHUD() {
   ctx.fillText(scoreText, startX, 10);
   ctx.fillText(hiText, startX + scoreWidth + gap, 10);
 
-  // WAVE: left-aligned, followed by its position in the 12-wave cycle
+  // WAVE: left-aligned, followed by which cycle loop it's in and its position within it
   ctx.textAlign = 'left';
   const cyclePos = ((wave - 1) % CYCLE_LEN) + 1;
-  ctx.fillText('WAVE ' + wave + ' (' + cyclePos + ')', 12, 10);
+  const cycleNum = Math.floor((wave - 1) / CYCLE_LEN) + 1;
+  ctx.fillText('WAVE ' + wave + ' ( ' + cycleNum + ' - ' + cyclePos + ' )', 12, 10);
 
   // asteroid/crystal belt countdown
   const cycleM = ((wave - 1) % CYCLE_LEN) + 1;
