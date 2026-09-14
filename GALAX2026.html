@@ -325,7 +325,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-13 19:45';
+const LAST_UPDATED = '2026-09-14 21:11';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -2300,9 +2300,9 @@ function checkMiniBossHits(e) {
       if (b.gravity) {
         applyGravitySplash(pos.x, pos.y, b.gravityRadius || 40, null); // gravity's splash+shockwave also center on the mini-boss it hit
       }
-      if (b.refect) refectTurn90(b); // turns 90° on hitting a mini-boss too, instead of piercing/vanishing
+      if (b.refect) { splitRefectOnHit(b); if (b.hitSet) b.hitSet.add(marker); playerBullets.splice(j, 1); continue; }
       if (b.hitSet) b.hitSet.add(marker);
-      if (!b.laser && !b.thunder && !b.laserCurve && !b.refect) playerBullets.splice(j, 1);
+      if (!b.laser && !b.thunder && !b.laserCurve) playerBullets.splice(j, 1);
     }
   }
 }
@@ -3642,18 +3642,23 @@ function closestDistSqOnPolyline(points, px, py) {
   }
   return best;
 }
-function refectTurn90(b) {
-  // on hitting a target, REFECT no longer pierces straight through — instead its
-  // current travel direction rotates 90 degrees (alternating turn side each hit),
-  // and this new heading becomes its base angle for any further zig-zag bending
+function splitRefectOnHit(b) {
+  // on hitting a target, REFECT no longer just turns in place — it splits into two
+  // new bolts, one turning +80° and one turning -80° from its current heading
+  // (alternating which one leads each hit via turnSign), replacing the original.
+  // Fragments behave identically on their own next hit (recursive splitting, uncapped)
   const spd = Math.hypot(b.vx, b.vy) || 1600;
+  const baseAngle = Math.atan2(b.vx, -b.vy); // current heading, "0=up" convention
   const turnSign = -(b.refectSign || 1);
-  b.refectSign = turnSign;
-  b.refectAngle = (b.refectAngle || 0) + turnSign * (Math.PI / 2);
-  b.refectBaseAngle = b.refectAngle;
-  b.vx = Math.sin(b.refectAngle) * spd;
-  b.vy = -Math.cos(b.refectAngle) * spd;
-  b.refectDist = 0; // restart the current leg's distance count from this new heading
+  [80, -80].forEach(deg => {
+    const ang = baseAngle + turnSign * (deg * Math.PI / 180);
+    playerBullets.push({
+      ...b,
+      vx: Math.sin(ang) * spd, vy: -Math.cos(ang) * spd,
+      refectSign: turnSign, refectAngle: ang, refectBaseAngle: ang, refectDist: 0,
+      fullTrail: [{ x: b.x, y: b.y, t: b.refectAge || 0 }],
+    });
+  });
 }
 function subLaserBendOnHit(b) {
   // on hitting an enemy, each sub-laser bends 10 degrees further outward (left sub
@@ -4025,7 +4030,9 @@ function handleCollisions() {
           } else if (e.type !== 'GIANTBOSS') {
             spawnDeathParticles(e.x, e.y, e.def.color, 3);
           }
-          refectTurn90(b); // turns 90° on hit instead of piercing straight through
+          splitRefectOnHit(b); // splits into two new bolts (30°/90° turn) instead of piercing straight through
+          playerBullets.splice(j, 1);
+          break;
         }
       }
     } else {
@@ -4586,7 +4593,9 @@ function handleAsteroidCollisions() {
           score += wave * 20;
           registerAsteroidDamage(5, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
-          refectTurn90(b); // turns 90° on hit instead of piercing straight through
+          splitRefectOnHit(b); // splits into two new bolts (30°/90° turn) instead of piercing straight through
+          playerBullets.splice(j, 1);
+          break;
         }
       }
     } else {
