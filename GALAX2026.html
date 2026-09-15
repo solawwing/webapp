@@ -140,7 +140,7 @@
         <polygon points="9,12.5 13,12.5 11,6.5" fill="none" stroke="#ff6d00" stroke-width="1"/>
         <polygon points="15,12.5 19,12.5 17,6.5" fill="none" stroke="#ff6d00" stroke-width="1"/>
       </svg>
-      <svg width="28" height="31" viewBox="0 0 28 31"><polygon points="14,30 6,12.5 22,12.5" fill="none" stroke="#eeff00" stroke-width="1"/>
+      <svg id="tierCIcon" width="28" height="31" viewBox="0 0 28 31" style="pointer-events:auto; cursor:pointer;"><polygon points="14,30 6,12.5 22,12.5" fill="none" stroke="#eeff00" stroke-width="1"/>
         <polygon points="6,24.5 4,8.5 8,8.5" fill="none" stroke="#eeff00" stroke-width="1"/>
         <polygon points="22,24.5 20,8.5 24,8.5" fill="none" stroke="#eeff00" stroke-width="1"/>
         <polygon points="12,12.5 16,12.5 14,6.5" fill="none" stroke="#eeff00" stroke-width="1"/>
@@ -201,6 +201,10 @@
       <div class="item-entry" data-weapon="PHANTOM">
         <div class="item-header"><span class="item-icon">P</span><span class="item-name">PHANTOM</span></div>
         <div class="item-desc">Instant flash beam that slows anything it catches. Levels all the way to 7.</div>
+      </div>
+      <div class="item-entry" data-weapon="QIX">
+        <div class="item-header"><span class="item-icon">Q</span><span class="item-name">QIX</span></div>
+        <div class="item-desc">A rippling wireframe rod that flows like a folding fan. Levels to 7.</div>
       </div>
       <div class="item-entry" data-weapon="REFECT">
         <div class="item-header"><span class="item-icon">R</span><span class="item-name">REFECT</span></div>
@@ -325,7 +329,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-15 08:22';
+const LAST_UPDATED = '2026-09-16 07:49';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -384,8 +388,8 @@ function qbezier(p0, p1, p2, t) {
 function dist2(ax, ay, bx, by) { const dx = ax-bx, dy = ay-by; return dx*dx + dy*dy; }
 function rand(a, b) { return a + Math.random() * (b - a); }
 function weaponMaxLevel(type) {
-  // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL/ZAPPER/XCROSS/KURU2/ARROW uniquely level up to 7, every other weapon caps at 5
-  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW') ? 7 : 5;
+  // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL/ZAPPER/XCROSS/KURU2/ARROW/QIX uniquely level up to 7, every other weapon caps at 5
+  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX') ? 7 : 5;
 }
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function formatScore(n) { return Math.round(n).toLocaleString('en-US'); }
@@ -426,7 +430,7 @@ function resetPlayer() {
   player.trailHistory = [{ x: W / 2, y: H - 90 }]; // fresh path history for a brand-new game
   player.lives = 3; player.alive = true; player.invT = 2.0; player.fireCd = 0;
   player.weapon = debugStartWeapon || 'NORMAL';
-  player.weaponLevel = debugStartWeapon ? (debugStartMaxLevel ? weaponMaxLevel(debugStartWeapon) : debugStartAtBoss ? 3 : 1) : 0;
+  player.weaponLevel = debugStartWeapon ? (debugStartMaxLevel ? weaponMaxLevel(debugStartWeapon) : (debugStartAtBoss || debugSkipEnemyWaves) ? 3 : 1) : 0;
   player.rapidLevel = 0; player.burstRemaining = 0; player.burstTimer = 0;
   player.vulcanBurstRemaining = 0; player.vulcanBurstTimer = 0; player.vulcanShotInterval = 0.1; player.vulcanXOffset = 0;
   player.laserSubCooldown = 0;
@@ -444,8 +448,8 @@ function resetPlayer() {
 }
 
 // ---------- items ----------
-const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW'];
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ffd83d', ARROW: '#faff00' };
+const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX'];
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ffd83d', ARROW: '#faff00', QIX: '#ffffff' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -706,7 +710,7 @@ function updateItems(dt) {
     }
   }
 }
-const ITEM_GLYPHS = { DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A' };
+const ITEM_GLYPHS = { DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q' };
 function drawItems() {
   ctx.lineWidth = 1;
   items.forEach(it => {
@@ -951,7 +955,7 @@ const SPARK_COOLDOWNS = [0, 0.3, 0.3, 0.3, 0.3, 0.3]; // fixed 0.3s regardless o
 // "wait until the screen is clear of your own bullets" gate for these weapons
 const WEAPON_FIRE_COOLDOWNS = {
   NORMAL: 0.3, DOUBLE: 0.3, MISSILE: 1.0, HOMING: 0.8, LASER: 1.0,
-  GRAVITY: 0.8, BUBBLE: 0.5, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4,
+  GRAVITY: 0.8, BUBBLE: 0.5, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4, QIX: 0.4,
 };
 const LASER_SPECS = [null,
   { length: 200, pierce: 5, speed: 300 },
@@ -1137,6 +1141,15 @@ function fireWeapon() {
         arrow: true, arrowAngle: rad, arrowSped: false, arrowAge: 0, arrowGen: 0, hitSet: new Set(),
       });
     }
+  } else if (player.weapon === 'QIX') {
+    // fires a single slim rod that tumbles irregularly as it flies, piercing
+    // through anything in its path while trailing afterimages behind it; leveling
+    // up stretches the rod itself longer instead of firing more of them
+    const qixLength = 50 + (lvl - 1) * 25;
+    playerBullets.push({
+      x: bx, y: by, vx: 0, vy: -350, r: qixLength / 6, power: 5,
+      qix: true, qixPhase: rand(0, Math.PI * 2), qixDir: rand(0, 1) < 0.5 ? 1 : -1, qixPivot: rand(0.15, 0.85), qixHitSets: [new Set(), new Set(), new Set(), new Set(), new Set()], qixHistory: [], qixLength,
+    });
   } else {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, power: 5 });
   }
@@ -1900,6 +1913,11 @@ let waveStartDelayTimer = 0;
 let waveActive = false;
 
 function startWave() {
+  if (debugSkipEnemyWaves) {
+    // fast-forward past any ENEMY-type cycle positions so only ASTEROID/CRYSTAL/
+    // BOSS encounters ever play
+    while (CYCLE_KIND[((wave - 1) % CYCLE_LEN)] === 'ENEMY') wave += 1;
+  }
   const m = ((wave - 1) % CYCLE_LEN) + 1;
   const kind = CYCLE_KIND[m - 1];
   waveActive = false;
@@ -2282,6 +2300,7 @@ function checkMiniBossHits(e) {
       if (b.xcross) continue; // XCROSS has its own dedicated mini-boss handling elsewhere
       if (b.kuru2) continue; // KURU2 has its own dedicated mini-boss handling elsewhere
       if (b.arrow) continue; // ARROW has its own dedicated mini-boss handling elsewhere
+      if (b.qix) continue; // QIX has its own dedicated mini-boss handling elsewhere
       if (b.laser && b.laserTickTimer !== undefined) {
         if (!b.laserShouldTick) continue; // main LASER: same 0.1s tick cadence here too
       } else if (b.hitSet && b.hitSet.has(marker)) {
@@ -2458,8 +2477,9 @@ canvas.addEventListener('pointerdown', e => {
 let showingEquip = false;
 let debugStartWeapon = null;
 let debugStartAtBoss = false; // set via tapping the tier-A icon on the title screen
+let debugSkipEnemyWaves = false; // set via tapping the tier-C icon on the title screen — only ASTEROID/CRYSTAL/BOSS cycle positions play, ENEMY positions are silently skipped
 let debugStartMaxLevel = false; // set via tapping the tier-E icon on the title screen
-const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'GRAVITY', 'HOMING', 'KURU2', 'LASER', 'MISSILE', 'ORBITAL', 'PHANTOM', 'REFECT', 'SPARK', 'THUNDER', 'VULCAN', 'XCROSS', 'ZAPPER']; // no NORMAL — alphabetical order
+const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'GRAVITY', 'HOMING', 'KURU2', 'LASER', 'MISSILE', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'VULCAN', 'XCROSS', 'ZAPPER']; // no NORMAL — alphabetical order
 function showEquipSelect() {
   showingEquip = true;
   titleScreen.classList.add('hidden');
@@ -2492,6 +2512,8 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["2-shot burst, 1x repeat.", "4-shot burst, 2x repeat.", "6-shot burst, 3x repeat.", "8-shot burst, 4x repeat.", "10-shot burst, 5x repeat.", "12-shot burst, 6x repeat.", "14-shot burst, 7x repeat, same 0.5s window."] },
   PHANTOM: { intro: "Instantly flashes a wide beam from the ship straight up to the top of the screen, damaging everything caught inside the flash the very moment it fires, with no travel time at all. Anything still standing inside that flash zone while it's fading out also gets caught in a slowing field, moving and acting at half speed for as long as they linger there — and takes a second damage tick right as the flash finishes, catching anything that wandered in after the initial hit too. The width of that flash and the cooldown between flashes both improve dramatically with level, the beam growing wider while the wait between activations shrinks all the way down to a tenth of a second. PHANTOM also uniquely keeps growing all the way to level seven, two levels further than most other weapons, letting you flash almost constantly once fully powered up.",
     levels: ["100px wide, 1.0s cooldown.", "120px wide, 0.8s cooldown.", "140px wide, 0.6s cooldown.", "160px wide, 0.4s cooldown.", "180px wide, 0.2s cooldown.", "200px wide, 0.15s cooldown.", "220px wide, 0.1s cooldown."] },
+  QIX: { intro: "Fires a single slim wireframe rod that pierces through everything in its path, tumbling end over end around an off-center pivot at an irregular, wobbling speed rather than spinning smoothly or flying as a fixed rigid line. It trails a handful of faded afterimages behind it too, echoing its own position from moments earlier. Leveling up doesn't add more rods — it stretches the one rod itself another twenty-five pixels longer, so a maxed-out QIX sweeps a much longer reach with every pass. QIX uniquely keeps growing all the way to level seven, two levels further than most weapons, for a genuinely long tumbling rod at max level.",
+    levels: ["50px long.", "75px long.", "100px long.", "125px long.", "150px long.", "175px long.", "200px long."] },
   CURVE: { intro: "Launches two violet beams per level, each one locking onto a different target near the top of the screen so that a full volley spreads its attention across several enemies at once instead of piling onto one. Rather than turning sharply toward its target, each beam curves along a gentle, ever-tightening parabolic arc, so its path visibly bends more and more the longer it stays airborne. Its hitbox reaches a generous twenty pixels to either side too, so it doesn't need to line up perfectly to connect. Along the way it pierces through anything else it happens to pass, dealing lesser damage to those incidental targets while saving its heaviest hit for whatever it originally locked onto. CURVE uniquely keeps growing all the way to level seven, two levels further than most weapons, letting a maxed-out volley lock onto a huge share of everything near the top of the screen at once.",
     levels: ["2 beams.", "4 beams.", "6 beams.", "8 beams.", "10 beams.", "12 beams.", "14 beams, covers nearly the whole top row."] },
   THUNDER: { intro: "A yellow bolt that, on its first hit, ignites a chain reaction, jumping rapidly to the nearest untouched target within a huge range and then the next, forming a single unbroken line of lightning rather than branching apart, dealing solid damage with every single jump. If it ever runs out of nearby untouched targets while jumps still remain, it clears its own memory of who it's already hit and keeps going, letting the same handful of targets get chained through again rather than fizzling out early — this reset is capped per bolt so it can't loop forever, and that cap itself grows a little further at the very top levels. The chain caps out at thirty-two total jumps by level five, and THUNDER uniquely keeps growing two levels further still, not for more jumps but for a chain that's simply more persistent and harder to run dry, letting a maxed-out bolt chew through entire waves off a single well-placed hit.",
@@ -2549,7 +2571,7 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 2000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW'];
+const EQUIP_UPDATED = ['ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX'];
 const EQUIP_UPDATE_TAG = ['MISSILE', 'CURVE', 'VULCAN']; // shows "UPDATE" instead of "NEW"
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
@@ -2960,6 +2982,19 @@ function updateBullets(dt) {
     }
     if (b.kuru2 || b.kuru2Frag) {
       b.kuru2Angle = (b.kuru2Angle || 0) + dt * 8; // continuous spin while flying
+    }
+    if (b.qix) {
+      // each bullet spins at a steady rate in ONE fixed direction for its entire
+      // life (decided once at spawn, qixDir) — different bullets get different
+      // directions, rather than any single bullet flipping mid-flight
+      b.qixT = (b.qixT || 0) + dt;
+      const angSpeed = (b.qixDir || 1) * 3;
+      b.qixPhase = (b.qixPhase || 0) + angSpeed * dt;
+      // records its own position/rotation history so afterimages (1.0/0.8/0.4/0.4/0.2s
+      // ago) can be drawn behind it while it pierces onward
+      b.qixHistory = b.qixHistory || [];
+      b.qixHistory.push({ x: b.x, y: b.y, phase: b.qixPhase, t: b.qixT });
+      while (b.qixHistory.length > 1 && b.qixT - b.qixHistory[0].t > 0.2) b.qixHistory.shift();
     }
     if (b.arrow && !b.arrowSped && !b.arrowPiercing) {
       // holds at its slow initial speed (30) for 0.5s, then sharply ramps up to 600
@@ -3458,6 +3493,21 @@ function distSqToSegment(px, py, x1, y1, x2, y2) {
   const cx = x1 + segX * t, cy = y1 + segY * t;
   return dist2(cx, cy, px, py);
 }
+function qixEndpoints(b) {
+  // world-space endpoints of the rod's current line segment, accounting for its
+  // length, off-center pivot (randomized per bullet, not a fixed split), and
+  // current tumble rotation — used so collision covers the whole rod, not just
+  // its pivot point
+  const len = b.qixLength || 50;
+  const theta = b.qixPhase || 0;
+  const pivot = b.qixPivot !== undefined ? b.qixPivot : 0.3;
+  const d1 = len * pivot, d2 = len * (1 - pivot);
+  const sin = Math.sin(theta), cos = Math.cos(theta);
+  return {
+    x1: b.x + d1 * sin, y1: b.y - d1 * cos,
+    x2: b.x - d2 * sin, y2: b.y + d2 * cos,
+  };
+}
 function spawnXCrossMiniFlash(x, y, rot, level) {
   // caught targets each display their own small X-flash: thickness fixed at 3px,
   // reach scales with level (25 + level×25), independent of the main strike's
@@ -3732,6 +3782,66 @@ function handleCollisions() {
             enemies.splice(i, 1);
           } else if (e.type !== 'GIANTBOSS') {
             spawnDeathParticles(e.x, e.y, e.def.color, 3);
+          }
+        }
+      }
+      continue;
+    }
+    if (b.qix) {
+      // pierces through everything, each of the 6 segments (main rod + 5
+      // afterimages) tracking its OWN hit history — so a target can be hit once by
+      // the main rod AND once by each afterimage as they all pass over it (double
+      // hits are intended, not deduped across segments)
+      const segs = [qixEndpoints(b)];
+      if (b.qixHistory) {
+        [0.2, 0.15, 0.1, 0.05].forEach(agoTarget => {
+          const targetT = (b.qixT || 0) - agoTarget;
+          if (targetT < (b.qixHistory[0] ? b.qixHistory[0].t : 0)) return;
+          let closest = b.qixHistory[0];
+          for (const snap of b.qixHistory) {
+            if (Math.abs(snap.t - targetT) < Math.abs(closest.t - targetT)) closest = snap;
+          }
+          segs.push(qixEndpoints({ x: closest.x, y: closest.y, qixPhase: closest.phase, qixLength: b.qixLength, qixPivot: b.qixPivot }));
+        });
+      }
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        if (e.type === 'GIANTBOSS' && e.miniBossHp) {
+          e.miniBossMarkers = e.miniBossMarkers || [];
+          for (let vk = 0; vk < e.def.sides; vk++) {
+            if (e.miniBossHp[vk] <= 0) continue;
+            if (!e.miniBossMarkers[vk]) e.miniBossMarkers[vk] = {};
+            const marker = e.miniBossMarkers[vk];
+            const pos = bossVertexWorldPos(e, vk);
+            const miniR = (e.def.r / 3) * 0.7;
+            for (let si = 0; si < segs.length; si++) {
+              if (b.qixHitSets[si].has(marker)) continue;
+              const seg = segs[si];
+              if (distSqToSegment(pos.x, pos.y, seg.x1, seg.y1, seg.x2, seg.y2) < miniR * miniR) {
+                b.qixHitSets[si].add(marker);
+                e.miniBossHp[vk] -= si === 0 ? (b.power || 5) : 2;
+                score += 10;
+                if (e.miniBossHp[vk] <= 0) spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220);
+                else spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
+              }
+            }
+          }
+        }
+        for (let si = 0; si < segs.length; si++) {
+          if (b.qixHitSets[si].has(e)) continue;
+          const seg = segs[si];
+          if (distSqToSegment(e.x, e.y, seg.x1, seg.y1, seg.x2, seg.y2) < e.def.r * e.def.r) {
+            if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
+            b.qixHitSets[si].add(e);
+            e.hp -= si === 0 ? (b.power || 5) : 2;
+            score += 10;
+            if (e.hp <= 0) {
+              handleEnemyDeath(e);
+              enemies.splice(i, 1);
+              break; // it's gone — no more segments to check against it
+            } else if (e.type !== 'GIANTBOSS') {
+              spawnDeathParticles(e.x, e.y, e.def.color, 3);
+            }
           }
         }
       }
@@ -4468,6 +4578,34 @@ function handleAsteroidCollisions() {
       }
       continue;
     }
+    if (b.qix) {
+      const segs = [qixEndpoints(b)];
+      if (b.qixHistory) {
+        [0.2, 0.15, 0.1, 0.05].forEach(agoTarget => {
+          const targetT = (b.qixT || 0) - agoTarget;
+          if (targetT < (b.qixHistory[0] ? b.qixHistory[0].t : 0)) return;
+          let closest = b.qixHistory[0];
+          for (const snap of b.qixHistory) {
+            if (Math.abs(snap.t - targetT) < Math.abs(closest.t - targetT)) closest = snap;
+          }
+          segs.push(qixEndpoints({ x: closest.x, y: closest.y, qixPhase: closest.phase, qixLength: b.qixLength, qixPivot: b.qixPivot }));
+        });
+      }
+      for (let i = 0; i < asteroids.length; i++) {
+        const a = asteroids[i];
+        for (let si = 0; si < segs.length; si++) {
+          if (b.qixHitSets[si].has(a)) continue;
+          const seg = segs[si];
+          if (distSqToSegment(a.x, a.y, seg.x1, seg.y1, seg.x2, seg.y2) < a.r * a.r) {
+            b.qixHitSets[si].add(a);
+            score += wave * 20;
+            registerAsteroidDamage(si === 0 ? (b.power || 5) : 2, a);
+            spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 3);
+          }
+        }
+      }
+      continue;
+    }
     if (b.kuru2) {
       if (b.kuru2Bursting) continue; // already spent its hit — just sitting and spinning until the burst ends
       for (let i = 0; i < asteroids.length; i++) {
@@ -4835,6 +4973,39 @@ function drawBullets() {
       ctx.lineTo(halfBase, halfHeight);
       ctx.stroke();
       ctx.restore();
+      return;
+    }
+    if (b.qix) {
+      // a slim rod (length grows +25px per level, starting at 50px) that tumbles
+      // around an off-center pivot point (not its own midpoint) at an irregularly
+      // wobbling angular speed, rather than flying as a fixed rigid line or a
+      // simple steady spin. Leaves faded afterimages behind it at fixed past-time
+      // offsets while it pierces onward.
+      const len = b.qixLength || 50;
+      const pivot = b.qixPivot !== undefined ? b.qixPivot : 0.3;
+      const drawRod = (x, y, phase, alpha) => {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(phase || 0);
+        ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, -len * pivot); // pivot randomized per bullet — off-center
+        ctx.lineTo(0, len * (1 - pivot));
+        ctx.stroke();
+        ctx.restore();
+      };
+      if (b.qixHistory && b.qixHistory.length > 1) {
+        [0.2, 0.15, 0.1, 0.05].forEach(agoTarget => {
+          const targetT = (b.qixT || 0) - agoTarget;
+          let closest = b.qixHistory[0];
+          for (const snap of b.qixHistory) {
+            if (Math.abs(snap.t - targetT) < Math.abs(closest.t - targetT)) closest = snap;
+          }
+          if (targetT >= (b.qixHistory[0].t || 0)) drawRod(closest.x, closest.y, closest.phase, 0.45);
+        });
+      }
+      drawRod(b.x, b.y, b.qixPhase, 1.0);
       return;
     }
     if (b.kuru2 || b.kuru2Frag) {
@@ -5561,6 +5732,25 @@ if (tierEIcon) {
       showEquipSelect();
     }
     tierELastTap = now;
+  });
+}
+
+// double-tapping the tier-C icon on the title screen flags the next game start to
+// begin at weapon Lv3 and skip every ENEMY-type cycle position from then on, so
+// only ASTEROID/CRYSTAL/BOSS encounters ever play — a dedicated debug mode for
+// practicing/farming those encounters back to back
+const tierCIcon = document.getElementById('tierCIcon');
+if (tierCIcon) {
+  let tierCLastTap = 0;
+  tierCIcon.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const now = Date.now();
+    if (now - tierCLastTap < 300) {
+      debugSkipEnemyWaves = true;
+      showEquipSelect();
+    }
+    tierCLastTap = now;
   });
 }
 
