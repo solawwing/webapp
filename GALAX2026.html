@@ -174,6 +174,10 @@
         <div class="item-header"><span class="item-icon">D</span><span class="item-name">DOUBLE</span></div>
         <div class="item-desc">Twin shots plus trailing options that fire and fight alongside you.</div>
       </div>
+      <div class="item-entry" data-weapon="EARTH">
+        <div class="item-header"><span class="item-icon">E</span><span class="item-name">EARTH</span></div>
+        <div class="item-desc">Diagonal pods that fire sideways lasers. Levels to 7.</div>
+      </div>
       <div class="item-entry" data-weapon="GRAVITY">
         <div class="item-header"><span class="item-icon">G</span><span class="item-name">GRAVITY</span></div>
         <div class="item-desc">Splash damage plus a shockwave that slows and hurts. Levels to 7.</div>
@@ -329,7 +333,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-16 07:49';
+const LAST_UPDATED = '2026-09-16 09:05';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -388,8 +392,8 @@ function qbezier(p0, p1, p2, t) {
 function dist2(ax, ay, bx, by) { const dx = ax-bx, dy = ay-by; return dx*dx + dy*dy; }
 function rand(a, b) { return a + Math.random() * (b - a); }
 function weaponMaxLevel(type) {
-  // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL/ZAPPER/XCROSS/KURU2/ARROW/QIX uniquely level up to 7, every other weapon caps at 5
-  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX') ? 7 : 5;
+  // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL/ZAPPER/XCROSS/KURU2/ARROW/QIX/EARTH uniquely level up to 7, every other weapon caps at 5
+  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH') ? 7 : 5;
 }
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function formatScore(n) { return Math.round(n).toLocaleString('en-US'); }
@@ -445,11 +449,12 @@ function resetPlayer() {
   player.options = [];
   player.orbitalRings = []; player.orbitalAngle = 0; player.orbitalEllipseAngle = 0;
   player.zapperSquares = [];
+  player.earthPods = []; player.earthT = 0;
 }
 
 // ---------- items ----------
-const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX'];
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ffd83d', ARROW: '#faff00', QIX: '#ffffff' };
+const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH'];
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ffd83d', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -710,7 +715,7 @@ function updateItems(dt) {
     }
   }
 }
-const ITEM_GLYPHS = { DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q' };
+const ITEM_GLYPHS = { DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E' };
 function drawItems() {
   ctx.lineWidth = 1;
   items.forEach(it => {
@@ -1119,6 +1124,9 @@ function fireWeapon() {
   } else if (player.weapon === 'ZAPPER') {
     // no per-trigger action — ZAPPER's drones hunt/attack entirely on their own
     // state machine in updatePlayer, not through this dispatch
+  } else if (player.weapon === 'EARTH') {
+    // no per-trigger action — EARTH's pods slide and fire entirely on their own
+    // in updatePlayer, not through this dispatch
   } else if (player.weapon === 'XCROSS') {
     // fires a small X-shaped bolt; ignores damage on its own, but on hitting
     // anything, its arms shoot outward diagonally (see applyXCrossStrike) — reach
@@ -2300,6 +2308,7 @@ function checkMiniBossHits(e) {
       if (b.xcross) continue; // XCROSS has its own dedicated mini-boss handling elsewhere
       if (b.kuru2) continue; // KURU2 has its own dedicated mini-boss handling elsewhere
       if (b.arrow) continue; // ARROW has its own dedicated mini-boss handling elsewhere
+      if (b.earthLaser) continue; // EARTH has its own dedicated mini-boss handling elsewhere
       if (b.qix) continue; // QIX has its own dedicated mini-boss handling elsewhere
       if (b.laser && b.laserTickTimer !== undefined) {
         if (!b.laserShouldTick) continue; // main LASER: same 0.1s tick cadence here too
@@ -2479,7 +2488,7 @@ let debugStartWeapon = null;
 let debugStartAtBoss = false; // set via tapping the tier-A icon on the title screen
 let debugSkipEnemyWaves = false; // set via tapping the tier-C icon on the title screen — only ASTEROID/CRYSTAL/BOSS cycle positions play, ENEMY positions are silently skipped
 let debugStartMaxLevel = false; // set via tapping the tier-E icon on the title screen
-const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'GRAVITY', 'HOMING', 'KURU2', 'LASER', 'MISSILE', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'VULCAN', 'XCROSS', 'ZAPPER']; // no NORMAL — alphabetical order
+const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'GRAVITY', 'HOMING', 'KURU2', 'LASER', 'MISSILE', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'VULCAN', 'XCROSS', 'ZAPPER']; // no NORMAL — alphabetical order
 function showEquipSelect() {
   showingEquip = true;
   titleScreen.classList.add('hidden');
@@ -2498,6 +2507,8 @@ document.querySelectorAll('#itemsScreen .item-entry[data-weapon]').forEach(el =>
 const EQUIP_LONG_DESCRIPTIONS = {
   DOUBLE: { intro: "Fires a tight pair of light-blue shots side by side, both always angled just one degree outward, no matter what level you're at. What really sets DOUBLE apart is its trailing options: rotating cyan squares that follow behind the ship, one more joining the chain each level starting from your very first level-up, each one keeping its distance from the one ahead of it rather than crowding together. Every option fires the exact same twin-shot volley as the ship itself, multiplying your firepower across several points on screen at once. They also physically bump anything they touch for their own chip damage and will swat enemy bullets right out of the air. When you stop moving, the options stop chasing too, though they never stop spinning. A fresh wave always resets them to overlap the ship exactly, ready to fan back out as soon as you move again. DOUBLE uniquely keeps growing all the way to level seven, two levels further than most weapons, so a maxed-out ship trails a full formation of seven options all firing in unison.",
     levels: ["1 option.", "2 options.", "3 options.", "4 options.", "5 options.", "6 options.", "7 options, full formation."] },
+  EARTH: { intro: "Stations a pair of small square pods out along the ship's rear-left and rear-right diagonals, sliding back and forth in a straight line together — always at the same height as each other, mirrored left to right. Each pod fires its own laser out to the side, at a right angle to the diagonal line it travels along, sweeping that beam back and forth across the field as the pod itself slides up and down its line. Leveling up adds another pair further out along the same diagonals. EARTH uniquely keeps growing all the way to level seven, two levels further than most weapons, for a whole staircase of pods sweeping the sides of the screen at once.",
+    levels: ["1 pair.", "2 pairs.", "3 pairs.", "4 pairs.", "5 pairs.", "6 pairs.", "7 pairs, full staircase."] },
   MISSILE: { intro: "Fires pairs of orange missiles from the ship's rear corners. Each one launches backward and outward first, arcs smoothly through a parabolic turn to reverse into forward flight, climbs for a while, then splits into two fragments angling diagonally outward. Missiles that stray off the edge of the screen curve back in rather than being lost, so a volley keeps sweeping the play field instead of flying away for good. Leveling up simply launches more pairs at once, all following the same loop-and-split pattern. MISSILE uniquely keeps growing all the way to level seven, two levels further than most weapons, so a maxed-out volley fills the screen with looping, splitting missiles.",
     levels: ["2 missiles.", "4 missiles.", "6 missiles.", "8 missiles.", "10 missiles.", "12 missiles.", "14 missiles, screen-filling swarm."] },
   HOMING: { intro: "Each shot locks onto its own distinct target, enemies, asteroids, and crystals all count, so a full volley can track that many different threats simultaneously. Shots launch twenty pixels off the ship's tip along a fixed firing angle, travel two hundred pixels dead straight while steadily accelerating, then curve in toward whatever they're locked onto once that opening stretch ends. Leveling up doesn't just add more shots, it widens the angles those shots launch at too, starting at just ten degrees off center and stepping outward by thirty more with each new pair, tapering off at exactly directly-behind for the widest possible spread rather than overshooting past it. HOMING uniquely keeps growing all the way to level seven, two levels further than most weapons, so a maxed-out volley can blanket the entire area around the ship and lock onto far more targets than the early levels can manage.",
@@ -2571,7 +2582,7 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 2000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX'];
+const EQUIP_UPDATED = ['ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH'];
 const EQUIP_UPDATE_TAG = ['MISSILE', 'CURVE', 'VULCAN']; // shows "UPDATE" instead of "NEW"
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
@@ -2840,6 +2851,51 @@ function updatePlayer(dt) {
     player.zapperSquares = null;
   }
 
+  // EARTH: pairs of small square pods slide back and forth along fixed 45°
+  // diagonals off the ship's rear corners, left/right pairs always sharing the
+  // same distance (so their height stays synced), each firing its own laser
+  // perpendicular to the diagonal it travels along
+  if (player.weapon === 'EARTH') {
+    const pairCount = player.weaponLevel;
+    player.earthPods = player.earthPods || [];
+    player.earthPods.length = pairCount * 2;
+    player.earthT = (player.earthT || 0) + dt;
+    const SQ = Math.SQRT1_2;
+    // shared fire timer so every pod fires at exactly the same moment
+    player.earthFireTimer = (player.earthFireTimer === undefined ? rand(0, 1.0) : player.earthFireTimer) - dt;
+    const firingNow = player.earthFireTimer <= 0 && player.alive;
+    if (firingNow) player.earthFireTimer = 1.0;
+    // range reaches all the way to the screen edges: max diagonal distance is set
+    // so the pod's horizontal offset alone can span the full canvas width
+    const MAX_DIST = (W / 2) / SQ;
+    for (let pi = 0; pi < pairCount; pi++) {
+      const dist = MAX_DIST / 2 + Math.sin(player.earthT * 1.0 + pi * 0.9) * (MAX_DIST / 2);
+      [-1, 1].forEach(side => {
+        const idx = pi * 2 + (side < 0 ? 0 : 1);
+        if (!player.earthPods[idx]) {
+          player.earthPods[idx] = { side, pairIndex: pi };
+        }
+        const pod = player.earthPods[idx];
+        // diagonal direction: left pod travels up-left, right pod travels up-right
+        const dx = side * SQ, dy = -SQ;
+        pod.x = player.x + dx * dist;
+        pod.y = player.y + dy * dist;
+        if (firingNow) {
+          // fires crossing toward the opposite side, up and diagonal: left pod
+          // fires up-right, right pod fires up-left
+          const fx = -side * SQ, fy = -SQ;
+          const EARTH_LASER_SPEED = 300;
+          playerBullets.push({
+            x: pod.x, y: pod.y, vx: fx * EARTH_LASER_SPEED, vy: fy * EARTH_LASER_SPEED, r: 8, power: 1,
+            earthLaser: true, hitSet: new Set(),
+          });
+        }
+      });
+    }
+  } else {
+    player.earthPods = null;
+  }
+
   if (player.invT > 0) player.invT -= dt;
 
   // VULCAN multi-shot burst: fires individual shots from the player's current position
@@ -2943,7 +2999,7 @@ function updateBullets(dt) {
     if (!b.bubble && !b.noTrail) {
       if (!b.trail) b.trail = [];
       b.trail.push({ x: b.x, y: b.y, rot: b.angle !== undefined ? b.angle : b.rot, traveled: b.traveled });
-      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.missile ? 10 : b.orbitalBolt ? 24 : b.double ? 24 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
+      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.missile ? 10 : b.orbitalBolt ? 24 : b.earthLaser ? 32 : b.double ? 24 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
       if (b.trail.length > maxTrail) b.trail.shift();
     }
     if (b.homing) {
@@ -3749,6 +3805,47 @@ function handleCollisions() {
     if (b.dying) continue; // erasing its trail, no longer active
     if (b.spark) continue; // no hit detection until it bursts
     if (b.chaining) continue; // thunder: handled entirely in updateBullets once chaining starts
+    if (b.earthLaser) {
+      // pierces through everything (hitSet-tracked, once per target) rather than
+      // being destroyed on contact
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        if (e.type === 'GIANTBOSS' && e.miniBossHp) {
+          e.miniBossMarkers = e.miniBossMarkers || [];
+          for (let vk = 0; vk < e.def.sides; vk++) {
+            if (e.miniBossHp[vk] <= 0) continue;
+            if (!e.miniBossMarkers[vk]) e.miniBossMarkers[vk] = {};
+            const marker = e.miniBossMarkers[vk];
+            if (b.hitSet.has(marker)) continue;
+            const pos = bossVertexWorldPos(e, vk);
+            const miniR = (e.def.r / 3) * 0.7;
+            const rr = (miniR + b.r) * (miniR + b.r);
+            if (dist2(pos.x, pos.y, b.x, b.y) < rr) {
+              b.hitSet.add(marker);
+              e.miniBossHp[vk] -= (b.power || 1);
+              score += 10;
+              if (e.miniBossHp[vk] <= 0) spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220);
+              else spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
+            }
+          }
+        }
+        if (b.hitSet.has(e)) continue;
+        const rr = (e.def.r + b.r) * (e.def.r + b.r);
+        if (dist2(e.x, e.y, b.x, b.y) < rr) {
+          if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
+          b.hitSet.add(e);
+          e.hp -= (b.power || 1);
+          score += 10;
+          if (e.hp <= 0) {
+            handleEnemyDeath(e);
+            enemies.splice(i, 1);
+          } else if (e.type !== 'GIANTBOSS') {
+            spawnDeathParticles(e.x, e.y, e.def.color, 3);
+          }
+        }
+      }
+      continue;
+    }
     if (b.arrow) {
       // continuously deals 1dmg every frame to anything it currently overlaps (not
       // a one-time hit) — slows to 30 while actively overlapping something (see
@@ -4318,6 +4415,13 @@ function drawPlayer() {
       ctx.strokeRect(-size / 2, -size / 2, size, size);
       ctx.restore();
     });
+  } else if (player.weapon === 'EARTH' && player.earthPods) {
+    // EARTH's pods: small green wireframe squares sliding along fixed diagonals
+    ctx.strokeStyle = '#00ff9f';
+    ctx.lineWidth = 1;
+    player.earthPods.forEach(pod => {
+      ctx.strokeRect(pod.x - 5, pod.y - 5, 10, 10);
+    });
   }
   drawPlayerShape(player.x, player.y, '#7CFFF0');
 }
@@ -4565,6 +4669,20 @@ function handleAsteroidCollisions() {
     if (b.dying) continue; // erasing its trail, no longer active
     if (b.spark) continue; // no hit detection until it bursts
     if (b.chaining) continue; // thunder: handled entirely in updateBullets once chaining starts
+    if (b.earthLaser) {
+      for (let i = 0; i < asteroids.length; i++) {
+        const a = asteroids[i];
+        if (b.hitSet.has(a)) continue;
+        const rr = (a.r + b.r) * (a.r + b.r);
+        if (dist2(a.x, a.y, b.x, b.y) < rr) {
+          b.hitSet.add(a);
+          score += wave * 20;
+          registerAsteroidDamage(b.power || 1, a);
+          spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 3);
+        }
+      }
+      continue;
+    }
     if (b.arrow) {
       for (let i = 0; i < asteroids.length; i++) {
         const a = asteroids[i];
@@ -4956,6 +5074,39 @@ function drawBullets() {
   ctx.lineWidth = 1;
   playerBullets.forEach(b => {
     if (b.spawnDelay > 0) return; // not fired yet, stay invisible
+    if (b.earthLaser) {
+      // long green laser bolt fired sideways from an EARTH pod, oriented to its
+      // current travel direction; a fading afterimage trail behind it makes its
+      // overall visible streak roughly 3x the bolt's own length
+      const ang = Math.atan2(b.vy, b.vx) + Math.PI / 2;
+      if (b.trail && b.trail.length > 1) {
+        for (let k = 0; k < b.trail.length; k++) {
+          const p = b.trail[k];
+          const alpha = ((k + 1) / (b.trail.length + 1)) * 0.5;
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(ang);
+          ctx.strokeStyle = `rgba(0,255,159,${alpha})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(0, 40);
+          ctx.lineTo(0, -40);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(ang);
+      ctx.strokeStyle = '#00ff9f';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, 40);
+      ctx.lineTo(0, -40);
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
     if (b.arrow) {
       // open wireframe arrowhead: a 30px-tall/5px-base isosceles triangle with its
       // base edge left out (fragments are a smaller 20px-tall/3px-base version),
