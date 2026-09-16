@@ -333,7 +333,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-16 09:05';
+const LAST_UPDATED = '2026-09-16 12:55';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -2866,10 +2866,13 @@ function updatePlayer(dt) {
     const firingNow = player.earthFireTimer <= 0 && player.alive;
     if (firingNow) player.earthFireTimer = 1.0;
     // range reaches all the way to the screen edges: max diagonal distance is set
-    // so the pod's horizontal offset alone can span the full canvas width
+    // so the pod's horizontal offset alone can span the full canvas width. Never
+    // comes closer than 20px to the ship, to avoid overlapping it.
+    const MIN_DIST = 35;
     const MAX_DIST = (W / 2) / SQ;
     for (let pi = 0; pi < pairCount; pi++) {
-      const dist = MAX_DIST / 2 + Math.sin(player.earthT * 1.0 + pi * 0.9) * (MAX_DIST / 2);
+      const mid = (MIN_DIST + MAX_DIST) / 2, amp = (MAX_DIST - MIN_DIST) / 2;
+      const dist = mid + Math.sin(player.earthT * 1.0 + pi * 0.9) * amp;
       [-1, 1].forEach(side => {
         const idx = pi * 2 + (side < 0 ? 0 : 1);
         if (!player.earthPods[idx]) {
@@ -2884,10 +2887,11 @@ function updatePlayer(dt) {
           // fires crossing toward the opposite side, up and diagonal: left pod
           // fires up-right, right pod fires up-left
           const fx = -side * SQ, fy = -SQ;
-          const EARTH_LASER_SPEED = 300;
+          const EARTH_LASER_SPEED = 540;
+          const spawnOffset = 30; // spawns clearly ahead of the pod, not overlapping it
           playerBullets.push({
-            x: pod.x, y: pod.y, vx: fx * EARTH_LASER_SPEED, vy: fy * EARTH_LASER_SPEED, r: 8, power: 1,
-            earthLaser: true, hitSet: new Set(),
+            x: pod.x + fx * spawnOffset, y: pod.y + fy * spawnOffset, vx: fx * EARTH_LASER_SPEED, vy: fy * EARTH_LASER_SPEED, r: 8, power: 1,
+            earthLaser: true, tickCooldowns: new Map(),
           });
         }
       });
@@ -3035,6 +3039,14 @@ function updateBullets(dt) {
     }
     if (b.xcross) {
       b.xcrossAngle = (b.xcrossAngle || 0) + dt * 6; // continuous spin while flying
+    }
+    if (b.earthLaser && b.tickCooldowns) {
+      // ticks damage repeatedly (every 0.1s) to whatever it's overlapping while it
+      // pierces through, rather than a single hit-once-per-target
+      for (const [target, cd] of b.tickCooldowns) {
+        const next = cd - dt;
+        if (next <= 0) b.tickCooldowns.delete(target); else b.tickCooldowns.set(target, next);
+      }
     }
     if (b.kuru2 || b.kuru2Frag) {
       b.kuru2Angle = (b.kuru2Angle || 0) + dt * 8; // continuous spin while flying
@@ -3806,8 +3818,8 @@ function handleCollisions() {
     if (b.spark) continue; // no hit detection until it bursts
     if (b.chaining) continue; // thunder: handled entirely in updateBullets once chaining starts
     if (b.earthLaser) {
-      // pierces through everything (hitSet-tracked, once per target) rather than
-      // being destroyed on contact
+      // pierces through everything, ticking damage every 0.1s to whatever it's
+      // currently overlapping rather than a single hit-once-per-target
       for (let i = enemies.length - 1; i >= 0; i--) {
         const e = enemies[i];
         if (e.type === 'GIANTBOSS' && e.miniBossHp) {
@@ -3816,12 +3828,12 @@ function handleCollisions() {
             if (e.miniBossHp[vk] <= 0) continue;
             if (!e.miniBossMarkers[vk]) e.miniBossMarkers[vk] = {};
             const marker = e.miniBossMarkers[vk];
-            if (b.hitSet.has(marker)) continue;
+            if (b.tickCooldowns.has(marker)) continue;
             const pos = bossVertexWorldPos(e, vk);
             const miniR = (e.def.r / 3) * 0.7;
             const rr = (miniR + b.r) * (miniR + b.r);
             if (dist2(pos.x, pos.y, b.x, b.y) < rr) {
-              b.hitSet.add(marker);
+              b.tickCooldowns.set(marker, 0.1);
               e.miniBossHp[vk] -= (b.power || 1);
               score += 10;
               if (e.miniBossHp[vk] <= 0) spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220);
@@ -3829,11 +3841,11 @@ function handleCollisions() {
             }
           }
         }
-        if (b.hitSet.has(e)) continue;
+        if (b.tickCooldowns.has(e)) continue;
         const rr = (e.def.r + b.r) * (e.def.r + b.r);
         if (dist2(e.x, e.y, b.x, b.y) < rr) {
           if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
-          b.hitSet.add(e);
+          b.tickCooldowns.set(e, 0.1);
           e.hp -= (b.power || 1);
           score += 10;
           if (e.hp <= 0) {
@@ -4672,10 +4684,10 @@ function handleAsteroidCollisions() {
     if (b.earthLaser) {
       for (let i = 0; i < asteroids.length; i++) {
         const a = asteroids[i];
-        if (b.hitSet.has(a)) continue;
+        if (b.tickCooldowns.has(a)) continue;
         const rr = (a.r + b.r) * (a.r + b.r);
         if (dist2(a.x, a.y, b.x, b.y) < rr) {
-          b.hitSet.add(a);
+          b.tickCooldowns.set(a, 0.1);
           score += wave * 20;
           registerAsteroidDamage(b.power || 1, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 3);
@@ -5086,7 +5098,7 @@ function drawBullets() {
           ctx.save();
           ctx.translate(p.x, p.y);
           ctx.rotate(ang);
-          ctx.strokeStyle = `rgba(0,255,159,${alpha})`;
+          ctx.strokeStyle = `rgba(0,220,220,${alpha})`;
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.moveTo(0, 40);
@@ -5098,7 +5110,7 @@ function drawBullets() {
       ctx.save();
       ctx.translate(b.x, b.y);
       ctx.rotate(ang);
-      ctx.strokeStyle = '#00ff9f';
+      ctx.strokeStyle = '#00dcdc';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, 40);
