@@ -226,6 +226,10 @@
         <div class="item-header"><span class="item-icon">V</span><span class="item-name">VULCAN</span></div>
         <div class="item-desc">Rapid burst from the tip, each bolt repeating per level. Levels to 7.</div>
       </div>
+      <div class="item-entry" data-weapon="WHIPS">
+        <div class="item-header"><span class="item-icon">W</span><span class="item-name">WHIPS</span></div>
+        <div class="item-desc">A tethered curve that whips the nearest enemy. Levels to 7.</div>
+      </div>
       <div class="item-entry" data-weapon="XCROSS">
         <div class="item-header"><span class="item-icon">X</span><span class="item-name">XCROSS</span></div>
         <div class="item-desc">On hit, shoots an X-shaped shockwave outward. Levels to 7.</div>
@@ -333,7 +337,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-16 20:18';
+const LAST_UPDATED = '2026-09-18 20:11';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -392,8 +396,8 @@ function qbezier(p0, p1, p2, t) {
 function dist2(ax, ay, bx, by) { const dx = ax-bx, dy = ay-by; return dx*dx + dy*dy; }
 function rand(a, b) { return a + Math.random() * (b - a); }
 function weaponMaxLevel(type) {
-  // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL/ZAPPER/XCROSS/KURU2/ARROW/QIX/EARTH uniquely level up to 7, every other weapon caps at 5
-  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH') ? 7 : 5;
+  // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL/ZAPPER/XCROSS/KURU2/ARROW/QIX/EARTH/WHIPS uniquely level up to 7, every other weapon caps at 5
+  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS') ? 7 : 5;
 }
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function formatScore(n) { return Math.round(n).toLocaleString('en-US'); }
@@ -450,11 +454,12 @@ function resetPlayer() {
   player.orbitalRings = []; player.orbitalAngle = 0; player.orbitalEllipseAngle = 0;
   player.zapperSquares = [];
   player.earthPods = []; player.earthT = 0;
+  player.whipTethers = null; player.whipT = 0;
 }
 
 // ---------- items ----------
-const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH'];
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ffd83d', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f' };
+const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS'];
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ffd83d', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -715,7 +720,7 @@ function updateItems(dt) {
     }
   }
 }
-const ITEM_GLYPHS = { DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E' };
+const ITEM_GLYPHS = { DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E', WHIPS: 'W' };
 function drawItems() {
   ctx.lineWidth = 1;
   items.forEach(it => {
@@ -904,6 +909,86 @@ function zapperDealDamage(target) {
     if (target.type !== 'GIANTBOSS') spawnDeathParticles(target.x, target.y, target.def.color, 2);
     return false;
   }
+}
+function whipFindOnScreenTarget(x, y, excludeSet) {
+  // like findNearestChainTargetExcluding, but skips any candidate that's
+  // currently off-screen (or barely past the edge) — so WHIPS never locks onto,
+  // and grows its whole chain out toward, something the player can't even see
+  const tried = new Set(excludeSet);
+  for (let i = 0; i < 30; i++) {
+    const cand = findNearestChainTargetExcluding(x, y, tried);
+    if (!cand) return null;
+    const pos = zapperTargetPos(cand);
+    if (pos && pos.x >= -20 && pos.x <= W + 20 && pos.y >= -20 && pos.y <= H + 20) return cand;
+    tried.add(cand);
+  }
+  return null;
+}
+function whipDealDamage(target, dmg) {
+  // applies WHIPS's per-lash damage to whatever kind of target it is. Returns
+  // true if that destroyed it (should snap to a fresh target), false otherwise
+  if (target.isMiniBoss) {
+    const boss = target.bossRef, vk = target.vertexIndex;
+    const pos = bossVertexWorldPos(boss, vk);
+    boss.miniBossHp[vk] -= dmg;
+    score += 10;
+    if (boss.miniBossHp[vk] <= 0) {
+      spawnDeathParticles(pos.x, pos.y, boss.def.color, 14, 220);
+      return true;
+    }
+    spawnDeathParticles(pos.x, pos.y, boss.def.color, 2);
+    return false;
+  } else if (target.isAsteroidObj) {
+    score += wave * 20;
+    registerAsteroidDamage(dmg, target);
+    spawnDeathParticles(target.x, target.y, target.isCrystal ? '#7CFFF0' : '#bbbbbb', 2);
+    return false; // asteroids/crystals are indestructible — whip keeps lashing until it invalidates naturally
+  } else {
+    target.hp -= dmg;
+    score += 10;
+    if (target.hp <= 0) {
+      handleEnemyDeath(target);
+      const idx = enemies.indexOf(target);
+      if (idx !== -1) enemies.splice(idx, 1);
+      return true;
+    }
+    if (target.type !== 'GIANTBOSS') spawnDeathParticles(target.x, target.y, target.def.color, 2);
+    return false;
+  }
+}
+function whipComputeSegments(w) {
+  // simple & robust: every frame, draws a fresh straight line from the ship
+  // straight to the tip's CURRENT live position (so it always properly tracks
+  // the target — no persistent state that can ever get stuck or drift wrong),
+  // broken into 20px segments with an alternating zigzag offset for a jagged look
+  const originX = player.x, originY = player.y - 15; // starts 15px ahead of the ship
+  const tipX = w.tipX !== undefined ? w.tipX : originX;
+  const tipY = w.tipY !== undefined ? w.tipY : originY;
+  const dx = tipX - originX, dy = tipY - originY;
+  const totalLen = Math.hypot(dx, dy) || 1;
+  const SEG_LEN = 20;
+  const numSegs = Math.max(1, Math.round(totalLen / SEG_LEN));
+  const ux = dx / totalLen, uy = dy / totalLen;
+  const nx = -uy, ny = ux; // perpendicular to the ship->tip line
+  const ZIGZAG = 15;
+  const pts = [{ x: originX, y: originY }];
+  for (let i = 1; i <= numSegs; i++) {
+    const t = i / numSegs;
+    let px = originX + dx * t, py = originY + dy * t;
+    if (i < numSegs) {
+      const off = (i % 2 === 0 ? 1 : -1) * ZIGZAG;
+      px += nx * off;
+      py += ny * off;
+    }
+    pts.push({ x: px, y: py });
+  }
+  return pts;
+}
+function whipTouchesAnySegment(segs, tx, ty, tr) {
+  for (let i = 1; i < segs.length; i++) {
+    if (distSqToSegment(tx, ty, segs[i - 1].x, segs[i - 1].y, segs[i].x, segs[i].y) < tr * tr) return true;
+  }
+  return false;
 }
 function findNearestEnemyAhead(x, y, excludeSet, maxY) {
   // like findNearestEnemyExcluding, but ignores targets behind the reference point (y > maxY);
@@ -1127,6 +1212,9 @@ function fireWeapon() {
   } else if (player.weapon === 'EARTH') {
     // no per-trigger action — EARTH's pods slide and fire entirely on their own
     // in updatePlayer, not through this dispatch
+  } else if (player.weapon === 'WHIPS') {
+    // no per-trigger action — WHIPS' tether targets and ticks damage entirely on
+    // its own in updatePlayer, not through this dispatch
   } else if (player.weapon === 'XCROSS') {
     // fires a small X-shaped bolt; ignores damage on its own, but on hitting
     // anything, its arms shoot outward diagonally (see applyXCrossStrike) — reach
@@ -1686,6 +1774,7 @@ function waveEnemyCount(w) {
 
 let asteroids = [];
 let dyingAsteroids = []; // split pieces that are shattering apart over 1s before vanishing
+let dyingEnemyGhosts = []; // destroyed enemies flash up to 3x size before vanishing
 let asteroidTotalDamage = 0;
 let beltDamageBonusApplied = false;
 let bonusSnapshot = null; // frozen live-bonus display value, captured once at 5s remaining
@@ -1935,6 +2024,7 @@ function startWave() {
   bossDefeated = false;
   asteroids = [];
   dyingAsteroids = [];
+  dyingEnemyGhosts = [];
   asteroidWaveTimer = 0;
   asteroidSpawnTimer = 0;
   asteroidItemTimer = 10;
@@ -2488,7 +2578,7 @@ let debugStartWeapon = null;
 let debugStartAtBoss = false; // set via tapping the tier-A icon on the title screen
 let debugSkipEnemyWaves = false; // set via tapping the tier-C icon on the title screen — only ASTEROID/CRYSTAL/BOSS cycle positions play, ENEMY positions are silently skipped
 let debugStartMaxLevel = false; // set via tapping the tier-E icon on the title screen
-const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'GRAVITY', 'HOMING', 'KURU2', 'LASER', 'MISSILE', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'VULCAN', 'XCROSS', 'ZAPPER']; // no NORMAL — alphabetical order
+const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'GRAVITY', 'HOMING', 'KURU2', 'LASER', 'MISSILE', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'VULCAN', 'WHIPS', 'XCROSS', 'ZAPPER']; // no NORMAL — alphabetical order
 function showEquipSelect() {
   showingEquip = true;
   titleScreen.classList.add('hidden');
@@ -2521,6 +2611,8 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["6 orbs, 120° cone.", "10 orbs, 110° cone.", "14 orbs, 100° cone.", "18 orbs, 90° cone.", "22 orbs, 80° cone.", "26 orbs, 70° cone.", "30 orbs, 60° cone, tightest and densest."] },
   VULCAN: { intro: "A rapid-fire burst of short orange bolts fired from the very tip of the ship, each one scattering a few degrees off true for a chattering spray rather than a clean straight line. No matter how many shots you've unlocked, the whole burst always finishes within half a second, so higher levels simply pack more bolts into that same tight window instead of dragging the burst out longer. Every single bolt in a shot now fires as a rapid volley of its own too, repeating the exact same bolt in place once per level with barely any delay between each repeat, so leveling up multiplies your output twice over — more shots in the burst, and more repeats of each one. VULCAN also uniquely keeps growing all the way to level seven, two levels further than every other weapon. It stacks cleanly with RAPID too, letting everything overlap into an even denser stream of fire.",
     levels: ["2-shot burst, 1x repeat.", "4-shot burst, 2x repeat.", "6-shot burst, 3x repeat.", "8-shot burst, 4x repeat.", "10-shot burst, 5x repeat.", "12-shot burst, 6x repeat.", "14-shot burst, 7x repeat, same 0.5s window."] },
+  WHIPS: { intro: "Lashes out one curved tether per level, each from the ship to whatever enemy is currently nearest, whipping and cracking against it for repeated damage every second as long as contact holds. Every tether follows the ship wherever it moves, so none of them ever go slack, and the instant a tether's target is destroyed it snaps toward a fresh nearest target rather than dissipating for good. Tethers each prefer a distinct target from the others, only sharing one if nothing else is available. Leveling up adds another tether and increases how much damage each crack deals. WHIPS uniquely keeps growing all the way to level seven, two levels further than most weapons, for a whole tangle of punishing tethers at max level.",
+    levels: ["1 tether, 1dmg.", "2 tethers, 2dmg.", "3 tethers, 3dmg.", "4 tethers, 4dmg.", "5 tethers, 5dmg.", "6 tethers, 6dmg.", "7 tethers, 7dmg."] },
   PHANTOM: { intro: "Instantly flashes a wide beam from the ship straight up to the top of the screen, damaging everything caught inside the flash the very moment it fires, with no travel time at all. Anything still standing inside that flash zone while it's fading out also gets caught in a slowing field, moving and acting at half speed for as long as they linger there — and takes a second damage tick right as the flash finishes, catching anything that wandered in after the initial hit too. The width of that flash and the cooldown between flashes both improve dramatically with level, the beam growing wider while the wait between activations shrinks all the way down to a tenth of a second. PHANTOM also uniquely keeps growing all the way to level seven, two levels further than most other weapons, letting you flash almost constantly once fully powered up.",
     levels: ["100px wide, 1.0s cooldown.", "120px wide, 0.8s cooldown.", "140px wide, 0.6s cooldown.", "160px wide, 0.4s cooldown.", "180px wide, 0.2s cooldown.", "200px wide, 0.15s cooldown.", "220px wide, 0.1s cooldown."] },
   QIX: { intro: "Fires a single slim wireframe rod that pierces through everything in its path, tumbling end over end around an off-center pivot at an irregular, wobbling speed rather than spinning smoothly or flying as a fixed rigid line. It trails a handful of faded afterimages behind it too, echoing its own position from moments earlier. Leveling up doesn't add more rods — it stretches the one rod itself another twenty-five pixels longer, so a maxed-out QIX sweeps a much longer reach with every pass. QIX uniquely keeps growing all the way to level seven, two levels further than most weapons, for a genuinely long tumbling rod at max level.",
@@ -2582,7 +2674,7 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 2000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH'];
+const EQUIP_UPDATED = ['ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS'];
 const EQUIP_UPDATE_TAG = ['MISSILE', 'CURVE', 'VULCAN']; // shows "UPDATE" instead of "NEW"
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
@@ -2898,6 +2990,147 @@ function updatePlayer(dt) {
     }
   } else {
     player.earthPods = null;
+  }
+
+  // WHIPS: a single curved tether from the ship to the nearest valid target,
+  // dealing `level` damage every 0.05s while connected; snaps to a fresh nearest
+  // target the instant its current one is destroyed or otherwise invalidated
+  if (player.weapon === 'WHIPS') {
+    player.whipT = (player.whipT || 0) + dt;
+    const count = player.weaponLevel;
+    const originX = player.x, originY = player.y - 15; // tether starts 15px ahead of the ship, not at its exact center
+    player.whipTethers = player.whipTethers || [];
+    player.whipTethers.length = count;
+    for (let ti = 0; ti < count; ti++) {
+      if (!player.whipTethers[ti]) {
+        player.whipTethers[ti] = {
+          target: null, connected: false, tipX: originX, tipY: originY,
+          bendSign: rand(0, 1) < 0.5 ? 1 : -1, segments: null, hitCooldowns: new Map(),
+          chainHeadings: [], growTimer: 0.02,
+        };
+      }
+    }
+    // targets already claimed by sibling tethers this frame — each tether prefers
+    // a distinct target, but falls back to sharing if nothing else is available
+    const claimed = new Set();
+    player.whipTethers.forEach(w => { if (w.target) claimed.add(w.target); });
+    const whipDmg = player.weaponLevel + (player.rapidLevel || 0); // RAPID's level adds to WHIPS' own damage
+    player.whipTethers.forEach(w => {
+      let pos = w.target ? zapperTargetPos(w.target) : null;
+      // drops a target (and its whole grown chain) the instant it's off-screen or
+      // absurdly far — checked EVERY frame, even once already connected. Without
+      // this, a target that drifts off-screen after being locked (rather than
+      // being destroyed) would keep the whole tether permanently stuck reaching
+      // out toward it forever, since nothing else would ever invalidate it.
+      const MAX_RANGE = Math.hypot(W, H) * 1.2;
+      if (pos && (pos.x < -20 || pos.x > W + 20 || pos.y < -20 || pos.y > H + 20)) pos = null;
+      if (pos && dist2(originX, originY, pos.x, pos.y) > MAX_RANGE * MAX_RANGE) pos = null;
+      // unconditional safety net: fully refreshes every 2s regardless of any
+      // other check, so no tether can EVER stay in a stuck/broken state for
+      // more than that long, whatever the actual cause turns out to be
+      w.forceResetTimer = (w.forceResetTimer === undefined ? 5.0 : w.forceResetTimer) - dt;
+      if (w.forceResetTimer <= 0) { pos = null; w.forceResetTimer = 5.0; }
+      if (!pos) {
+        w.connected = false;
+        if (w.target) claimed.delete(w.target);
+        let nt = whipFindOnScreenTarget(originX, originY, claimed);
+        if (!nt) nt = whipFindOnScreenTarget(originX, originY, new Set());
+        w.target = nt;
+        if (nt) claimed.add(nt);
+        pos = nt ? zapperTargetPos(nt) : null;
+        w.bendSign = rand(0, 1) < 0.5 ? 1 : -1; w.jointTurns = null; w.totalTurn = 0; w.turnDir = undefined;
+        // the tip starts at the ship and has to travel/curve its way out to the
+        // target, rather than snapping there instantly
+        w.tipX = originX;
+        w.tipY = originY;
+        w.chainHeadings = []; w.growTimer = 0.02; // regrows from scratch for a new target
+        // clears the stale velocity-prediction history from any PREVIOUS target —
+        // otherwise the jump between the old target's last position and this new
+        // one gets misread as an enormous velocity, predicting a wild, unrelated
+        // lead position for the first segment's aim
+        w.lastTipX = undefined; w.lastTipY = undefined; w.lastGrowT = undefined;
+      } else if (!w.connected) {
+        // still approaching — continuously re-targets to whatever is CURRENTLY
+        // nearest (preferring an unclaimed one) in real time; once it actually
+        // makes contact, the target locks and this re-evaluation stops
+        if (w.target) claimed.delete(w.target);
+        let nearest = whipFindOnScreenTarget(originX, originY, claimed);
+        if (!nearest) nearest = whipFindOnScreenTarget(originX, originY, new Set());
+        if (nearest) claimed.add(nearest);
+        if (nearest && nearest !== w.target) {
+          w.target = nearest;
+          pos = zapperTargetPos(nearest);
+          w.bendSign = rand(0, 1) < 0.5 ? 1 : -1; w.jointTurns = null; w.totalTurn = 0; w.turnDir = undefined;
+          w.lastTipX = undefined; w.lastTipY = undefined; w.lastGrowT = undefined;
+        }
+      }
+      if (pos) {
+        if (w.connected) {
+          // once contact is made, the tip stays glued exactly to the target — it
+          // never lets go/falls behind again, even if the target darts around
+          w.tipX = pos.x;
+          w.tipY = pos.y;
+        } else {
+          // still approaching: eases the tip toward the target's current position
+          const CATCH_UP_RATE = 6; // higher = catches up faster
+          const t = 1 - Math.exp(-CATCH_UP_RATE * dt);
+          w.tipX += (pos.x - w.tipX) * t;
+          w.tipY += (pos.y - w.tipY) * t;
+        }
+        const reached = w.connected || dist2(w.tipX, w.tipY, pos.x, pos.y) < 400;
+        if (reached) w.connected = true;
+      }
+      // the chain is simply recomputed fresh every frame directly from the
+      // ship to the tip's current position — no persistent growth state
+      const segs = whipComputeSegments(w);
+      w.segments = segs;
+      if (segs.length > 1) {
+        for (const [target, cd] of w.hitCooldowns) {
+          const next = cd - dt;
+          if (next <= 0) w.hitCooldowns.delete(target); else w.hitCooldowns.set(target, next);
+        }
+        const TICK = 0.1;
+        for (let i = enemies.length - 1; i >= 0; i--) {
+          const e = enemies[i];
+          if (e.type === 'GIANTBOSS' && e.miniBossHp) {
+            e.miniBossMarkers = e.miniBossMarkers || [];
+            for (let vk = 0; vk < e.def.sides; vk++) {
+              if (e.miniBossHp[vk] <= 0) continue;
+              if (!e.miniBossMarkers[vk]) e.miniBossMarkers[vk] = {};
+              const marker = e.miniBossMarkers[vk];
+              if (w.hitCooldowns.has(marker)) continue;
+              const mpos = bossVertexWorldPos(e, vk);
+              const miniR = (e.def.r / 3) * 0.7;
+              if (whipTouchesAnySegment(segs, mpos.x, mpos.y, miniR)) {
+                w.hitCooldowns.set(marker, TICK);
+                e.miniBossHp[vk] -= whipDmg;
+                score += 10;
+                if (e.miniBossHp[vk] <= 0) spawnDeathParticles(mpos.x, mpos.y, e.def.color, 14, 220);
+                else spawnDeathParticles(mpos.x, mpos.y, e.def.color, 2);
+              }
+            }
+          }
+          if (w.hitCooldowns.has(e)) continue;
+          if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
+          if (whipTouchesAnySegment(segs, e.x, e.y, e.def.r)) {
+            w.hitCooldowns.set(e, TICK);
+            if (whipDealDamage(e, whipDmg)) {
+              if (e === w.target) w.target = null;
+            }
+          }
+        }
+        for (let i = 0; i < asteroids.length; i++) {
+          const a = asteroids[i];
+          if (w.hitCooldowns.has(a)) continue;
+          if (whipTouchesAnySegment(segs, a.x, a.y, a.r)) {
+            w.hitCooldowns.set(a, TICK);
+            whipDealDamage(a, whipDmg);
+          }
+        }
+      }
+    });
+  } else {
+    player.whipTethers = null;
   }
 
   if (player.invT > 0) player.invT -= dt;
@@ -3433,6 +3666,7 @@ function handleEnemyDeath(e) {
     bossPostDeathBonusTimer = 0.2;
   } else {
     spawnDeathParticles(e.x, e.y, e.def.color, 18);
+    dyingEnemyGhosts.push({ x: e.x, y: e.y, r: e.def.r, color: e.def.color, t: 0, duration: 0.25 });
   }
   if (e.dropsItem) spawnItem(e.x, e.y);
   if (e.dropsRapid) spawnRapidItem(e.x + 20, e.y);
@@ -4348,6 +4582,7 @@ function checkWaveClear() {
     enemyBullets = [];
     asteroids = [];
     dyingAsteroids = [];
+    dyingEnemyGhosts = [];
     waveClearTimer += 1/60;
     const burstPhaseDuration = 5.0, nextStagePhaseDuration = 10.0;
     const clearDelay = kind === 'BOSS' ? (burstPhaseDuration + nextStagePhaseDuration) : 1.2; // let the boss explosion + "next stage" beat play out fully
@@ -4433,6 +4668,22 @@ function drawPlayer() {
     ctx.lineWidth = 1;
     player.earthPods.forEach(pod => {
       ctx.strokeRect(pod.x - 5, pod.y - 5, 10, 10);
+    });
+  } else if (player.weapon === 'WHIPS' && player.whipTethers) {
+    // WHIPS' tethers: each a chain of straight 50px-long segments from the ship
+    // out to its own tip (which eases/chases toward its target rather than
+    // snapping there instantly), bowed consistently to one side per tether
+    ctx.strokeStyle = '#ff10f0';
+    ctx.lineWidth = 1;
+    player.whipTethers.forEach(w => {
+      if (!w.target || !w.segments) return;
+      ctx.beginPath();
+      ctx.moveTo(w.segments[0].x, w.segments[0].y);
+      for (let i = 1; i < w.segments.length; i++) ctx.lineTo(w.segments[i].x, w.segments[i].y);
+      ctx.stroke();
+      // marks the currently-targeted enemy with a 20px square
+      const pos = zapperTargetPos(w.target);
+      if (pos) ctx.strokeRect(pos.x - 15, pos.y - 15, 30, 30);
     });
   }
   drawPlayerShape(player.x, player.y, '#7CFFF0');
@@ -4647,6 +4898,31 @@ function drawDyingAsteroids() {
     ctx.beginPath();
     a.verts.forEach((v, i) => { if (i === 0) ctx.moveTo(v.x, v.y); else ctx.lineTo(v.x, v.y); });
     ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+function updateDyingEnemyGhosts(dt) {
+  for (let i = dyingEnemyGhosts.length - 1; i >= 0; i--) {
+    const g = dyingEnemyGhosts[i];
+    g.t += dt;
+    if (g.t >= g.duration) dyingEnemyGhosts.splice(i, 1);
+  }
+}
+function drawDyingEnemyGhosts() {
+  // a destroyed enemy briefly flashes up to 3x its normal size, fading out, right
+  // where it died — a quick "burst" beat before it's gone for good
+  ctx.lineWidth = 1;
+  dyingEnemyGhosts.forEach(g => {
+    const t = Math.min(1, g.t / g.duration);
+    const scale = 1 + 2 * t;
+    const alpha = 1 - t;
+    ctx.save();
+    ctx.strokeStyle = hexToRgba(g.color, alpha);
+    ctx.fillStyle = hexToRgba(g.color, alpha * 0.25);
+    ctx.beginPath();
+    drawEnemyTriangle(g.x, g.y, g.r * scale);
     ctx.fill();
     ctx.stroke();
     ctx.restore();
@@ -5761,6 +6037,7 @@ function frame(now) {
     updateBossWave(dt);
     updateAsteroids(dt);
     updateDyingAsteroids(dt);
+    updateDyingEnemyGhosts(dt);
     handleCollisions();
     handleAsteroidCollisions();
     handleOptionCollisions();
@@ -5779,6 +6056,7 @@ function frame(now) {
   enemies.forEach(drawEnemy);
   drawAsteroids();
   drawDyingAsteroids();
+  drawDyingEnemyGhosts();
   drawBullets();
   drawItems();
   drawParticles();
