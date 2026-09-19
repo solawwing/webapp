@@ -337,7 +337,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-18 20:11';
+const LAST_UPDATED = '2026-09-19 17:54';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1304,7 +1304,7 @@ function applyPhantomTickDamage(f) {
         e.miniBossHp[vk] -= 10;
         score += 10;
         if (e.miniBossHp[vk] <= 0) {
-          spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220);
+          spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4);
         } else {
           spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
         }
@@ -1389,7 +1389,7 @@ function firePhantomFlash() {
         e.miniBossHp[vk] -= 5;
         score += 10;
         if (e.miniBossHp[vk] <= 0) {
-          spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220);
+          spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4);
         } else {
           spawnDeathParticles(pos.x, pos.y, e.def.color, 3);
         }
@@ -1903,6 +1903,7 @@ function splitByDamage(target) {
 function spawnGhostSplitPieces(target) {
   // purely visual "final split" for an already-split piece: four smaller ghost shapes
   // that drift apart and fade out over 1s (no collision, no explosion burst)
+  spawnDeathGhost(target.x, target.y, target.r, target.angle, target.isCrystal ? '#7CFFF0' : '#bbbbbb', undefined, target.verts);
   const dirs = [{ x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 }];
   if (target.isCrystal) {
     const origHalfW = target.r;
@@ -2417,7 +2418,7 @@ function checkMiniBossHits(e) {
       e.miniBossHp[vk] -= (b.refect ? 5 : (b.power || 1));
       score += 10;
       if (e.miniBossHp[vk] <= 0) {
-        spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); // bigger burst on actual destruction
+        spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4); // bigger burst on actual destruction
       } else {
         spawnDeathParticles(pos.x, pos.y, e.def.color, 3);
       }
@@ -3105,7 +3106,7 @@ function updatePlayer(dt) {
                 w.hitCooldowns.set(marker, TICK);
                 e.miniBossHp[vk] -= whipDmg;
                 score += 10;
-                if (e.miniBossHp[vk] <= 0) spawnDeathParticles(mpos.x, mpos.y, e.def.color, 14, 220);
+                if (e.miniBossHp[vk] <= 0) { spawnDeathParticles(mpos.x, mpos.y, e.def.color, 14, 220); spawnDeathGhost(mpos.x, mpos.y, miniR, 0, e.def.color, 4); }
                 else spawnDeathParticles(mpos.x, mpos.y, e.def.color, 2);
               }
             }
@@ -3659,6 +3660,7 @@ function handleEnemyDeath(e) {
   if (e.countsForPattern) { activeEnterCount--; e.countsForPattern = false; }
   if (e.type === 'GIANTBOSS') {
     spawnBossExplosion(e.x, e.y, e.def.color);
+    spawnDeathGhost(e.x, e.y, e.def.r, e.angle || 0, e.def.color, e.def.sides);
     lastBossColor = e.def.color;
     globalSpeedBonus += 0.2;
     bossDefeated = true;
@@ -3666,7 +3668,7 @@ function handleEnemyDeath(e) {
     bossPostDeathBonusTimer = 0.2;
   } else {
     spawnDeathParticles(e.x, e.y, e.def.color, 18);
-    dyingEnemyGhosts.push({ x: e.x, y: e.y, r: e.def.r, color: e.def.color, t: 0, duration: 0.25 });
+    spawnDeathGhost(e.x, e.y, e.def.r, e.angle || 0, e.def.color);
   }
   if (e.dropsItem) spawnItem(e.x, e.y);
   if (e.dropsRapid) spawnRapidItem(e.x + 20, e.y);
@@ -3691,7 +3693,7 @@ function handleOptionCollisions() {
             e.miniBossHp[vk] -= 1;
             score += 10;
             if (e.miniBossHp[vk] <= 0) {
-              spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220);
+              spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4);
             } else {
               spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
             }
@@ -3748,7 +3750,7 @@ function handleOrbitalRingCollisions() {
             e.miniBossHp[vk] -= 1;
             score += 10;
             if (e.miniBossHp[vk] <= 0) {
-              spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220);
+              spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4);
             } else {
               spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
             }
@@ -3896,7 +3898,7 @@ function applyXCrossStrike(cx, cy, reach, rotationAngle, level) {
             e.miniBossHp[vk] -= 10;
             score += 10;
             if (!isOrigin(pos.x, pos.y)) spawnXCrossMiniFlash(pos.x, pos.y, rot, level);
-            if (e.miniBossHp[vk] <= 0) spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220);
+            if (e.miniBossHp[vk] <= 0) { spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4); }
             else spawnDeathParticles(pos.x, pos.y, e.def.color, 3);
           }
         }
@@ -4070,7 +4072,7 @@ function handleCollisions() {
               b.tickCooldowns.set(marker, 0.05);
               e.miniBossHp[vk] -= (b.power || 1);
               score += 10;
-              if (e.miniBossHp[vk] <= 0) spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220);
+              if (e.miniBossHp[vk] <= 0) { spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4); }
               else spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
             }
           }
@@ -4109,7 +4111,7 @@ function handleCollisions() {
               b.arrowOverlapNow = true;
               e.miniBossHp[vk] -= 1;
               score += 10;
-              if (e.miniBossHp[vk] <= 0) spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220);
+              if (e.miniBossHp[vk] <= 0) { spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4); }
               else spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
             }
           }
@@ -4164,7 +4166,7 @@ function handleCollisions() {
                 b.qixHitSets[si].add(marker);
                 e.miniBossHp[vk] -= si === 0 ? (b.power || 5) : 2;
                 score += 10;
-                if (e.miniBossHp[vk] <= 0) spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220);
+                if (e.miniBossHp[vk] <= 0) { spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4); }
                 else spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
               }
             }
@@ -4205,7 +4207,7 @@ function handleCollisions() {
               e.miniBossHp[vk] -= (b.power || 1);
               score += 10;
               if (e.miniBossHp[vk] <= 0) {
-                spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220);
+                spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4);
               } else {
                 spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
               }
@@ -4281,7 +4283,7 @@ function handleCollisions() {
               e.miniBossHp[vk] -= (b.power || 1);
               score += 10;
               if (e.miniBossHp[vk] <= 0) {
-                spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220);
+                spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4);
               } else {
                 spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
               }
@@ -4910,19 +4912,41 @@ function updateDyingEnemyGhosts(dt) {
     if (g.t >= g.duration) dyingEnemyGhosts.splice(i, 1);
   }
 }
+function spawnDeathGhost(x, y, r, angle, color, sides, verts) {
+  // reusable "grows 5x then bursts" death flash — used for regular enemies,
+  // mini-bosses, the boss itself, and asteroids/crystals; sides=undefined and
+  // verts=undefined draws the normal triangle enemy shape, sides draws a
+  // regular polygon (mini-boss squares, the boss's own N-sided shape), and
+  // verts (asteroids/crystals' own irregular vertex list) draws that exact shape
+  dyingEnemyGhosts.push({ x, y, r, angle: angle || 0, color, sides, verts, t: 0, duration: 0.4 });
+}
 function drawDyingEnemyGhosts() {
-  // a destroyed enemy briefly flashes up to 3x its normal size, fading out, right
-  // where it died — a quick "burst" beat before it's gone for good
+  // a destroyed enemy/mini-boss/boss/asteroid/crystal keeps its exact death
+  // angle/shape, bursting outward to 5x its own size while staying fully
+  // bright, then quickly fades in the last moment — right where it died, as a
+  // clear "burst" beat before it's gone for good
   ctx.lineWidth = 1;
   dyingEnemyGhosts.forEach(g => {
     const t = Math.min(1, g.t / g.duration);
-    const scale = 1 + 2 * t;
-    const alpha = 1 - t;
+    const growScale = 1 + 19 * t; // grows up to 20x by the end
+    const alpha = t < 0.6 ? 1 : 1 - (t - 0.6) / 0.4; // stays fully visible while growing, only fades at the end
     ctx.save();
+    ctx.translate(g.x, g.y);
+    ctx.rotate(g.angle);
     ctx.strokeStyle = hexToRgba(g.color, alpha);
-    ctx.fillStyle = hexToRgba(g.color, alpha * 0.25);
+    ctx.fillStyle = hexToRgba(g.color, alpha * 0.35);
     ctx.beginPath();
-    drawEnemyTriangle(g.x, g.y, g.r * scale);
+    if (g.verts) {
+      g.verts.forEach((v, i) => {
+        const vx = v.x * growScale, vy = v.y * growScale;
+        if (i === 0) ctx.moveTo(vx, vy); else ctx.lineTo(vx, vy);
+      });
+      ctx.closePath();
+    } else if (g.sides) {
+      drawPolygonDown(0, 0, g.r * growScale, g.sides);
+    } else {
+      drawEnemyTriangle(0, 0, g.r * growScale);
+    }
     ctx.fill();
     ctx.stroke();
     ctx.restore();
