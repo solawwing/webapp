@@ -111,7 +111,7 @@
 <div id="overlay">
   <div id="titleScreen">
     <div class="title" id="titleText" style="font-size:clamp(8px,3.5vw,18px); cursor:pointer; pointer-events:auto;">GALAX2026</div>
-    <div style="font-size:14px; opacity:0.6; letter-spacing:2px; margin-top:2px; text-shadow:none;">version 2.1</div>
+    <div style="font-size:14px; opacity:0.6; letter-spacing:2px; margin-top:2px; text-shadow:none;">version 2.2</div>
     <svg width="360" height="26" viewBox="0 0 360 26" style="display:block; margin:0 auto 0;">
       <defs>
         <linearGradient id="titleArcFade" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -341,7 +341,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-20 17:05';
+const LAST_UPDATED = '2026-09-20 21:53';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1685,12 +1685,24 @@ function spawnPatternGroup(patternName) {
   const isSecondPass = waveIsDoubled && waveRowIndex >= halfLen;
   const rowIndexForY = isSecondPass ? waveRowIndex - halfLen : waveRowIndex;
   const secondPassOffset = isSecondPass ? 8 : 0;
-  const rowSlots = makeRowSlots(rowIndexForY, 8, secondPassOffset);
+  // total enemies in this formation scales with the player's own strength: base
+  // 8, plus weapon level plus RAPID level (e.g. Lv3 weapon + Lv2 RAPID = 13)
+  const extra = (player.weaponLevel || 0) + (player.rapidLevel || 0);
+  const totalOriginal = def.groups.reduce((s, g) => s + g.count, 0); // 8, always
+  const totalNew = totalOriginal + extra;
+  let assignedSoFar = 0;
+  const groupCounts = def.groups.map((g, gi) => {
+    if (gi === def.groups.length - 1) return totalNew - assignedSoFar; // last group takes the remainder
+    const c = Math.round(totalNew * (g.count / totalOriginal));
+    assignedSoFar += c;
+    return c;
+  });
+  const rowSlots = makeRowSlots(rowIndexForY, totalNew, secondPassOffset);
   rowSlots.forEach(s => s.type = formationType);
   let slotCursor = 0;
-  def.groups.forEach(g => {
+  def.groups.forEach((g, gi) => {
     const curveFn = FAMILY_CURVE[g.family][g.side];
-    for (let k = 0; k < g.count; k++) {
+    for (let k = 0; k < groupCounts[gi]; k++) {
       const slot = rowSlots[slotCursor++];
       const { p0, p1 } = curveFn();
       const idx = waveEnemyGlobalIndex++;
@@ -2026,11 +2038,19 @@ function spawnCrystal() {
   });
 }
 
-function spawnCrystalEnemy(kind) {
-  // Crystal Belt: individual enemies spawn straight from the top of the screen, already
-  // diving/attacking (no formation entry at all). Type: E only for the normal Crystal
-  // Belt, random E/D/C for the faster one.
-  const typeKey = kind === 'CRYSTAL_FAST' ? choice(['E', 'D', 'C']) : 'E';
+function periodicEnemySpawnProb() {
+  // (weapon level + RAPID level) × 10%, capped at 100% — same formula as fireByTier
+  return Math.min(1, ((player.weaponLevel || 0) + (player.rapidLevel || 0)) * 0.1);
+}
+function spawnPeriodicEnemy(kind) {
+  // used during Crystal Belt, Asteroid Belt, and the Boss fight: individual
+  // enemies spawn straight from the top of the screen, already diving/attacking
+  // (no formation entry at all). Type mix gets a bit wilder for the faster/more
+  // intense variants.
+  let typeKey;
+  if (kind === 'CRYSTAL_FAST' || kind === 'ASTEROID_FASTER' || kind === 'BOSS') typeKey = choice(['E', 'D', 'C']);
+  else if (kind === 'ASTEROID_FAST') typeKey = choice(['E', 'D']);
+  else typeKey = 'E'; // CRYSTAL, ASTEROID
   const t = TYPES[typeKey];
   const x = rand(60, W - 60);
   const e = {
@@ -2122,6 +2142,7 @@ function activateWave(kind, m) {
     asteroidWaveTimer = 0;
     asteroidSpawnTimer = 0;
     asteroidItemTimer = 10;
+    crystalEnemyTimer = 2.0;
     asteroidSpeedMul = kind === 'ASTEROID_FASTER' ? 1.5 : kind === 'ASTEROID_FAST' ? 1.2 : 1;
     asteroidTotalDamage = 0;
     beltDamageBonusApplied = false;
@@ -2337,13 +2358,16 @@ function fireEnemySpread(e, n) {
 // B - 4-way spread; A - guaranteed single shot precisely aimed at the player
 function fireByTier(e) {
   if (e.isFragment) return; // split fragments never attack
+  // attack chance scales with the player's own strength: (weapon level + RAPID
+  // level) × 10%, capped at 100% — e.g. Lv1 weapon + Lv1 RAPID = 20%, Lv7 + Lv3 = 100%
+  const prob = Math.min(1, ((player.weaponLevel || 0) + (player.rapidLevel || 0)) * 0.1);
   switch (e.type) {
-    case 'E': if (Math.random() < 0.25) fireEnemyBullet(e); break;
-    case 'D': if (Math.random() < 0.5) fireEnemyBullet(e); break;
-    case 'C': if (Math.random() < 0.5) fireEnemySpread(e, 2); break;
-    case 'B': if (Math.random() < 0.5) fireEnemySpread(e, 3); break;
-    case 'A': fireEnemyBullet(e); break; // 100% chance, precisely aimed
-    default: fireEnemyBullet(e);
+    case 'E': if (Math.random() < prob) fireEnemyBullet(e); break;
+    case 'D': if (Math.random() < prob) fireEnemyBullet(e); break;
+    case 'C': if (Math.random() < prob) fireEnemySpread(e, 2); break;
+    case 'B': if (Math.random() < prob) fireEnemySpread(e, 3); break;
+    case 'A': if (Math.random() < prob) fireEnemyBullet(e); break; // precisely aimed
+    default: if (Math.random() < prob) fireEnemyBullet(e);
   }
 }
 
@@ -2569,7 +2593,7 @@ function updateEnemies(dt) {
       e.y = e.slot.y + Math.sin(formationOffsetT * 0.9 + e.swayPhase) * 3;
     } else if (e.state === 'dive') {
       e.t += dt / e.duration;
-      if (!e.fired && e.t > 0.35) { fireByTier(e); e.fired = true; }
+      if (!e.fired && e.t > 0.2) { fireByTier(e); e.fired = true; }
       if (e.t >= 1) {
         startReturn(e);
       } else {
@@ -2652,47 +2676,47 @@ document.querySelectorAll('#itemsScreen .item-entry[data-weapon]').forEach(el =>
 // longer, more detailed write-ups (roughly 8-10 wrapped lines) used only on the
 // equipment-select screen, distinct from the item-legend panel's short 2-line blurbs
 const EQUIP_LONG_DESCRIPTIONS = {
-  DOUBLE: { intro: "Fires a tight pair of light-blue shots side by side, both always angled just one degree outward, no matter what level you're at. What really sets DOUBLE apart is its trailing options: rotating cyan squares that follow behind the ship, one more joining the chain each level starting from your very first level-up, each one keeping its distance from the one ahead of it rather than crowding together. Every option fires the exact same twin-shot volley as the ship itself, multiplying your firepower across several points on screen at once. They also physically bump anything they touch for their own chip damage and will swat enemy bullets right out of the air. When you stop moving, the options stop chasing too, though they never stop spinning. A fresh wave always resets them to overlap the ship exactly, ready to fan back out as soon as you move again. DOUBLE uniquely keeps growing all the way to level seven, two levels further than most weapons, so a maxed-out ship trails a full formation of seven options all firing in unison.",
+  DOUBLE: { intro: "Fires a tight pair of light-blue shots angled slightly outward. Rotating cyan option squares trail behind the ship, one more per level, each firing the same twin-shot volley and bumping or destroying enemy bullets on contact. They stop chasing when the ship stops, and reset to overlap it each new wave. DOUBLE uniquely levels to 7, for a full seven-option formation.",
     levels: ["1 option.", "2 options.", "3 options.", "4 options.", "5 options.", "6 options.", "7 options, full formation."] },
-  EARTH: { intro: "Stations a pair of small square pods out along the ship's rear-left and rear-right diagonals, sliding back and forth in a straight line together — always at the same height as each other, mirrored left to right. Each pod fires its own laser out to the side, at a right angle to the diagonal line it travels along, sweeping that beam back and forth across the field as the pod itself slides up and down its line. Leveling up adds another pair further out along the same diagonals. EARTH uniquely keeps growing all the way to level seven, two levels further than most weapons, for a whole staircase of pods sweeping the sides of the screen at once.",
+  EARTH: { intro: "Stations a mirrored pair of pods sliding along the ship's rear diagonals, each firing a sideways laser that sweeps back and forth as the pod moves. Leveling up adds another pair further out. EARTH uniquely levels to 7, for a full staircase of sweeping pods.",
     levels: ["1 pair.", "2 pairs.", "3 pairs.", "4 pairs.", "5 pairs.", "6 pairs.", "7 pairs, full staircase."] },
-  MISSILE: { intro: "Fires pairs of orange missiles from the ship's rear corners. Each one launches backward and outward first, arcs smoothly through a parabolic turn to reverse into forward flight, climbs for a while, then splits into two fragments angling diagonally outward. Missiles that stray off the edge of the screen curve back in rather than being lost, so a volley keeps sweeping the play field instead of flying away for good. Leveling up simply launches more pairs at once, all following the same loop-and-split pattern. MISSILE uniquely keeps growing all the way to level seven, two levels further than most weapons, so a maxed-out volley fills the screen with looping, splitting missiles.",
+  MISSILE: { intro: "Fires pairs of orange missiles from the rear corners: each launches backward, loops into forward flight, climbs, then splits into two diagonal fragments. Stray missiles curve back onto the screen instead of vanishing. Leveling up adds more pairs. MISSILE uniquely levels to 7, filling the screen with looping, splitting missiles.",
     levels: ["2 missiles.", "4 missiles.", "6 missiles.", "8 missiles.", "10 missiles.", "12 missiles.", "14 missiles, screen-filling swarm."] },
-  HOMING: { intro: "Each shot locks onto its own distinct target, enemies, asteroids, and crystals all count, so a full volley can track that many different threats simultaneously. Shots launch twenty pixels off the ship's tip along a fixed firing angle, travel two hundred pixels dead straight while steadily accelerating, then curve in toward whatever they're locked onto once that opening stretch ends. Leveling up doesn't just add more shots, it widens the angles those shots launch at too, starting at just ten degrees off center and stepping outward by thirty more with each new pair, tapering off at exactly directly-behind for the widest possible spread rather than overshooting past it. HOMING uniquely keeps growing all the way to level seven, two levels further than most weapons, so a maxed-out volley can blanket the entire area around the ship and lock onto far more targets than the early levels can manage.",
+  HOMING: { intro: "Each shot locks its own distinct target — enemies, asteroids, and crystals all count. Shots launch from the tip, fly 200px straight while accelerating, then curve in. Leveling up adds shots AND widens their launch angles, tapering at directly-behind. HOMING uniquely levels to 7, for a full-circle locking volley.",
     levels: ["2 shots at ±10°.", "4 shots, up to ±40°.", "6 shots, up to ±70°.", "8 shots, up to ±100°.", "10 shots, up to ±130°.", "12 shots, up to ±160°.", "14 shots, up to ±180°."] },
-  INFINITY: { intro: "Small white square bullets pop into existence out in a ring around the ship, appearing anywhere from twenty to three hundred fifty pixels out — never right on top of the ship itself. Each one sits still for half a second right where it appeared, then shoots off in a straight line toward a target picked completely at random from everything currently on screen: regular enemies, individual mini-boss vertices, the boss's own body once it's vulnerable, and every asteroid or crystal all count equally, so a single volley can scatter squares toward threats in every direction at once rather than piling onto whichever target happens to be closest. A tiny burst of white sparks marks every impact. Leveling up doesn't change the spawn ring or the aiming, it simply spawns ten more squares at once per level, so the ring around the ship gets steadily denser and more threats end up targeted in the same volley. A single hit destroys whatever it touches — no ricochet, no splitting, no piercing — and the whole volley fires once every second.",
+  INFINITY: { intro: "White square bullets appear randomly 20-350px around the ship, sit still growing for a moment, then dart off in a straight line toward a random on-screen target — any enemy, mini-boss vertex, vulnerable boss, or asteroid/crystal. A spark marks every impact. Leveling up spawns ten more squares per level. Fires once a second; a single hit destroys, with no piercing or splitting.",
     levels: ["10 squares.", "20 squares.", "30 squares.", "40 squares.", "50 squares.", "60 squares.", "70 squares."] },
-  LASER: { intro: "A piercing cyan beam that cuts through several targets at once, plus two independent side beams firing on their own faster rhythm from just beside the ship. The main beam and the side beams share the same per-level length, pierce count, and travel speed, so every level-up improves all three beams together rather than just one. The main beam also visibly thickens by a pixel every level up through level five, then thickens twice as fast for the final two levels, so by max level it's an enormous, unmistakable shaft of light that stretches nearly the full height of the screen, punches through ten targets in a row, and travels faster than almost anything else in your arsenal. LASER uniquely keeps growing all the way to level seven, two levels further than most weapons, turning a maxed-out beam into one of the most dominant long-range picks for late-game waves and tough boss fights.",
+  LASER: { intro: "A piercing cyan beam plus two faster independent side beams, all sharing the same length, pierce count, and speed per level. The main beam also thickens each level, doubling its growth rate for the last two levels. LASER uniquely levels to 7, becoming an enormous, fast, ten-target-piercing shaft of light.",
     levels: ["200px, pierces 5, 2px thick.", "250px, pierces 5, 3px thick.", "300px, pierces 5, 4px thick.", "400px, pierces 10, 5px thick.", "500px, pierces 10, 6px thick.", "600px, pierces 10, 8px thick.", "700px, pierces 10, 10px thick."] },
-  GRAVITY: { intro: "Every hit splashes nearby enemies for extra damage, and also kicks off a shockwave ring that lingers on screen for several seconds afterward. The ring first expands to its full size, then holds there and visibly shakes in place before fading away. Anything caught inside the ring takes repeated damage for as long as it stays trapped, and enemies, asteroids, and crystals inside also move and act at a third of their normal speed, effectively locking them down while the ring keeps ticking. The splash and shockwave radius both grow with level, and GRAVITY uniquely keeps growing all the way to level seven, two levels further than most weapons, so a maxed-out shot can blanket a huge portion of the screen and turn crowded moments into a serious area-control advantage.",
+  GRAVITY: { intro: "Splash-damages nearby enemies on every hit and leaves behind a shockwave ring that expands, holds, then fades. Anything trapped inside takes repeated damage and moves at a third speed. Splash and ring radius both grow with level; GRAVITY uniquely levels to 7 for serious area control.",
     levels: ["30px splash radius.", "60px radius.", "90px radius.", "120px radius.", "150px radius.", "180px radius.", "210px radius, biggest shockwave."] },
-  BUBBLE: { intro: "Launches a cone of drifting pink orbs ahead of the ship, growing steadily larger the farther each one travels. Every orb's brightness is randomly assigned the moment it's fired, and that brightness quietly determines both how far the orb can fly before vanishing and how much damage it deals on contact. The brightest orbs fly the farthest and hit the hardest, while dimmer ones fizzle out quickly and deal comparatively little damage nearby. The cone itself starts fairly wide and narrows a little with every level, trading spread for a tighter, more concentrated stream as it's leveled up. Because the orb count climbs sharply with level and BUBBLE uniquely keeps growing all the way to level seven, two levels further than most weapons, it turns into a genuine wall of unpredictable projectiles at higher levels, even though any single orb on its own is fairly weak.",
+  BUBBLE: { intro: "Fires a cone of pink orbs that grow larger the farther they travel. Each orb's random brightness sets both its range and its damage — brighter flies farther and hits harder. The cone narrows each level as the orb count rises. BUBBLE uniquely levels to 7, becoming a dense wall of unpredictable projectiles.",
     levels: ["6 orbs, 120° cone.", "10 orbs, 110° cone.", "14 orbs, 100° cone.", "18 orbs, 90° cone.", "22 orbs, 80° cone.", "26 orbs, 70° cone.", "30 orbs, 60° cone, tightest and densest."] },
-  VULCAN: { intro: "A rapid-fire burst of short orange bolts fired from the very tip of the ship, each one scattering a few degrees off true for a chattering spray rather than a clean straight line. No matter how many shots you've unlocked, the whole burst always finishes within half a second, so higher levels simply pack more bolts into that same tight window instead of dragging the burst out longer. Every single bolt in a shot now fires as a rapid volley of its own too, repeating the exact same bolt in place once per level with barely any delay between each repeat, so leveling up multiplies your output twice over — more shots in the burst, and more repeats of each one. VULCAN also uniquely keeps growing all the way to level seven, two levels further than every other weapon. It stacks cleanly with RAPID too, letting everything overlap into an even denser stream of fire.",
+  VULCAN: { intro: "A rapid burst of scattering orange bolts from the ship's tip, always finishing within half a second regardless of level. Each bolt also repeats itself once per level with almost no delay, doubling your output as you level — more bolts per burst AND more repeats. VULCAN uniquely levels to 7 and stacks cleanly with RAPID.",
     levels: ["2-shot burst, 1x repeat.", "4-shot burst, 2x repeat.", "6-shot burst, 3x repeat.", "8-shot burst, 4x repeat.", "10-shot burst, 5x repeat.", "12-shot burst, 6x repeat.", "14-shot burst, 7x repeat, same 0.5s window."] },
-  WHIPS: { intro: "Lashes out one curved tether per level, each from the ship to whatever enemy is currently nearest, whipping and cracking against it for repeated damage every second as long as contact holds. Every tether follows the ship wherever it moves, so none of them ever go slack, and the instant a tether's target is destroyed it snaps toward a fresh nearest target rather than dissipating for good. Tethers each prefer a distinct target from the others, only sharing one if nothing else is available. Leveling up adds another tether and increases how much damage each crack deals. WHIPS uniquely keeps growing all the way to level seven, two levels further than most weapons, for a whole tangle of punishing tethers at max level.",
+  WHIPS: { intro: "Lashes out a curved tether per level from the ship to the nearest enemy, cracking for damage every tenth of a second while connected. Tethers follow the ship and instantly retarget when their enemy dies, each preferring a distinct target from the others. Leveling up adds a tether and more damage per crack. WHIPS uniquely levels to 7.",
     levels: ["1 tether, 1dmg.", "2 tethers, 2dmg.", "3 tethers, 3dmg.", "4 tethers, 4dmg.", "5 tethers, 5dmg.", "6 tethers, 6dmg.", "7 tethers, 7dmg."] },
-  PHANTOM: { intro: "Instantly flashes a wide beam from the ship straight up to the top of the screen, damaging everything caught inside the flash the very moment it fires, with no travel time at all. Anything still standing inside that flash zone while it's fading out also gets caught in a slowing field, moving and acting at half speed for as long as they linger there — and takes a second damage tick right as the flash finishes, catching anything that wandered in after the initial hit too. The width of that flash and the cooldown between flashes both improve dramatically with level, the beam growing wider while the wait between activations shrinks all the way down to a tenth of a second. PHANTOM also uniquely keeps growing all the way to level seven, two levels further than most other weapons, letting you flash almost constantly once fully powered up.",
+  PHANTOM: { intro: "Instantly flashes a wide beam to the top of the screen, hitting everything inside the moment it fires. Anything still caught as the flash fades is slowed to half speed and takes a second damage tick. Width grows and cooldown shrinks, down to a tenth of a second, with level. PHANTOM uniquely levels to 7 for near-constant flashing.",
     levels: ["100px wide, 1.0s cooldown.", "120px wide, 0.8s cooldown.", "140px wide, 0.6s cooldown.", "160px wide, 0.4s cooldown.", "180px wide, 0.2s cooldown.", "200px wide, 0.15s cooldown.", "220px wide, 0.1s cooldown."] },
-  QIX: { intro: "Fires a single slim wireframe rod that pierces through everything in its path, tumbling end over end around an off-center pivot at an irregular, wobbling speed rather than spinning smoothly or flying as a fixed rigid line. It trails a handful of faded afterimages behind it too, echoing its own position from moments earlier. Leveling up doesn't add more rods — it stretches the one rod itself another twenty-five pixels longer, so a maxed-out QIX sweeps a much longer reach with every pass. QIX uniquely keeps growing all the way to level seven, two levels further than most weapons, for a genuinely long tumbling rod at max level.",
+  QIX: { intro: "Fires one slim wireframe rod that pierces everything, tumbling irregularly around an off-center pivot with a few fading afterimages trailing behind it. Leveling up stretches the rod another 25px rather than adding more rods. QIX uniquely levels to 7 for a long tumbling reach.",
     levels: ["50px long.", "75px long.", "100px long.", "125px long.", "150px long.", "175px long.", "200px long."] },
-  CURVE: { intro: "Launches two violet beams per level, each one locking onto a different target near the top of the screen so that a full volley spreads its attention across several enemies at once instead of piling onto one. Rather than turning sharply toward its target, each beam curves along a gentle, ever-tightening parabolic arc, so its path visibly bends more and more the longer it stays airborne. Its hitbox reaches a generous twenty pixels to either side too, so it doesn't need to line up perfectly to connect. Along the way it pierces through anything else it happens to pass, dealing lesser damage to those incidental targets while saving its heaviest hit for whatever it originally locked onto. CURVE uniquely keeps growing all the way to level seven, two levels further than most weapons, letting a maxed-out volley lock onto a huge share of everything near the top of the screen at once.",
+  CURVE: { intro: "Launches two violet beams per level, each locking a different target near the top of the screen and curving along a gentle, ever-tightening arc. A generous 20px hitbox lets it pierce incidental targets for lesser damage en route to its real target. CURVE uniquely levels to 7, covering nearly the whole top row.",
     levels: ["2 beams.", "4 beams.", "6 beams.", "8 beams.", "10 beams.", "12 beams.", "14 beams, covers nearly the whole top row."] },
-  THUNDER: { intro: "A yellow bolt that, on its first hit, ignites a chain reaction, jumping rapidly to the nearest untouched target within a huge range and then the next, forming a single unbroken line of lightning rather than branching apart, dealing solid damage with every single jump. If it ever runs out of nearby untouched targets while jumps still remain, it clears its own memory of who it's already hit and keeps going, letting the same handful of targets get chained through again rather than fizzling out early — this reset is capped per bolt so it can't loop forever, and that cap itself grows a little further at the very top levels. The chain caps out at thirty-two total jumps by level five, and THUNDER uniquely keeps growing two levels further still, not for more jumps but for a chain that's simply more persistent and harder to run dry, letting a maxed-out bolt chew through entire waves off a single well-placed hit.",
+  THUNDER: { intro: "A bolt that chains to the nearest untouched target on hit, forming one unbroken line of lightning. If it runs out of fresh targets it clears its memory and re-chains through the same ones, up to a per-bolt reset cap that itself grows at the top levels. Caps at 32 jumps by level 5; THUNDER uniquely levels to 7 for more resets rather than more jumps.",
     levels: ["2 jumps, up to 3 resets.", "4 jumps, up to 3 resets.", "8 jumps, up to 3 resets.", "16 jumps, up to 3 resets.", "32 jumps, up to 3 resets.", "32 jumps, up to 4 resets.", "32 jumps, up to 5 resets."] },
-  REFECT: { intro: "Fires bolts that launch within just a few degrees of straight up, then bounce back and forth as they climb: after covering a fixed short stretch, each bolt flips over to the mirror-image angle and keeps going, tracing a zig-zagging path up the screen. Unlike most weapons, it doesn't stop or vanish on contact — it punches straight through anything in its way and keeps traveling afterward, so a single bolt can rack up hits against several enemies caught along its path. Leveling up simply adds more bolts to each volley, all launching from the same point with their own independently-randomized starting angle. REFECT uniquely keeps growing all the way to level seven, two levels further than most weapons, for a genuinely dense wall of crisscrossing bolts at max level.",
+  REFECT: { intro: "Fires bolts that launch near-vertical, then bounce to the mirror-image angle every fixed stretch for a zig-zagging climb. It pierces everything instead of stopping on contact. Leveling up adds more bolts, each with its own randomized starting angle. REFECT uniquely levels to 7 for a dense crisscrossing wall.",
     levels: ["1 bolt.", "2 bolts.", "3 bolts.", "4 bolts.", "5 bolts.", "6 bolts.", "7 bolts, dense zig-zagging coverage."] },
-  ORBITAL: { intro: "Surrounds the ship with a set of wireframe rings, all sharing one elliptical orbit, evenly spaced around it and rotating together. The ellipse itself doesn't sit still either — it keeps slowly tumbling, reorienting its own long axis over time, so the whole formation traces a constantly shifting oval path around the ship rather than a fixed loop. Every ring periodically fires a fine, narrow laser straight ahead from wherever it currently sits, so the firing point sweeps around unpredictably as both the ring and the ellipse itself keep moving. On piercing through its first target, each bolt forks into two diverging shots instead of stopping. Leveling up adds two more rings to the same orbit, always in a diametrically opposite pair. ORBITAL uniquely keeps growing all the way to level seven, two levels further than most weapons, for a fully-layered defensive formation at max level.",
+  ORBITAL: { intro: "Wireframe rings share one elliptical orbit around the ship, which itself slowly tumbles and reorients over time. Every ring fires a fine forward laser that forks into two on its first pierce. Leveling up adds rings in diametrically opposite pairs. ORBITAL uniquely levels to 7 for a fully-layered defensive formation.",
     levels: ["2 rings.", "4 rings.", "6 rings.", "8 rings.", "10 rings.", "12 rings.", "14 rings, full coverage."] },
-  ZAPPER: { intro: "Stations a pair of small rotating squares just outside the ship, one on each side. Whenever a square is free, it locks onto the nearest available target — enemies, asteroids, crystals, mini-bosses, and the boss are all fair game — and dashes toward it at high speed. On contact it clings there, zapping away for repeated damage every tenth of a second until the target is destroyed, then races straight back to its resting spot beside the ship to wait for its next target. Every square always locks onto a different target than its partners, so the group spreads its attention across the field instead of piling onto one. Leveling up adds another pair further out from the ship. ZAPPER uniquely keeps growing all the way to level seven, two levels further than most weapons, for a small swarm of drones darting in and out at max level.",
+  ZAPPER: { intro: "A pair of rotating squares beside the ship dash at the nearest free target — any enemy type counts — cling and zap for repeated damage every tenth of a second until it dies, then race back. Each always targets something different than its partners. Leveling up adds another pair. ZAPPER uniquely levels to 7 for a small swarm of drones.",
     levels: ["1 pair.", "2 pairs.", "3 pairs.", "4 pairs.", "5 pairs.", "6 pairs.", "7 pairs, full swarm."] },
-  XCROSS: { intro: "Fires a small bolt shaped like two crossing lines. On its own it does nothing special, but the instant it touches an enemy, both lines suddenly shoot outward in all four diagonal directions from the point of impact, and anything caught along those extended lines takes a solid hit. Leveling up doesn't add more bolts, it makes each impact's reach longer, stretching the X further out across the screen so a single hit can catch several enemies lined up along its diagonals. XCROSS uniquely keeps growing all the way to level seven, two levels further than most weapons, for a screen-spanning burst at max level.",
+  XCROSS: { intro: "Fires a small X-shaped bolt that, on hitting an enemy, shoots both lines outward across all four diagonals, hitting anything caught along them. Leveling up extends that reach rather than adding more bolts. XCROSS uniquely levels to 7 for a screen-spanning burst.",
     levels: ["100px reach.", "200px reach.", "300px reach.", "400px reach.", "500px reach.", "600px reach.", "700px reach, screen-spanning."] },
-  KURU2: { intro: "Fires a rapid stream of tiny fluorescent-yellow triangles, each one spinning steadily as it flies forward. Whenever one of these actually destroys an enemy, it doesn't just vanish — right at the kill spot, it starts spinning in place and unloads a wild burst of even smaller triangles firing off in every direction at once. Leveling up makes that burst last longer, so a maxed-out KURU2 can turn a single kill into several seconds of dense omnidirectional cover fire. KURU2 uniquely keeps growing all the way to level seven, two levels further than most weapons, for a battlefield full of lingering kill-bursts at max level.",
+  KURU2: { intro: "Fires a stream of spinning fluorescent-yellow triangles. Any kill triggers a spinning burst of smaller triangles firing off in every direction right at the kill spot. Leveling up extends how long that burst lasts. KURU2 uniquely levels to 7 for long-lasting, overlapping kill-bursts.",
     levels: ["1s burst on kill.", "2s burst on kill.", "3s burst on kill.", "4s burst on kill.", "5s burst on kill.", "6s burst on kill.", "7s burst on kill."] },
-  ARROW: { intro: "Fires slim, open wireframe arrowheads — a tall isosceles triangle with its base edge left out, so it reads as a pure arrow shape rather than a solid wedge. Each one launches at a modest pace before suddenly kicking into double speed partway through its flight, giving the volley a distinctive stop-and-dash rhythm rather than a flat, even glide. Leveling up adds more arrows to each volley, fanning them out a little wider each time. ARROW uniquely keeps growing all the way to level seven, two levels further than most weapons, for a wide spread of accelerating arrows at max level.",
+  ARROW: { intro: "Fires open wireframe arrowhead shapes that launch slow, then suddenly double speed mid-flight for a distinctive stop-and-dash rhythm. Leveling up adds more arrows in a wider fan. ARROW uniquely levels to 7 for a wide spread of accelerating arrows.",
     levels: ["1 arrow.", "2 arrows.", "3 arrows.", "4 arrows.", "5 arrows.", "6 arrows.", "7 arrows, wide spread."] },
-  SPARK: { intro: "A rare power-up themed after a fireworks festival, and one of the hardest weapon pickups to come across. Twin sparks rise gently into the air before bursting into a shower of scattering fragments. SPARK alternates between two burst modes on a permanent, repeating forty-second loop: a calmer normal mode (8, 10, or 12-way bursts, picked at random each time that mode begins) and a wild spread mode (64, 128, or 256-way bursts), cycling back to normal again once the loop completes rather than ever running out. Leveling up shifts the balance between the two — low levels favor a long stretch of normal bursts with just a short spread finale, while high levels flip that almost entirely into spread mode for a screen-filling barrage. Items still drop normally while it's active, just like with any other weapon.",
+  SPARK: { intro: "A rare fireworks-themed pickup: twin sparks rise gently then burst into scattering fragments. Alternates every 40s between a calmer normal mode (8, 10, or 12-way bursts) and a wild spread mode (64, 128, or 256-way). Leveling up shifts the balance toward more spread time, almost entirely spread at max level.",
     levels: ["35s normal / 5s spread.", "30s normal / 10s spread.", "25s normal / 15s spread.", "20s normal / 20s spread.", "15s normal / 25s spread.", "10s normal / 30s spread.", "5s normal / 35s spread, mostly a spread barrage."] },
 };
 let equipDescIndex = 0;
@@ -4909,8 +4933,17 @@ function drawPolygonDown(cx, cy, r, sides) {
 
 // ---------- asteroid belt wave ----------
 function updateBossWave(dt) {
-  // escort minions no longer spawn during the boss fight — just the boss itself now
-  return;
+  if (!waveActive) return;
+  const m = ((wave - 1) % CYCLE_LEN) + 1;
+  const kind = CYCLE_KIND[m - 1];
+  if (kind !== 'BOSS') return;
+  // random-tier enemies keep trying to spawn from the top every 1s for as long
+  // as the boss lives, gated by the player's own strength (periodicEnemySpawnProb)
+  bossMinionTimer -= dt;
+  if (bossMinionTimer <= 0) {
+    if (Math.random() < periodicEnemySpawnProb()) spawnPeriodicEnemy('BOSS');
+    bossMinionTimer = 1.0;
+  }
 }
 function updateAsteroidWave(dt) {
   if (!waveActive) return;
@@ -4929,12 +4962,13 @@ function updateAsteroidWave(dt) {
     spawnItem(rand(60, W - 60), -20);
     asteroidItemTimer = 10;
   }
-  if (isCry) {
-    // Crystal Belt also spawns individual enemies every 2s, straight from the top,
-    // already in their dive/attack state (no formation entry)
+  if (isCry || isAsteroidKind(kind)) {
+    // Crystal AND Asteroid Belt also spawn individual enemies every 2s, straight
+    // from the top, already in their dive/attack state (no formation entry) —
+    // gated by the player's own strength (see periodicEnemySpawnProb)
     crystalEnemyTimer -= dt;
     if (crystalEnemyTimer <= 0 && asteroidWaveTimer < 45) {
-      spawnCrystalEnemy(kind);
+      if (Math.random() < periodicEnemySpawnProb()) spawnPeriodicEnemy(kind);
       crystalEnemyTimer = 2.0;
     }
   }
