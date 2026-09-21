@@ -341,7 +341,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-20 21:53';
+const LAST_UPDATED = '2026-09-21 22:28';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -654,14 +654,17 @@ function pickItemType() {
   // lower weapon level -> more likely to see the same weapon again (helps reach max level);
   // once maxed, that weapon is excluded entirely so it doesn't drop wastefully — VULCAN
   // and PHANTOM cap at Lv7, every other weapon caps at Lv5.
-  // SPARK is a special rare power-up: much lower weight than any other weapon.
+  // SPARK follows this SAME level-scaled weight whenever it's the currently equipped
+  // weapon; otherwise it keeps its special, much-lower rare-pickup weight.
   const lvl = player.weaponLevel;
   const maxLevel = weaponMaxLevel(player.weapon);
   const weights = ITEM_TYPES.map(t => {
+    if (t === player.weapon) {
+      if (lvl >= maxLevel) return 0;
+      return 40 - 5 * lvl; // Lv1=35, Lv2=30, Lv3=25, Lv4=20, Lv5=15, Lv6=10, Lv7=5
+    }
     if (t === 'SPARK') return 0.15;
-    if (t !== player.weapon) return 1;
-    if (lvl >= maxLevel) return 0;
-    return Math.max(1, 25 - 5 * lvl); // clamped so VULCAN/PHANTOM's extra Lv6/Lv7 headroom never goes negative
+    return 1;
   });
   const total = weights.reduce((a, b) => a + b, 0);
   let r = Math.random() * total;
