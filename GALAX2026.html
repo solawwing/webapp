@@ -341,7 +341,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-21 22:28';
+const LAST_UPDATED = '2026-09-21 23:58';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1186,12 +1186,30 @@ function fireWeapon() {
       playerBullets.push({ x: sx, y: sy, vx, vy, r: 2, power: 2 + (player.rapidLevel || 0), infinitySquare: true, noTrail: true, growSize: 2, growTimer: 0.08 });
     }
   } else if (player.weapon === 'LASER') {
-    // reworked: length/speed ignore level for now — a long, clean, straight beam
-    // that pierces every enemy in its path and keeps ticking damage repeatedly to
-    // anything still overlapping it, rather than a single hit per target. Power
-    // scales with level (+2 per level above 1), and so does the hitbox's width:
-    // 10px around the beam's centerline at Lv1, +10px per level (Lv7=70px).
-    playerBullets.push({ x: bx, y: by, vx: 0, vy: -500, r: 10 * lvl, laser: true, length: 900, pierceLeft: 999999, hitSet: new Set(), power: 1 + (lvl - 1) * 2, laserLevel: 1, spawnX: bx, spawnY: by, laserTickTimer: 0 });
+    // a long, clean, straight beam that pierces every enemy in its path with no
+    // pierce limit at all, ticking a flat 2 damage every 0.05s to anything still
+    // overlapping it (same at every level). Only the hitbox width scales with
+    // level: 10px around the beam's centerline at Lv1, +10px per level (Lv7=70px).
+    const beamSpeed = 750; // 500 × 1.5, shared by main and side beams alike
+    playerBullets.push({ x: bx, y: by, vx: 0, vy: -beamSpeed, r: 10 * lvl, laser: true, length: 900, hitSet: new Set(), power: 2, laserLevel: 1, spawnX: bx, spawnY: by, laserTickTimer: 0 });
+    // side beams: one per level, each locking a DISTINCT target, launching from
+    // the main beam's vertical position but horizontally lined up with its own
+    // target instead of the ship. Fired in the SAME call as the main beam (so
+    // always simultaneous), and now share the exact same continuous-tick pierce
+    // mechanic as the main beam too (laserTickTimer) — the only real difference
+    // left is the slim fixed 1px width (sideBeam flag) instead of scaling with level.
+    const sideClaimed = new Set();
+    for (let i = 0; i < lvl; i++) {
+      const target = findNearestEnemyExcluding(bx, by, sideClaimed);
+      if (!target) break;
+      sideClaimed.add(target);
+      playerBullets.push({
+        x: target.x, y: by, vx: 0, vy: -beamSpeed, r: 10, sideBeam: true, laser: true,
+        length: 900, hitSet: new Set(),
+        power: 2, laserLevel: lvl, spawnX: target.x, spawnY: by, laserTickTimer: 0,
+      });
+      sideBeamMarkers.push({ x: target.x, y: by + 10, t: 0 });
+    }
   } else if (player.weapon === 'GRAVITY') {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -450, r: 3, power: 2, gravity: true, gravityRadius: lvl * 30 });
   } else if (player.weapon === 'BUBBLE') {
@@ -1846,6 +1864,7 @@ function waveEnemyCount(w) {
 let asteroids = [];
 let dyingAsteroids = []; // split pieces that are shattering apart over 1s before vanishing
 let dyingEnemyGhosts = []; // destroyed enemies flash up to 3x size before vanishing
+let sideBeamMarkers = []; // small wireframe triangles at each LASER side beam's spawn point, fading out after 1s
 let asteroidTotalDamage = 0;
 let beltDamageBonusApplied = false;
 let bonusSnapshot = null; // frozen live-bonus display value, captured once at 5s remaining
@@ -2105,6 +2124,7 @@ function startWave() {
   asteroids = [];
   dyingAsteroids = [];
   dyingEnemyGhosts = [];
+  sideBeamMarkers = [];
   asteroidWaveTimer = 0;
   asteroidSpawnTimer = 0;
   asteroidItemTimer = 10;
@@ -2761,7 +2781,7 @@ function startEquipDescCycle() {
 }
 const equipRow = document.getElementById('equipRow');
 const EQUIP_UPDATED = ['ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY'];
-const EQUIP_UPDATE_TAG = ['MISSILE', 'CURVE', 'VULCAN']; // shows "UPDATE" instead of "NEW"
+const EQUIP_UPDATE_TAG = ['MISSILE', 'CURVE', 'VULCAN', 'LASER']; // shows "UPDATE" instead of "NEW"
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -3303,7 +3323,7 @@ function updateBullets(dt) {
       b.laserShouldTick = false;
       if (b.laserTickTimer <= 0) {
         b.laserShouldTick = true;
-        b.laserTickTimer = 0.1;
+        b.laserTickTimer = 0.05;
       }
     }
     if (b.maxSpeed && b.rampAge !== undefined) {
@@ -4729,6 +4749,7 @@ function checkWaveClear() {
     asteroids = [];
     dyingAsteroids = [];
     dyingEnemyGhosts = [];
+    sideBeamMarkers = [];
     waveClearTimer += 1/60;
     const burstPhaseDuration = 5.0, nextStagePhaseDuration = 10.0;
     const clearDelay = kind === 'BOSS' ? (burstPhaseDuration + nextStagePhaseDuration) : 1.2; // let the boss explosion + "next stage" beat play out fully
@@ -5105,6 +5126,31 @@ function drawDyingEnemyGhosts() {
       drawEnemyTriangle(0, 0, g.r * growScale);
     }
     ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+function updateSideBeamMarkers(dt) {
+  for (let i = sideBeamMarkers.length - 1; i >= 0; i--) {
+    const m = sideBeamMarkers[i];
+    m.t += dt;
+    if (m.t >= 0.5) sideBeamMarkers.splice(i, 1); // fades out over its full 0.5s lifetime
+  }
+}
+function drawSideBeamMarkers() {
+  // a tiny open wireframe shape marks each LASER side beam's spawn spot — just
+  // the two slanted sides from the apex (height 10px, base 5px), no bottom edge
+  ctx.strokeStyle = 'rgba(57, 255, 243, 0.5)';
+  ctx.lineWidth = 1;
+  sideBeamMarkers.forEach(m => {
+    const alpha = Math.max(0, 1 - m.t / 0.5); // fades out over the full 0.5s lifetime, starting immediately
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.moveTo(m.x, m.y - 5);
+    ctx.lineTo(m.x + 2.5, m.y + 5);
+    ctx.moveTo(m.x, m.y - 5);
+    ctx.lineTo(m.x - 2.5, m.y + 5);
     ctx.stroke();
     ctx.restore();
   });
@@ -5731,7 +5777,7 @@ function drawBullets() {
         ctx.save();
         ctx.globalAlpha = Math.max(0, 1 - (b.dyingT || 0) / 0.3);
       }
-      ctx.lineWidth = b.subLaser ? 1 : laserThickness(b.laserLevel || 1); // main beam grows +1px per level (Lv1-5), then +2px for Lv6/Lv7
+      ctx.lineWidth = (b.subLaser || b.sideBeam) ? 1 : laserThickness(b.laserLevel || 1); // main beam grows +1px per level (Lv1-5), then +2px for Lv6/Lv7
       const { tailX, tailY } = laserSegmentEnds(b);
       const grad = ctx.createLinearGradient(b.x, b.y, tailX, tailY);
       const beamColor = '#39fff3';
@@ -6237,6 +6283,7 @@ function frame(now) {
     updateAsteroids(dt);
     updateDyingAsteroids(dt);
     updateDyingEnemyGhosts(dt);
+    updateSideBeamMarkers(dt);
     handleCollisions();
     handleAsteroidCollisions();
     handleOptionCollisions();
@@ -6256,6 +6303,7 @@ function frame(now) {
   drawAsteroids();
   drawDyingAsteroids();
   drawDyingEnemyGhosts();
+  drawSideBeamMarkers();
   drawBullets();
   drawItems();
   drawParticles();
