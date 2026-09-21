@@ -341,7 +341,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-21 23:58';
+const LAST_UPDATED = '2026-09-22 06:13';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -824,6 +824,42 @@ function findNearestEnemy(x, y) {
   });
   return best;
 }
+function findNearestLaserTargetExcluding(x, y, excludeSet) {
+  // like findNearestEnemyExcluding, but treats each still-alive mini-boss vertex
+  // as its OWN distinct candidate point (not just the boss's overall center) —
+  // used by LASER's side beams so they can specifically aim at mini-bosses
+  let best = null, bestD = Infinity, bestPos = null;
+  enemies.forEach(e => {
+    if (e.type === 'GIANTBOSS') {
+      if (e.miniBossHp) {
+        e.miniBossMarkers = e.miniBossMarkers || [];
+        for (let vk = 0; vk < e.def.sides; vk++) {
+          if (e.miniBossHp[vk] <= 0) continue;
+          if (!e.miniBossMarkers[vk]) e.miniBossMarkers[vk] = {};
+          const key = e.miniBossMarkers[vk];
+          if (excludeSet.has(key)) continue;
+          const pos = bossVertexWorldPos(e, vk);
+          const d = dist2(x, y, pos.x, pos.y);
+          if (d < bestD) { bestD = d; best = key; bestPos = pos; }
+        }
+      }
+      if (isBossVulnerable(e) && !excludeSet.has(e)) {
+        const d = dist2(x, y, e.x, e.y);
+        if (d < bestD) { bestD = d; best = e; bestPos = { x: e.x, y: e.y }; }
+      }
+      return;
+    }
+    if (excludeSet.has(e)) return;
+    const d = dist2(x, y, e.x, e.y);
+    if (d < bestD) { bestD = d; best = e; bestPos = { x: e.x, y: e.y }; }
+  });
+  asteroids.forEach(a => {
+    if (excludeSet.has(a)) return;
+    const d = dist2(x, y, a.x, a.y);
+    if (d < bestD) { bestD = d; best = a; bestPos = { x: a.x, y: a.y }; }
+  });
+  return best ? { key: best, pos: bestPos } : null;
+}
 function findNearestEnemyExcluding(x, y, excludeSet) {
   let best = null, bestD = Infinity;
   enemies.forEach(e => {
@@ -1190,7 +1226,7 @@ function fireWeapon() {
     // pierce limit at all, ticking a flat 2 damage every 0.05s to anything still
     // overlapping it (same at every level). Only the hitbox width scales with
     // level: 10px around the beam's centerline at Lv1, +10px per level (Lv7=70px).
-    const beamSpeed = 750; // 500 × 1.5, shared by main and side beams alike
+    const beamSpeed = 1125; // 750 × 1.5 (originally 500), shared by main and side beams alike
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -beamSpeed, r: 10 * lvl, laser: true, length: 900, hitSet: new Set(), power: 2, laserLevel: 1, spawnX: bx, spawnY: by, laserTickTimer: 0 });
     // side beams: one per level, each locking a DISTINCT target, launching from
     // the main beam's vertical position but horizontally lined up with its own
@@ -1200,15 +1236,16 @@ function fireWeapon() {
     // left is the slim fixed 1px width (sideBeam flag) instead of scaling with level.
     const sideClaimed = new Set();
     for (let i = 0; i < lvl; i++) {
-      const target = findNearestEnemyExcluding(bx, by, sideClaimed);
-      if (!target) break;
-      sideClaimed.add(target);
+      let found = findNearestLaserTargetExcluding(bx, by, sideClaimed);
+      if (!found) found = findNearestLaserTargetExcluding(bx, by, new Set()); // not enough distinct targets — reusing one is fine
+      if (!found) break; // nothing at all to aim at
+      sideClaimed.add(found.key);
       playerBullets.push({
-        x: target.x, y: by, vx: 0, vy: -beamSpeed, r: 10, sideBeam: true, laser: true,
+        x: found.pos.x, y: by, vx: 0, vy: -beamSpeed, r: 10, sideBeam: true, laser: true,
         length: 900, hitSet: new Set(),
-        power: 2, laserLevel: lvl, spawnX: target.x, spawnY: by, laserTickTimer: 0,
+        power: 2, laserLevel: lvl, spawnX: found.pos.x, spawnY: by, laserTickTimer: 0,
       });
-      sideBeamMarkers.push({ x: target.x, y: by + 10, t: 0 });
+      sideBeamMarkers.push({ x: found.pos.x, y: by + 10, t: 0 });
     }
   } else if (player.weapon === 'GRAVITY') {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -450, r: 3, power: 2, gravity: true, gravityRadius: lvl * 30 });
@@ -1520,7 +1557,7 @@ function burstSpark(b) {
     const spd = rand(40, 200);
     const scatterRadius = rand(maxScatter * 0.3, maxScatter);
     playerBullets.push({
-      x: b.x, y: b.y, vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd, r: 1.5, power: 0.51, sparkFrag: true, noTrail: true,
+      x: b.x, y: b.y, vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd, r: 1.5, power: 2, sparkFrag: true, noTrail: true,
       rot: rand(0, Math.PI * 2), rotSpeed: 0,
       traveled: 0, scatterRadius, sparkFilled: Math.random() < 0.5,
     });
@@ -4810,7 +4847,7 @@ function drawPlayer() {
     // ORBITAL's rings: all share one 150px orbit around the ship (no guide circle
     // drawn), each ring itself drawn as a 20px wireframe circle at its position
     ctx.strokeStyle = '#1560bd';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1;
     player.orbitalRings.forEach(ring => {
       ctx.beginPath();
       ctx.arc(ring.x, ring.y, 10, 0, Math.PI * 2);
@@ -5140,7 +5177,7 @@ function updateSideBeamMarkers(dt) {
 function drawSideBeamMarkers() {
   // a tiny open wireframe shape marks each LASER side beam's spawn spot — just
   // the two slanted sides from the apex (height 10px, base 5px), no bottom edge
-  ctx.strokeStyle = 'rgba(57, 255, 243, 0.5)';
+  ctx.strokeStyle = 'rgba(57, 255, 243, 0.9)';
   ctx.lineWidth = 1;
   sideBeamMarkers.forEach(m => {
     const alpha = Math.max(0, 1 - m.t / 0.5); // fades out over the full 0.5s lifetime, starting immediately
@@ -5654,7 +5691,7 @@ function drawBullets() {
         ctx.translate(x, y);
         ctx.rotate(phase || 0);
         ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(0, -len * pivot); // pivot randomized per bullet — off-center
         ctx.lineTo(0, len * (1 - pivot));
@@ -5734,7 +5771,7 @@ function drawBullets() {
       ctx.translate(b.x, b.y);
       ctx.rotate(ang);
       ctx.strokeStyle = '#1560bd';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, 12);
       ctx.lineTo(0, -12);
@@ -5751,7 +5788,7 @@ function drawBullets() {
         for (let k = 1; k < b.trail.length; k++) {
           const t = k / b.trail.length;
           ctx.strokeStyle = `rgba(204,255,0,${0.4 * t})`;
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.moveTo(b.trail[k - 1].x, b.trail[k - 1].y);
           ctx.lineTo(b.trail[k].x, b.trail[k].y);
@@ -5777,7 +5814,7 @@ function drawBullets() {
         ctx.save();
         ctx.globalAlpha = Math.max(0, 1 - (b.dyingT || 0) / 0.3);
       }
-      ctx.lineWidth = (b.subLaser || b.sideBeam) ? 1 : laserThickness(b.laserLevel || 1); // main beam grows +1px per level (Lv1-5), then +2px for Lv6/Lv7
+      ctx.lineWidth = 1; // uniform 1px for all bullets, main beam no longer thickens with level
       const { tailX, tailY } = laserSegmentEnds(b);
       const grad = ctx.createLinearGradient(b.x, b.y, tailX, tailY);
       const beamColor = '#39fff3';
@@ -5820,7 +5857,7 @@ function drawBullets() {
         }
       } else {
         // still traveling: same shape/rendering as LASER Lv1 (fading trail + solid head), just yellow
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1;
         if (b.trail) {
           b.trail.forEach((p, idx) => {
             const alpha = ((idx + 1) / (b.trail.length + 1)) * 0.4;
@@ -5843,7 +5880,7 @@ function drawBullets() {
       // screen, then erased from the near (origin) end forward; the head (tip) is
       // brighter/more saturated, fading duller toward the tail (origin)
       if (b.fullTrail && b.fullTrail.length > 1) {
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1;
         const n = b.fullTrail.length;
         for (let k = 1; k < n; k++) {
           const t = k / (n - 1);
@@ -5865,7 +5902,7 @@ function drawBullets() {
       // bolt itself finishes its zig-zags and stops.
       const fadeAlpha = b.refectDone ? Math.max(0, 1 - (b.refectFadeT || 0) / 0.5) : 1;
       if (b.fullTrail && b.fullTrail.length > 1) {
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1;
         for (let k = 1; k < b.fullTrail.length; k++) {
           const age = (b.refectAge || 0) - b.fullTrail[k].t;
           const segAlpha = Math.max(0, 1 - age / 1.0) * 0.5;
@@ -5882,7 +5919,7 @@ function drawBullets() {
       ctx.translate(b.x, b.y);
       ctx.rotate(ang);
       ctx.strokeStyle = hexToRgba('#00e5ff', 1.0 * fadeAlpha);
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, 0.5);
       ctx.lineTo(0, -0.5);
@@ -5928,7 +5965,7 @@ function drawBullets() {
       // base edge at 50% opacity (thicker line so the opacity difference reads clearly
       // at this small a scale)
       ctx.strokeStyle = 'rgba(186,255,201,0.5)';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(-halfBase, halfHeight);
       ctx.lineTo(halfBase, halfHeight);
@@ -5966,7 +6003,7 @@ function drawBullets() {
         grad.addColorStop(0, `rgba(${barColorRgb},0.4)`);
         grad.addColorStop(1, `rgba(${barColorRgb},0)`);
         ctx.strokeStyle = grad;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(b.x, b.y);
         ctx.lineTo(tail.x, tail.y);
@@ -6009,11 +6046,11 @@ function drawBullets() {
       ctx.translate(b.x, b.y);
       ctx.rotate(b.rot);
       if (b.sparkFilled) {
-        ctx.fillStyle = `rgba(255,245,150,${mainAlpha * twinkle})`;
-        ctx.fillRect(-4, -4, 8, 8);
+        ctx.fillStyle = `rgba(255,255,80,${mainAlpha * twinkle})`;
+        ctx.fillRect(-2, -2, 4, 4);
       } else {
-        ctx.strokeStyle = `rgba(255,233,58,${mainAlpha * twinkle})`;
-        ctx.strokeRect(-6, -6, 12, 12);
+        ctx.strokeStyle = `rgba(255,220,0,${mainAlpha * twinkle})`;
+        ctx.strokeRect(-4, -4, 8, 8);
       }
       ctx.restore();
     } else if (b.gravity) {
