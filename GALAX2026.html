@@ -341,7 +341,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-22 06:58';
+const LAST_UPDATED = '2026-09-23 12:15';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -2738,7 +2738,7 @@ document.querySelectorAll('#itemsScreen .item-entry[data-weapon]').forEach(el =>
 const EQUIP_LONG_DESCRIPTIONS = {
   DOUBLE: { intro: "Fires a tight pair of light-blue shots angled slightly outward. Rotating cyan option squares trail behind the ship, one more per level, each firing the same twin-shot volley and bumping or destroying enemy bullets on contact. They stop chasing when the ship stops, and reset to overlap it each new wave. DOUBLE uniquely levels to 7, for a full seven-option formation.",
     levels: ["1 option.", "2 options.", "3 options.", "4 options.", "5 options.", "6 options.", "7 options, full formation."] },
-  EARTH: { intro: "Stations a mirrored pair of pods sliding along the ship's rear diagonals, each firing a sideways laser that sweeps back and forth as the pod moves. Leveling up adds another pair further out. EARTH uniquely levels to 7, for a full staircase of sweeping pods.",
+  EARTH: { intro: "Stations pairs of pods at fixed positions behind the ship, each pair sitting 30px further out both sideways and back than the last, forming a widening staircase. Each pod fires a laser diagonally inward once a second, all pairs firing together. Leveling up adds another pair, further out still. EARTH uniquely levels to 7, for a full seven-pair staircase.",
     levels: ["1 pair.", "2 pairs.", "3 pairs.", "4 pairs.", "5 pairs.", "6 pairs.", "7 pairs, full staircase."] },
   MISSILE: { intro: "Fires pairs of orange missiles from the rear corners: each launches backward, loops into forward flight, climbs, then splits into two diagonal fragments. Stray missiles curve back onto the screen instead of vanishing. Leveling up adds more pairs. MISSILE uniquely levels to 7, filling the screen with looping, splitting missiles.",
     levels: ["2 missiles.", "4 missiles.", "6 missiles.", "8 missiles.", "10 missiles.", "12 missiles.", "14 missiles, screen-filling swarm."] },
@@ -3086,38 +3086,30 @@ function updatePlayer(dt) {
     player.zapperSquares = null;
   }
 
-  // EARTH: pairs of small square pods slide back and forth along fixed 45°
-  // diagonals off the ship's rear corners, left/right pairs always sharing the
-  // same distance (so their height stays synced), each firing its own laser
-  // perpendicular to the diagonal it travels along
+  // EARTH: pairs of small square pods sit at FIXED positions relative to the
+  // ship (no sliding/oscillation) — pair i (1-indexed) sits at horizontal
+  // ±30×i, vertical -30×i from the ship (ahead of it), each firing its own
+  // laser diagonally inward
   if (player.weapon === 'EARTH') {
     const pairCount = player.weaponLevel;
     player.earthPods = player.earthPods || [];
     player.earthPods.length = pairCount * 2;
-    player.earthT = (player.earthT || 0) + dt;
     const SQ = Math.SQRT1_2;
     // shared fire timer so every pod fires at exactly the same moment
     player.earthFireTimer = (player.earthFireTimer === undefined ? rand(0, 1.0) : player.earthFireTimer) - dt;
     const firingNow = player.earthFireTimer <= 0 && player.alive;
     if (firingNow) player.earthFireTimer = 1.0;
-    // range reaches all the way to the screen edges: max diagonal distance is set
-    // so the pod's horizontal offset alone can span the full canvas width. Never
-    // comes closer than 20px to the ship, to avoid overlapping it.
-    const MIN_DIST = 35;
-    const MAX_DIST = (W / 2) / SQ;
     for (let pi = 0; pi < pairCount; pi++) {
-      const mid = (MIN_DIST + MAX_DIST) / 2, amp = (MAX_DIST - MIN_DIST) / 2;
-      const dist = mid + Math.sin(player.earthT * 1.5 + pi * 0.9) * amp;
+      const offset = 30 * (pi + 1); // pair 1: ±30/-30, pair 2: ±60/-60, pair 3: ±90/-90, ...
       [-1, 1].forEach(side => {
         const idx = pi * 2 + (side < 0 ? 0 : 1);
         if (!player.earthPods[idx]) {
           player.earthPods[idx] = { side, pairIndex: pi };
         }
         const pod = player.earthPods[idx];
-        // diagonal direction: left pod travels up-left, right pod travels up-right
-        const dx = side * SQ, dy = -SQ;
-        pod.x = player.x + dx * dist;
-        pod.y = player.y + dy * dist;
+        // fixed position relative to the ship — no independent movement at all
+        pod.x = player.x + side * offset;
+        pod.y = player.y - offset;
         if (firingNow) {
           // fires crossing toward the opposite side, up and diagonal: left pod
           // fires up-right, right pod fires up-left
