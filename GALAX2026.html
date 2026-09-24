@@ -341,7 +341,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-23 12:15';
+const LAST_UPDATED = '2026-09-25 08:08';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -463,7 +463,7 @@ function resetPlayer() {
 
 // ---------- items ----------
 const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY'];
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ffd83d', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff' };
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -496,6 +496,7 @@ function spawnBossExplosion(x, y, color) {
 let shockwaves = [];
 let xcrossFlashes = [];
 let kuru2Bursts = [];
+let kuru2EdgeFragments = []; // the burst turret's 3 triangle edges, flying apart as it disappears
 function spawnShockwave(x, y, maxR) {
   // grows for 1.0s, then holds at max size and jitters (shakes) for another 2.0s before vanishing
   shockwaves.push({
@@ -2738,7 +2739,7 @@ document.querySelectorAll('#itemsScreen .item-entry[data-weapon]').forEach(el =>
 const EQUIP_LONG_DESCRIPTIONS = {
   DOUBLE: { intro: "Fires a tight pair of light-blue shots angled slightly outward. Rotating cyan option squares trail behind the ship, one more per level, each firing the same twin-shot volley and bumping or destroying enemy bullets on contact. They stop chasing when the ship stops, and reset to overlap it each new wave. DOUBLE uniquely levels to 7, for a full seven-option formation.",
     levels: ["1 option.", "2 options.", "3 options.", "4 options.", "5 options.", "6 options.", "7 options, full formation."] },
-  EARTH: { intro: "Stations pairs of pods at fixed positions behind the ship, each pair sitting 30px further out both sideways and back than the last, forming a widening staircase. Each pod fires a laser diagonally inward once a second, all pairs firing together. Leveling up adds another pair, further out still. EARTH uniquely levels to 7, for a full seven-pair staircase.",
+  EARTH: { intro: "Stations pairs of pods riding along a glowing planet-horizon arc at the bottom of the screen, sliding gently left and right, each firing a laser straight up once a second, all pairs firing together. Leveling up adds another pair, spread further toward the arc's edges. EARTH uniquely levels to 7, for a full seven-pair formation.",
     levels: ["1 pair.", "2 pairs.", "3 pairs.", "4 pairs.", "5 pairs.", "6 pairs.", "7 pairs, full staircase."] },
   MISSILE: { intro: "Fires pairs of orange missiles from the rear corners: each launches backward, loops into forward flight, climbs, then splits into two diagonal fragments. Stray missiles curve back onto the screen instead of vanishing. Leveling up adds more pairs. MISSILE uniquely levels to 7, filling the screen with looping, splitting missiles.",
     levels: ["2 missiles.", "4 missiles.", "6 missiles.", "8 missiles.", "10 missiles.", "12 missiles.", "14 missiles, screen-filling swarm."] },
@@ -3086,38 +3087,40 @@ function updatePlayer(dt) {
     player.zapperSquares = null;
   }
 
-  // EARTH: pairs of small square pods sit at FIXED positions relative to the
-  // ship (no sliding/oscillation) — pair i (1-indexed) sits at horizontal
-  // ±30×i, vertical -30×i from the ship (ahead of it), each firing its own
-  // laser diagonally inward
+  // EARTH: pairs of small square pods ride along the horizon arc at the
+  // bottom of the screen, sliding left-right, each firing straight up
   if (player.weapon === 'EARTH') {
     const pairCount = player.weaponLevel;
     player.earthPods = player.earthPods || [];
     player.earthPods.length = pairCount * 2;
-    const SQ = Math.SQRT1_2;
+    const R = 100 + 50 * (pairCount - 1);
+    const rx = R, ry = R / 2; // same flattened ellipse as drawEarthHorizon
+    const arcHalfAngle = Math.min(Math.PI / 2, Math.acos(Math.max(-1, Math.min(1, -H / ry))));
+    player.earthSlideT = (player.earthSlideT || 0) + dt;
     // shared fire timer so every pod fires at exactly the same moment
     player.earthFireTimer = (player.earthFireTimer === undefined ? rand(0, 1.0) : player.earthFireTimer) - dt;
     const firingNow = player.earthFireTimer <= 0 && player.alive;
     if (firingNow) player.earthFireTimer = 1.0;
     for (let pi = 0; pi < pairCount; pi++) {
-      const offset = 30 * (pi + 1); // pair 1: ±30/-30, pair 2: ±60/-60, pair 3: ±90/-90, ...
+      // pairs spread out from near the arc's center toward its edges
+      const pairFrac = (pi + 1) / pairCount;
+      const baseOffset = pairFrac * arcHalfAngle * 0.85;
+      const oscAmount = arcHalfAngle * 0.12;
+      const osc = Math.sin(player.earthSlideT * 1.2 + pi * 0.7) * oscAmount;
       [-1, 1].forEach(side => {
         const idx = pi * 2 + (side < 0 ? 0 : 1);
         if (!player.earthPods[idx]) {
           player.earthPods[idx] = { side, pairIndex: pi };
         }
         const pod = player.earthPods[idx];
-        // fixed position relative to the ship — no independent movement at all
-        pod.x = player.x + side * offset;
-        pod.y = player.y - offset;
+        const angle = -Math.PI / 2 + side * baseOffset + osc;
+        pod.x = W / 2 + Math.cos(angle) * rx;
+        pod.y = H + Math.sin(angle) * ry;
         if (firingNow) {
-          // fires crossing toward the opposite side, up and diagonal: left pod
-          // fires up-right, right pod fires up-left
-          const fx = -side * SQ, fy = -SQ;
-          const EARTH_LASER_SPEED = 810;
-          const spawnOffset = 30; // spawns clearly ahead of the pod, not overlapping it
+          const EARTH_LASER_SPEED = 1215;
+          const spawnOffset = 15; // spawns just above the pod, not overlapping it
           playerBullets.push({
-            x: pod.x + fx * spawnOffset, y: pod.y + fy * spawnOffset, vx: fx * EARTH_LASER_SPEED, vy: fy * EARTH_LASER_SPEED, r: 8, power: 3,
+            x: pod.x, y: pod.y - spawnOffset, vx: 0, vy: -EARTH_LASER_SPEED, r: 8, power: 3,
             earthLaser: true, tickCooldowns: new Map(),
           });
         }
@@ -3417,7 +3420,7 @@ function updateBullets(dt) {
       }
     }
     if (b.kuru2 || b.kuru2Frag) {
-      b.kuru2Angle = (b.kuru2Angle || 0) + dt * 8; // continuous spin while flying
+      b.kuru2Angle = (b.kuru2Angle || 0) + dt * (b.kuru2Bursting ? 18 : 8); // spins fast while flying, even faster once it's the stationary bursting "turret"
     }
     if (b.qix) {
       // each bullet spins at a steady rate in ONE fixed direction for its entire
@@ -3975,6 +3978,51 @@ function spawnKuru2Burst(x, y, level, bullet) {
   // frozen in place and spinning, for the same duration.
   kuru2Bursts.push({ x, y, timeLeft: level, fireTimer: 0, angle: 0, level, bullet });
 }
+function spawnKuru2EdgeFragments(x, y, angle) {
+  // the turret's 3 triangle edges fly apart in random directions as it vanishes
+  const side = 15, R = side / Math.sqrt(3);
+  const verts = [0, 1, 2].map(k => {
+    const a = angle - Math.PI / 2 + k * (Math.PI * 2 / 3);
+    return { x: x + Math.cos(a) * R, y: y + Math.sin(a) * R };
+  });
+  for (let k = 0; k < 3; k++) {
+    const p1 = verts[k], p2 = verts[(k + 1) % 3];
+    const midX = (p1.x + p2.x) / 2, midY = (p1.y + p2.y) / 2;
+    const outAngle = Math.atan2(midY - y, midX - x) + rand(-0.3, 0.3);
+    const spd = rand(150, 350);
+    kuru2EdgeFragments.push({
+      x: midX, y: midY, vx: Math.cos(outAngle) * spd, vy: Math.sin(outAngle) * spd,
+      angle, spin: rand(-8, 8),
+      dx1: p1.x - midX, dy1: p1.y - midY, dx2: p2.x - midX, dy2: p2.y - midY,
+      t: 0, duration: rand(0.4, 0.8),
+    });
+  }
+}
+function updateKuru2EdgeFragments(dt) {
+  for (let i = kuru2EdgeFragments.length - 1; i >= 0; i--) {
+    const f = kuru2EdgeFragments[i];
+    f.x += f.vx * dt; f.y += f.vy * dt;
+    f.angle += f.spin * dt;
+    f.t += dt;
+    if (f.t >= f.duration || f.x < -20 || f.x > W + 20 || f.y < -20 || f.y > H + 20) kuru2EdgeFragments.splice(i, 1);
+  }
+}
+function drawKuru2EdgeFragments() {
+  ctx.strokeStyle = '#ff8000';
+  ctx.lineWidth = 1;
+  kuru2EdgeFragments.forEach(f => {
+    const alpha = Math.max(0, 1 - f.t / f.duration);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(f.x, f.y);
+    ctx.rotate(f.angle);
+    ctx.beginPath();
+    ctx.moveTo(f.dx1, f.dy1);
+    ctx.lineTo(f.dx2, f.dy2);
+    ctx.stroke();
+    ctx.restore();
+  });
+}
 function updateKuru2Bursts(dt) {
   for (let i = kuru2Bursts.length - 1; i >= 0; i--) {
     const burst = kuru2Bursts[i];
@@ -3982,6 +4030,7 @@ function updateKuru2Bursts(dt) {
     burst.timeLeft -= dt;
     if (burst.timeLeft <= 0) {
       if (burst.bullet) {
+        spawnKuru2EdgeFragments(burst.bullet.x, burst.bullet.y, burst.bullet.kuru2Angle || 0);
         const idx = playerBullets.indexOf(burst.bullet);
         if (idx !== -1) playerBullets.splice(idx, 1);
       }
@@ -3994,7 +4043,7 @@ function updateKuru2Bursts(dt) {
       const n = 1;
       for (let k = 0; k < n; k++) {
         const ang = rand(0, Math.PI * 2);
-        const spd = rand(150, 300);
+        const spd = rand(300, 600); // 2x the original 150-300 range
         playerBullets.push({
           x: burst.x, y: burst.y, vx: Math.sin(ang) * spd, vy: -Math.cos(ang) * spd, r: 4, power: burst.level || 1,
           kuru2Frag: true, kuru2Angle: rand(0, Math.PI * 2),
@@ -4859,7 +4908,7 @@ function drawPlayer() {
       ctx.restore();
     });
   } else if (player.weapon === 'EARTH' && player.earthPods) {
-    // EARTH's pods: small green wireframe squares sliding along fixed diagonals
+    // EARTH's pods: small green wireframe squares riding along the horizon arc
     ctx.strokeStyle = 'rgba(0,255,159,0.5)';
     ctx.lineWidth = 1;
     player.earthPods.forEach(pod => {
@@ -5711,7 +5760,7 @@ function drawBullets() {
       ctx.save();
       ctx.translate(b.x, b.y);
       ctx.rotate(b.kuru2Angle || 0);
-      ctx.strokeStyle = '#ffd83d';
+      ctx.strokeStyle = '#ff8000';
       ctx.lineWidth = 1;
       ctx.beginPath();
       for (let k = 0; k < 3; k++) {
@@ -6103,6 +6152,34 @@ function drawBullets() {
   });
 }
 
+function drawEarthHorizon() {
+  // EARTH's own themed background: styled like the title screen's fading arc
+  // (same cyan, same edge-to-center-to-edge opacity fade, rounded caps) — but
+  // as a partial arc peeking up from the very bottom of the screen like a
+  // planet's horizon. Radius grows 50px per level, starting at 100px for Lv1.
+  // Drawn as a flattened ellipse (half as tall as it is wide) rather than a
+  // true circle.
+  if (player.weapon !== 'EARTH') return;
+  const R = 100 + 50 * (player.weaponLevel - 1);
+  const rx = R, ry = R / 2; // half the height of a true circular arc
+  const halfAngle = Math.min(Math.PI / 2, Math.acos(Math.max(-1, Math.min(1, -H / ry))));
+  const startAngle = -Math.PI / 2 - halfAngle, endAngle = -Math.PI / 2 + halfAngle;
+  const x0 = W / 2 + Math.cos(startAngle) * rx, x1 = W / 2 + Math.cos(endAngle) * rx;
+  const grad = ctx.createLinearGradient(x0, 0, x1, 0);
+  grad.addColorStop(0, 'rgba(0,255,255,0)');
+  grad.addColorStop(0.3, 'rgba(0,255,255,0.45)');
+  grad.addColorStop(0.5, 'rgba(0,255,255,1)');
+  grad.addColorStop(0.7, 'rgba(0,255,255,0.45)');
+  grad.addColorStop(1, 'rgba(0,255,255,0)');
+  ctx.save();
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 1;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.ellipse(W / 2, H, rx, ry, 0, startAngle, endAngle);
+  ctx.stroke();
+  ctx.restore();
+}
 function drawStarfield(dt) {
   const dir = starReverse ? -1 : 1;
   let speedFactor = starReverse ? 3 : 1;
@@ -6304,6 +6381,7 @@ function frame(now) {
 
   ctx.clearRect(0, 0, W, H);
   drawStarfield(dt);
+  drawEarthHorizon();
   updateSpecialStars(dt);
   drawSpecialStars();
 
@@ -6335,6 +6413,7 @@ function frame(now) {
     updatePhantomFlashes(dt);
     updateXCrossFlashes(dt);
     updateKuru2Bursts(dt);
+    updateKuru2EdgeFragments(dt);
   }
 
   enemies.forEach(drawEnemy);
@@ -6342,6 +6421,7 @@ function frame(now) {
   drawDyingAsteroids();
   drawDyingEnemyGhosts();
   drawSideBeamMarkers();
+  drawKuru2EdgeFragments();
   drawBullets();
   drawItems();
   drawParticles();
