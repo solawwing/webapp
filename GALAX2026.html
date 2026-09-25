@@ -341,7 +341,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-25 08:08';
+const LAST_UPDATED = '2026-09-25 20:11';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -3098,9 +3098,9 @@ function updatePlayer(dt) {
     const arcHalfAngle = Math.min(Math.PI / 2, Math.acos(Math.max(-1, Math.min(1, -H / ry))));
     player.earthSlideT = (player.earthSlideT || 0) + dt;
     // shared fire timer so every pod fires at exactly the same moment
-    player.earthFireTimer = (player.earthFireTimer === undefined ? rand(0, 1.0) : player.earthFireTimer) - dt;
+    player.earthFireTimer = (player.earthFireTimer === undefined ? rand(0, 2.5) : player.earthFireTimer) - dt;
     const firingNow = player.earthFireTimer <= 0 && player.alive;
-    if (firingNow) player.earthFireTimer = 1.0;
+    if (firingNow) player.earthFireTimer = 2.5; // 1.0 × 2.5
     for (let pi = 0; pi < pairCount; pi++) {
       // pairs spread out from near the arc's center toward its edges
       const pairFrac = (pi + 1) / pairCount;
@@ -3117,13 +3117,24 @@ function updatePlayer(dt) {
         pod.x = W / 2 + Math.cos(angle) * rx;
         pod.y = H + Math.sin(angle) * ry;
         if (firingNow) {
-          const EARTH_LASER_SPEED = 1215;
+          const EARTH_LASER_SPEED = 303.75; // 1215 ÷ 4
           const spawnOffset = 15; // spawns just above the pod, not overlapping it
           playerBullets.push({
             x: pod.x, y: pod.y - spawnOffset, vx: 0, vy: -EARTH_LASER_SPEED, r: 8, power: 3,
             earthLaser: true, tickCooldowns: new Map(),
           });
         }
+      });
+    }
+    // the ship also fires its own straight-up laser: 1/4 the trail length of
+    // the pods' beams, but rapid-fire instead of the pods' shared 1s cadence
+    player.earthShipFireTimer = (player.earthShipFireTimer === undefined ? 0 : player.earthShipFireTimer) - dt;
+    if (player.earthShipFireTimer <= 0 && player.alive) {
+      player.earthShipFireTimer = 0.15;
+      const EARTH_LASER_SPEED = 1215;
+      playerBullets.push({
+        x: player.x, y: player.y - 15, vx: 0, vy: -EARTH_LASER_SPEED, r: 8, power: 3,
+        earthLaser: true, earthShipLaser: true, tickCooldowns: new Map(),
       });
     }
   } else {
@@ -3374,7 +3385,7 @@ function updateBullets(dt) {
     if (!b.bubble && !b.noTrail) {
       if (!b.trail) b.trail = [];
       b.trail.push({ x: b.x, y: b.y, rot: b.angle !== undefined ? b.angle : b.rot, traveled: b.traveled });
-      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.missile ? 10 : b.orbitalBolt ? 24 : b.earthLaser ? 32 : b.double ? 24 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
+      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.missile ? 10 : b.orbitalBolt ? 24 : b.earthShipLaser ? 8 : b.earthLaser ? 32 : b.double ? 24 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
       if (b.trail.length > maxTrail) b.trail.shift();
     }
     if (b.homing) {
@@ -6165,6 +6176,17 @@ function drawEarthHorizon() {
   const halfAngle = Math.min(Math.PI / 2, Math.acos(Math.max(-1, Math.min(1, -H / ry))));
   const startAngle = -Math.PI / 2 - halfAngle, endAngle = -Math.PI / 2 + halfAngle;
   const x0 = W / 2 + Math.cos(startAngle) * rx, x1 = W / 2 + Math.cos(endAngle) * rx;
+  const y0 = H + Math.sin(startAngle) * ry, y1 = H + Math.sin(endAngle) * ry;
+  // fill the area between the arc and the bottom of the screen with fluorescent blue
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(W / 2, H, rx, ry, 0, startAngle, endAngle);
+  ctx.lineTo(x1, H);
+  ctx.lineTo(x0, H);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(0,150,255,0.1)';
+  ctx.fill();
+  ctx.restore();
   const grad = ctx.createLinearGradient(x0, 0, x1, 0);
   grad.addColorStop(0, 'rgba(0,255,255,0)');
   grad.addColorStop(0.3, 'rgba(0,255,255,0.45)');
