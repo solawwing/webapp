@@ -341,7 +341,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-25 20:13';
+const LAST_UPDATED = '2026-09-25 23:05';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -706,7 +706,7 @@ function updateItems(dt) {
           player.prevWeaponLevel = player.weaponLevel;
           player.prevRapidLevel = player.rapidLevel;
           player.weapon = 'SPARK';
-          player.weaponLevel = 1;
+          player.weaponLevel = Math.max(1, player.weaponLevel - 1);
         } else {
           player.weaponLevel = Math.min(7, player.weaponLevel + 1);
         }
@@ -720,7 +720,7 @@ function updateItems(dt) {
           player.weaponLevel = Math.min(maxLevel, player.weaponLevel + 1);
         } else {
           player.weapon = it.type;
-          player.weaponLevel = 1;
+          player.weaponLevel = Math.max(1, player.weaponLevel - 1);
         }
         pickupTexts.push({ text: it.type + ' Lv' + player.weaponLevel, x: player.x, y: player.y - player.r - 6, t: 0, duration: 2.0 });
       }
@@ -1806,7 +1806,7 @@ const BOSS_TYPES = {
   Z: { color: '#a0a0a0', sides: 10 },
 };
 function makeBossEnemy() {
-  const bossHp = 800;
+  const bossHp = 800 + (player.weaponLevel || 1) * 100;
   const key = choice(['S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']);
   const bossType = BOSS_TYPES[key];
   const t = { hp: bossHp, score: 100, color: bossType.color, r: 120, baseR: 120, sides: bossType.sides };
@@ -1914,6 +1914,45 @@ let asteroidSpawnTimer = 0;
 let asteroidItemTimer = 0;
 let crystalEnemyTimer = 0;
 let asteroidSpeedMul = 1;
+let asteroidSizeMul = 1;
+let asteroidSizeShuffles = {}; // per-cycle shuffle of [1, 1.5, 0.7] across that cycle's 3 asteroid-kind stages
+function getAsteroidSizeMulForWave(w) {
+  const cycleNum = Math.floor((w - 1) / CYCLE_LEN) + 1;
+  if (!asteroidSizeShuffles[cycleNum]) {
+    const arr = [1, 1.5, 0.7];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    asteroidSizeShuffles[cycleNum] = arr;
+  }
+  const m = ((w - 1) % CYCLE_LEN) + 1;
+  const order = { ASTEROID: 0, ASTEROID_FAST: 1, ASTEROID_FASTER: 2 };
+  const idx = order[CYCLE_KIND[m - 1]];
+  return idx === undefined ? 1 : asteroidSizeShuffles[cycleNum][idx];
+}
+// size↔speed pairing: bigger asteroids move slower, smaller ones move faster
+function asteroidSpeedMulForSize(sizeMul) {
+  return sizeMul === 1.5 ? 0.8 : sizeMul === 0.7 ? 1.2 : 1;
+}
+let crystalSizeMul = 1;
+let crystalSizeShuffles = {}; // per-cycle shuffle of [1, 1.5] across that cycle's 2 crystal-kind stages
+function getCrystalSizeMulForWave(w) {
+  const cycleNum = Math.floor((w - 1) / CYCLE_LEN) + 1;
+  if (!crystalSizeShuffles[cycleNum]) {
+    const arr = [1, 1.5];
+    if (Math.random() < 0.5) arr.reverse();
+    crystalSizeShuffles[cycleNum] = arr;
+  }
+  const m = ((w - 1) % CYCLE_LEN) + 1;
+  const order = { CRYSTAL: 0, CRYSTAL_FAST: 1 };
+  const idx = order[CYCLE_KIND[m - 1]];
+  return idx === undefined ? 1 : crystalSizeShuffles[cycleNum][idx];
+}
+// size↔speed pairing for crystals: 1.5x size moves at 0.8x speed, 1x size at 1x speed
+function crystalSpeedMulForSize(sizeMul) {
+  return sizeMul === 1.5 ? 0.8 : 1;
+}
 let asteroidEnemySpawnTimer = 0;
 const ASTEROID_ENEMY_TRIGGER_TIMES = [15, 30, 45];
 let asteroidEnemyTriggersDone = [false, false, false];
@@ -1932,7 +1971,7 @@ function makeAsteroidVerts(r, n) {
 }
 
 function spawnAsteroid() {
-  const r = rand(50, 75); // overall size 100-150
+  const r = rand(50, 75) * asteroidSizeMul; // overall size 100-150, scaled per-cycle (1x/1.5x/0.7x, randomized order)
   const n = Math.floor(rand(4, 9)); // 4-8 vertices
   const fallAngleDeg = rand(0, 10) * (Math.random() < 0.5 ? -1 : 1); // slight random drift, 0-10 degrees off vertical
   const fallAngleRad = fallAngleDeg * Math.PI / 180;
@@ -1947,7 +1986,7 @@ function spawnAsteroid() {
     spin: rand(0.5, 1.1) * (Math.random() < 0.5 ? -1 : 1),
     vx: Math.sin(fallAngleRad) * fallSpeed,
     vy: Math.cos(fallAngleRad) * fallSpeed, // each asteroid falls at its own speed, faster overall
-    willSplit, hasSplit: false, splitY: willSplit ? rand(20, H / 2) : null,
+    willSplit, hasSplit: false, splitStage: 0, splitY: willSplit ? rand(20, H / 2) : null,
     damageTaken: 0,
     // off-center "core" point (simulated light source) used to fake a faceted,
     // 3D-looking rock via a radial gradient + internal facet lines to each vertex
@@ -1968,20 +2007,21 @@ function splitAsteroid(a, i) {
       spin: rand(0.5, 1.1) * (Math.random() < 0.5 ? -1 : 1),
       vx: a.vx + (s === 0 ? -70 : 70),
       vy: a.vy,
-      willSplit: false, hasSplit: true, splitY: null,
+      willSplit: false, hasSplit: true, splitStage: 1, splitY: null,
       damageTaken: 0,
     });
   }
 }
 
-// splits an asteroid or crystal that has taken 50 cumulative damage, regardless of
+// splits an asteroid or crystal once it has taken enough cumulative damage for its
+// current stage (50 / 40 / 30 for original / once-split / twice-split), regardless of
 // the random y-position split system asteroids also have
 function splitByDamage(target) {
   const idx = asteroids.indexOf(target);
   if (idx === -1) return;
   asteroids.splice(idx, 1);
-  if (target.hasSplit) {
-    // already-split (smaller) pieces don't just vanish — they split apart one more
+  if ((target.splitStage || 0) >= 2) {
+    // already twice-split (smallest) pieces don't just vanish — they split apart one more
     // time purely visually (no collision/hit detection on the resulting pieces) and
     // fade out over 1s with a normal-enemy-style explosion burst, instead of actually
     // splitting into new live targets again
@@ -2004,7 +2044,7 @@ function splitByDamage(target) {
         spin: rand(0.6, 1.2) * (Math.random() < 0.5 ? -1 : 1),
         vx: (target.vx || 0) + (s === 0 ? -30 : 30),
         vy: target.vy,
-        willSplit: false, hasSplit: true, splitY: null,
+        willSplit: false, hasSplit: true, splitStage: (target.splitStage || 0) + 1, splitY: null,
         damageTaken: 0,
       });
     }
@@ -2021,7 +2061,7 @@ function splitByDamage(target) {
         spin: rand(0.5, 1.1) * (Math.random() < 0.5 ? -1 : 1),
         vx: (target.vx || 0) + (s === 0 ? -70 : 70),
         vy: target.vy,
-        willSplit: false, hasSplit: true, splitY: null,
+        willSplit: false, hasSplit: true, splitStage: (target.splitStage || 0) + 1, splitY: null,
         damageTaken: 0,
       });
     }
@@ -2081,7 +2121,7 @@ function spawnCrystal() {
   // elongated hexagon shard, falls straight down while spinning around its own vertical
   // axis (simulated via horizontal scale, since the vertical axis itself stays fixed);
   // bullets that hit it are consumed (no piercing/chaining through), drops no items
-  const width = choice([35, 40, 45, 50]), height = choice([150, 175, 200, 225, 250]);
+  const width = choice([35, 40, 45, 50]) * crystalSizeMul, height = choice([150, 175, 200, 225, 250]) * crystalSizeMul;
   const halfW = width / 2, halfH = height / 2;
   const fallSpeed = rand(110, 220) * asteroidSpeedMul;
   asteroids.push({
@@ -2093,7 +2133,7 @@ function spawnCrystal() {
     spin: rand(0.6, 1.2) * (Math.random() < 0.5 ? -1 : 1),
     vx: 0,
     vy: fallSpeed,
-    willSplit: false, hasSplit: false, splitY: null,
+    willSplit: false, hasSplit: false, splitStage: 0, splitY: null,
     damageTaken: 0,
   });
 }
@@ -2204,7 +2244,8 @@ function activateWave(kind, m) {
     asteroidSpawnTimer = 0;
     asteroidItemTimer = 10;
     crystalEnemyTimer = 2.0;
-    asteroidSpeedMul = kind === 'ASTEROID_FASTER' ? 1.5 : kind === 'ASTEROID_FAST' ? 1.2 : 1;
+    asteroidSizeMul = getAsteroidSizeMulForWave(wave);
+    asteroidSpeedMul = asteroidSpeedMulForSize(asteroidSizeMul);
     asteroidTotalDamage = 0;
     beltDamageBonusApplied = false;
     bonusSnapshot = null;
@@ -2219,7 +2260,8 @@ function activateWave(kind, m) {
     asteroidSpawnTimer = 0;
     asteroidItemTimer = 10;
     crystalEnemyTimer = 2.0;
-    asteroidSpeedMul = kind === 'CRYSTAL_FAST' ? 1.2 : 1;
+    crystalSizeMul = getCrystalSizeMulForWave(wave);
+    asteroidSpeedMul = crystalSpeedMulForSize(crystalSizeMul);
     asteroidTotalDamage = 0;
     beltDamageBonusApplied = false;
     bonusSnapshot = null;
@@ -2638,9 +2680,9 @@ function updateEnemies(dt) {
         e.trail.push({ x: e.x, y: e.y, angle: e.angle });
         if (e.trail.length > 6) e.trail.shift();
       }
-      // wanders up/down/left/right across the top of the screen (Lissajous-style)
-      e.x = W / 2 + Math.sin(e.bossT * 0.4) * (W * 0.32);
-      e.y = H * 0.22 + Math.sin(e.bossT * 0.65 + 1.3) * (H * 0.13);
+      // wanders up/down/left/right across the top of the screen (Lissajous-style) — doubled speed
+      e.x = W / 2 + Math.sin(e.bossT * 0.8) * (W * 0.32);
+      e.y = H * 0.22 + Math.sin(e.bossT * 1.3 + 1.3) * (H * 0.13);
       e.miniAngle = (e.miniAngle || 0) + dt * 2.0; // mini-bosses at each vertex spin continuously
       checkMiniBossHits(e);
       e.fireTimer -= dt;
@@ -5251,7 +5293,9 @@ function registerAsteroidDamage(amount, target) {
   asteroidTotalDamage += amount;
   if (target) {
     target.damageTaken = (target.damageTaken || 0) + amount;
-    if (target.damageTaken >= 50) splitByDamage(target);
+    // HP per stage: 50 for the original, 40 once split, 30 twice split
+    const stageHp = [50, 40, 30][target.splitStage || 0] || 30;
+    if (target.damageTaken >= stageHp) splitByDamage(target);
   }
   if (!asteroidRapidGiven && asteroidHitCount >= 250) {
     asteroidRapidGiven = true;
