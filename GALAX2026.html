@@ -111,7 +111,7 @@
 <div id="overlay">
   <div id="titleScreen">
     <div class="title" id="titleText" style="font-size:clamp(8px,3.5vw,18px); cursor:pointer; pointer-events:auto;">GALAX2026</div>
-    <div style="font-size:14px; opacity:0.6; letter-spacing:2px; margin-top:2px; text-shadow:none;">version 2.2</div>
+    <div style="font-size:14px; opacity:0.6; letter-spacing:2px; margin-top:2px; text-shadow:none;">version 3.0</div>
     <svg width="360" height="26" viewBox="0 0 360 26" style="display:block; margin:0 auto 0;">
       <defs>
         <linearGradient id="titleArcFade" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -341,7 +341,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-25 23:05';
+const LAST_UPDATED = '2026-09-26 10:16';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1919,7 +1919,7 @@ let asteroidSizeShuffles = {}; // per-cycle shuffle of [1, 1.5, 0.7] across that
 function getAsteroidSizeMulForWave(w) {
   const cycleNum = Math.floor((w - 1) / CYCLE_LEN) + 1;
   if (!asteroidSizeShuffles[cycleNum]) {
-    const arr = [1, 1.5, 0.7];
+    const arr = [1, 2.0, 0.5];
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [arr[i], arr[j]] = [arr[j], arr[i]];
@@ -1933,14 +1933,14 @@ function getAsteroidSizeMulForWave(w) {
 }
 // size↔speed pairing: bigger asteroids move slower, smaller ones move faster
 function asteroidSpeedMulForSize(sizeMul) {
-  return sizeMul === 1.5 ? 0.8 : sizeMul === 0.7 ? 1.2 : 1;
+  return sizeMul === 2.0 ? 0.6 : sizeMul === 0.5 ? 1.4 : 1;
 }
 let crystalSizeMul = 1;
 let crystalSizeShuffles = {}; // per-cycle shuffle of [1, 1.5] across that cycle's 2 crystal-kind stages
 function getCrystalSizeMulForWave(w) {
   const cycleNum = Math.floor((w - 1) / CYCLE_LEN) + 1;
   if (!crystalSizeShuffles[cycleNum]) {
-    const arr = [1, 1.5];
+    const arr = [1, 1.7];
     if (Math.random() < 0.5) arr.reverse();
     crystalSizeShuffles[cycleNum] = arr;
   }
@@ -1949,9 +1949,9 @@ function getCrystalSizeMulForWave(w) {
   const idx = order[CYCLE_KIND[m - 1]];
   return idx === undefined ? 1 : crystalSizeShuffles[cycleNum][idx];
 }
-// size↔speed pairing for crystals: 1.5x size moves at 0.8x speed, 1x size at 1x speed
+// size↔speed pairing for crystals: 1.7x size moves at 0.6x speed, 1x size at 1x speed
 function crystalSpeedMulForSize(sizeMul) {
-  return sizeMul === 1.5 ? 0.8 : 1;
+  return sizeMul === 1.7 ? 0.6 : 1;
 }
 let asteroidEnemySpawnTimer = 0;
 const ASTEROID_ENEMY_TRIGGER_TIMES = [15, 30, 45];
@@ -2672,7 +2672,11 @@ function updateEnemies(dt) {
         e.x = p.x; e.y = p.y;
       }
     } else if (e.state === 'bossmove') {
-      e.bossT += dt;
+      // speeds up as the boss takes damage and visually shrinks — 1x (unchanged)
+      // at full HP up to 4x at 0 HP, on top of the base sine frequencies below
+      const bossHpFrac = e.maxHp ? Math.max(0, e.hp) / e.maxHp : 1;
+      const bossSpeedMul = 1 + (1 - bossHpFrac) * 3;
+      e.bossT += dt * bossSpeedMul;
       if (!e.trail) e.trail = [];
       e.trailCounter = (e.trailCounter || 0) + 1;
       if (e.trailCounter % 6 === 0) {
@@ -5297,11 +5301,11 @@ function registerAsteroidDamage(amount, target) {
     const stageHp = [50, 40, 30][target.splitStage || 0] || 30;
     if (target.damageTaken >= stageHp) splitByDamage(target);
   }
-  if (!asteroidRapidGiven && asteroidHitCount >= 250) {
+  if (!asteroidRapidGiven && asteroidHitCount >= 1000) {
     asteroidRapidGiven = true;
     spawnRapidItem(W / 2, -20);
   }
-  if (!asteroidBonusGiven && asteroidHitCount >= 500) {
+  if (!asteroidBonusGiven && asteroidHitCount >= 5000) {
     asteroidBonusGiven = true;
     player.lives = Math.min(7, player.lives + 1);
     waveAnnounce = { text: 'GOOD JOB!\nBONUS 1up', t: 0, hold: 1.2, fade: 0.6 };
