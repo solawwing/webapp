@@ -341,7 +341,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-26 10:16';
+const LAST_UPDATED = '2026-09-26 18:24';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1038,7 +1038,7 @@ function whipComputeSegments(w) {
   const numSegs = Math.max(1, Math.round(totalLen / SEG_LEN));
   const ux = dx / totalLen, uy = dy / totalLen;
   const nx = -uy, ny = ux; // perpendicular to the ship->tip line
-  const ZIGZAG = 15;
+  const ZIGZAG = 5;
   const pts = [{ x: originX, y: originY }];
   for (let i = 1; i <= numSegs; i++) {
     const t = i / numSegs;
@@ -1911,6 +1911,7 @@ let asteroidBonusGiven = false;
 let asteroidRapidGiven = false;
 let asteroidWaveTimer = 0;
 let asteroidSpawnTimer = 0;
+let asteroidBigSpawned = false; // one giant 5x asteroid partway through each asteroid-belt stage
 let asteroidItemTimer = 0;
 let crystalEnemyTimer = 0;
 let asteroidSpeedMul = 1;
@@ -1970,12 +1971,14 @@ function makeAsteroidVerts(r, n) {
   return verts;
 }
 
-function spawnAsteroid() {
-  const r = rand(50, 75) * asteroidSizeMul; // overall size 100-150, scaled per-cycle (1x/1.5x/0.7x, randomized order)
+function spawnAsteroid(sizeMulOverride, speedMulOverride) {
+  const sizeMul = sizeMulOverride !== undefined ? sizeMulOverride : asteroidSizeMul;
+  const speedMul = speedMulOverride !== undefined ? speedMulOverride : asteroidSpeedMul;
+  const r = rand(50, 75) * sizeMul; // overall size 100-150, scaled per-cycle (1x/1.5x/0.7x, randomized order)
   const n = Math.floor(rand(4, 9)); // 4-8 vertices
   const fallAngleDeg = rand(0, 10) * (Math.random() < 0.5 ? -1 : 1); // slight random drift, 0-10 degrees off vertical
   const fallAngleRad = fallAngleDeg * Math.PI / 180;
-  const fallSpeed = rand(110, 220) * asteroidSpeedMul;
+  const fallSpeed = rand(110, 220) * speedMul;
   const willSplit = Math.random() < 0.15; // rare chance to split into two while above mid-screen
   asteroids.push({
     x: rand(80, W - 80), y: -90,
@@ -2242,6 +2245,7 @@ function activateWave(kind, m) {
     formationSlots = [];
     asteroidWaveTimer = 0;
     asteroidSpawnTimer = 0;
+    asteroidBigSpawned = false;
     asteroidItemTimer = 10;
     crystalEnemyTimer = 2.0;
     asteroidSizeMul = getAsteroidSizeMulForWave(wave);
@@ -2653,7 +2657,7 @@ function updateEnemies(dt) {
     }
     const dt = (slowedByShockwave || slowedByPhantom) ? fullDt * (slowedByShockwave ? (1 / 4) : 0.5) : fullDt;
     if (e.state === 'enter') {
-      e.t += dt / e.duration;
+      e.t += (dt * 2) / e.duration; // moves into formation at 2x speed
       if (e.t >= 1) {
         if (e.type === 'GIANTBOSS') {
           e.state = 'bossmove';
@@ -4973,16 +4977,24 @@ function drawPlayer() {
       ctx.strokeRect(pod.x - 5, pod.y - 5, 10, 10);
     });
   } else if (player.weapon === 'WHIPS' && player.whipTethers) {
-    // WHIPS' tethers: each a chain of straight 50px-long segments from the ship
-    // out to its own tip (which eases/chases toward its target rather than
-    // snapping there instantly), bowed consistently to one side per tether
+    // WHIPS' tethers: each a smoothly-curving chain from the ship out to its
+    // own tip (which eases/chases toward its target rather than snapping there
+    // instantly) — drawn as a quadratic-curve spline through its zigzag points
+    // instead of straight segments, for a smooth bend rather than sharp corners
     ctx.strokeStyle = '#ff10f0';
     ctx.lineWidth = 1;
     player.whipTethers.forEach(w => {
-      if (!w.target || !w.segments) return;
+      if (!w.target || !w.segments || w.segments.length < 2) return;
+      const segs = w.segments;
       ctx.beginPath();
-      ctx.moveTo(w.segments[0].x, w.segments[0].y);
-      for (let i = 1; i < w.segments.length; i++) ctx.lineTo(w.segments[i].x, w.segments[i].y);
+      ctx.moveTo(segs[0].x, segs[0].y);
+      for (let i = 1; i < segs.length - 1; i++) {
+        const midX = (segs[i].x + segs[i + 1].x) / 2;
+        const midY = (segs[i].y + segs[i + 1].y) / 2;
+        ctx.quadraticCurveTo(segs[i].x, segs[i].y, midX, midY);
+      }
+      const last = segs[segs.length - 1];
+      ctx.lineTo(last.x, last.y);
       ctx.stroke();
       // marks the currently-targeted enemy with a 20px square
       const pos = zapperTargetPos(w.target);
@@ -5114,8 +5126,13 @@ function updateAsteroidWave(dt) {
   asteroidWaveTimer += dt;
   asteroidSpawnTimer -= dt;
   if (asteroidSpawnTimer <= 0 && asteroidWaveTimer < 40) {
-    if (isCry) spawnCrystal(); else spawnAsteroid();
-    asteroidSpawnTimer = rand(0.6, 1.2);
+    if (isCry) { spawnCrystal(); asteroidSpawnTimer = rand(0.6, 1.2); }
+    else { spawnAsteroid(); asteroidSpawnTimer = rand(0.6, 1.2) / 1.2; } // 1.2x as many asteroids (crystal belt unaffected)
+  }
+  // one giant 5x-size asteroid (half speed) partway through the asteroid stage
+  if (!isCry && isAsteroidKind(kind) && !asteroidBigSpawned && asteroidWaveTimer >= 20) {
+    spawnAsteroid(asteroidSizeMul * 5, asteroidSpeedMul * 0.5);
+    asteroidBigSpawned = true;
   }
   asteroidItemTimer -= dt;
   if (asteroidItemTimer <= 0 && asteroidWaveTimer < 45) {
@@ -5224,7 +5241,7 @@ function updateDyingEnemyGhosts(dt) {
   }
 }
 function spawnDeathGhost(x, y, r, angle, color, sides, verts) {
-  // reusable "grows 20x then bursts" death flash — WHIPS-exclusive: only plays
+  // reusable "grows 3x then bursts, scattering sparks" death flash — WHIPS-exclusive: only plays
   // while WHIPS is the equipped weapon, regardless of which weapon actually
   // landed the kill. Used for regular enemies, mini-bosses, the boss itself,
   // and asteroids/crystals; sides=undefined and verts=undefined draws the
@@ -5233,16 +5250,17 @@ function spawnDeathGhost(x, y, r, angle, color, sides, verts) {
   // irregular vertex list) draws that exact shape
   if (player.weapon !== 'WHIPS') return;
   dyingEnemyGhosts.push({ x, y, r, angle: angle || 0, color, sides, verts, t: 0, duration: 0.4 });
+  spawnDeathParticles(x, y, color, 16, 260); // sparks scatter the moment it bursts
 }
 function drawDyingEnemyGhosts() {
   // a destroyed enemy/mini-boss/boss/asteroid/crystal keeps its exact death
-  // angle/shape, bursting outward to 5x its own size while staying fully
+  // angle/shape, bursting outward to 3x its own size while staying fully
   // bright, then quickly fades in the last moment — right where it died, as a
   // clear "burst" beat before it's gone for good
   ctx.lineWidth = 1;
   dyingEnemyGhosts.forEach(g => {
     const t = Math.min(1, g.t / g.duration);
-    const growScale = 1 + 19 * t; // grows up to 20x by the end
+    const growScale = 1 + 2 * t; // grows up to 3x by the end
     const alpha = t < 0.6 ? 1 : 1 - (t - 0.6) / 0.4; // stays fully visible while growing, only fades at the end
     ctx.save();
     ctx.translate(g.x, g.y);
@@ -6257,6 +6275,9 @@ function drawStarfield(dt) {
   const cycleM = ((wave - 1) % CYCLE_LEN) + 1;
   if (isAsteroidKind(CYCLE_KIND[cycleM - 1]) || isCrystalKind(CYCLE_KIND[cycleM - 1])) {
     speedFactor *= 4; // asteroid/crystal belt: much faster starfield for a sense of speed
+  }
+  if (isCrystalKind(CYCLE_KIND[cycleM - 1])) {
+    speedFactor *= 1.5; // Crystal Belt: starfield an extra 1.5x faster than the shared belt speed
   }
   if (inBossNextStagePhase()) {
     speedFactor *= 5; // instant burst of speed during the post-boss "NEXT STAGE" beat
