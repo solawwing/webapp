@@ -200,6 +200,10 @@
         <div class="item-header"><span class="item-icon">E</span><span class="item-name">EARTH</span></div>
         <div class="item-desc">Diagonal pods fire sideways lasers.</div>
       </div>
+      <div class="item-entry" data-weapon="FUNNEL">
+        <div class="item-header"><span class="item-icon">F</span><span class="item-name">FUNNEL</span></div>
+        <div class="item-desc">Dashes to a target, fires, then moves on.</div>
+      </div>
       <div class="item-entry" data-weapon="GRAVITY">
         <div class="item-header"><span class="item-icon">G</span><span class="item-name">GRAVITY</span></div>
         <div class="item-desc">Splash damage plus a slowing shockwave.</div>
@@ -363,7 +367,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-27 10:15';
+const LAST_UPDATED = '2026-09-28 00:16';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -422,8 +426,8 @@ function qbezier(p0, p1, p2, t) {
 function dist2(ax, ay, bx, by) { const dx = ax-bx, dy = ay-by; return dx*dx + dy*dy; }
 function rand(a, b) { return a + Math.random() * (b - a); }
 function weaponMaxLevel(type) {
-  // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL/ZAPPER/XCROSS/KURU2/ARROW/QIX/EARTH/WHIPS/INFINITY uniquely level up to 7, every other weapon caps at 5
-  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS' || type === 'INFINITY') ? 7 : 5;
+  // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL/ZAPPER/XCROSS/KURU2/ARROW/QIX/EARTH/WHIPS/INFINITY/FUNNEL uniquely level up to 7, every other weapon caps at 5
+  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS' || type === 'INFINITY' || type === 'FUNNEL') ? 7 : 5;
 }
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function formatScore(n) { return Math.round(n).toLocaleString('en-US'); }
@@ -484,8 +488,8 @@ function resetPlayer() {
 }
 
 // ---------- items ----------
-const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY'];
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff' };
+const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL'];
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -756,7 +760,7 @@ function updateItems(dt) {
     }
   }
 }
-const ITEM_GLYPHS = { LIFE: '+', DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E', WHIPS: 'W', INFINITY: 'I' };
+const ITEM_GLYPHS = { LIFE: '+', DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E', WHIPS: 'W', INFINITY: 'I', FUNNEL: 'F' };
 function drawItems() {
   ctx.lineWidth = 1;
   items.forEach(it => {
@@ -984,7 +988,7 @@ function zapperTargetPos(target) {
 }
 function zapperDealDamage(target) {
   // applies ZAPPER's damage tick to whatever kind of target it is: 3dmg against
-  // asteroids/crystals/mini-bosses/the boss body, 1dmg against regular enemies —
+  // asteroids/crystals/mini-bosses/the boss body, 2dmg against regular enemies —
   // plus +1 per RAPID level (stacks with RAPID same as other weapons). Returns
   // true if that destroyed it (drone should return home), false if it should
   // keep clinging
@@ -1006,7 +1010,7 @@ function zapperDealDamage(target) {
     spawnDeathParticles(target.x, target.y, target.isCrystal ? '#7CFFF0' : '#bbbbbb', 2);
     return false; // asteroids/crystals are indestructible — drone keeps clinging until it splits away naturally
   } else {
-    target.hp -= (target.type === 'GIANTBOSS' ? 3 : 1) + rapidBonus;
+    target.hp -= (target.type === 'GIANTBOSS' ? 3 : 2) + rapidBonus;
     score += 10;
     if (target.hp <= 0) {
       handleEnemyDeath(target);
@@ -1232,7 +1236,7 @@ function fireWeapon() {
       // spawns 20px from ship center in the firing direction, then flies straight for
       // 200px before it starts homing in on its target
       const hx = player.x + Math.sin(rad) * 20, hy = player.y - Math.cos(rad) * 20;
-      playerBullets.push({ x: hx, y: hy, vx: Math.sin(rad) * 60, vy: -Math.cos(rad) * 60, r: 3, homing: true, target, power: 3 + (lvl - 1), homingLevel: lvl, speed: 60, maxSpeed: 300, homingAge: 0, straightDist: 200, homingTraveled: 0 });
+      playerBullets.push({ x: hx, y: hy, vx: Math.sin(rad) * 100, vy: -Math.cos(rad) * 100, r: 3, homing: true, target, power: 20, homingLevel: lvl, speed: 100, maxSpeed: 500, homingAge: 0, straightDist: 200, homingTraveled: 0 });
     });
   } else if (player.weapon === 'INFINITY') {
     // spawns level×10 bullets in an annulus around the ship — anywhere from 20px
@@ -1336,7 +1340,7 @@ function fireWeapon() {
       });
     }
   } else if (player.weapon === 'THUNDER') {
-    const maxResets = lvl >= 7 ? 9 : lvl >= 6 ? 7 : 5;
+    const maxResets = 1; // hit-list resets only once, then the chain ends when it runs out of targets
     playerBullets.push({
       x: bx, y: by, vx: 0, vy: -700, r: 3, power: 3, thunder: true,
       length: 50, chaining: false, dying: false, finished: false, hitSet: new Set(), chainPath: [], loopsLeft: THUNDER_LOOP_COUNTS[lvl],
@@ -1371,6 +1375,9 @@ function fireWeapon() {
   } else if (player.weapon === 'WHIPS') {
     // no per-trigger action — WHIPS' tether targets and ticks damage entirely on
     // its own in updatePlayer, not through this dispatch
+  } else if (player.weapon === 'FUNNEL') {
+    // no per-trigger action — FUNNEL's drones hunt/move/fire entirely on their own
+    // state machine in updatePlayer, not through this dispatch
   } else if (player.weapon === 'XCROSS') {
     // fires a small X-shaped bolt; ignores damage on its own, but on hitting
     // anything, its arms shoot outward diagonally (see applyXCrossStrike) — reach
@@ -1387,7 +1394,7 @@ function fireWeapon() {
     const n = lvl;
     for (let i = 0; i < n; i++) {
       const step = i - (n - 1) / 2;
-      const rad = step * 5 * Math.PI / 180;
+      const rad = step * 7 * Math.PI / 180;
       playerBullets.push({
         x: bx, y: by, vx: Math.sin(rad) * 30, vy: -Math.cos(rad) * 30, r: 4, power: 2,
         arrow: true, arrowAngle: rad, arrowSped: false, arrowAge: 0, arrowGen: 0, hitSet: new Set(),
@@ -2640,6 +2647,7 @@ function checkMiniBossHits(e) {
       if (b.kuru2) continue; // KURU2 has its own dedicated mini-boss handling elsewhere
       if (b.arrow) continue; // ARROW has its own dedicated mini-boss handling elsewhere
       if (b.earthLaser) continue; // EARTH has its own dedicated mini-boss handling elsewhere
+      if (b.funnelLaser) continue; // FUNNEL has its own dedicated mini-boss handling elsewhere
       if (b.qix) continue; // QIX has its own dedicated mini-boss handling elsewhere
       if (b.laser && b.laserTickTimer !== undefined) {
         if (!b.laserShouldTick) continue; // main LASER: same 0.1s tick cadence here too
@@ -2834,7 +2842,7 @@ let debugStartWeapon = null;
 let debugStartAtBoss = false; // set via tapping the tier-A icon on the title screen
 let debugSkipEnemyWaves = false; // set via tapping the tier-C icon on the title screen — only ASTEROID/CRYSTAL/BOSS cycle positions play, ENEMY positions are silently skipped
 let debugStartMaxLevel = false; // set via tapping the tier-E icon on the title screen
-const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'GRAVITY', 'HOMING', 'INFINITY', 'KURU2', 'LASER', 'MISSILE', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'VULCAN', 'WHIPS', 'XCROSS', 'ZAPPER']; // no NORMAL — alphabetical order
+const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'KURU2', 'LASER', 'MISSILE', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'VULCAN', 'WHIPS', 'XCROSS', 'ZAPPER']; // no NORMAL — alphabetical order
 function showEquipSelect() {
   showingEquip = true;
   titleScreen.classList.add('hidden');
@@ -2853,8 +2861,10 @@ document.querySelectorAll('#itemsScreen .item-entry[data-weapon]').forEach(el =>
 const EQUIP_LONG_DESCRIPTIONS = {
   DOUBLE: { intro: "Fires a tight pair of light-blue shots angled slightly outward. Rotating cyan option squares trail behind the ship, one more per level, each firing the same twin-shot volley and bumping or destroying enemy bullets on contact. They stop chasing when the ship stops, and reset to overlap it each new wave. DOUBLE uniquely levels to 7, for a full seven-option formation.",
     levels: ["1 option.", "2 options.", "3 options.", "4 options.", "5 options.", "6 options.", "7 options, full formation."] },
-  EARTH: { intro: "Stations pairs of pods riding along a glowing planet-horizon arc at the bottom of the screen, sliding gently left and right, each firing a laser straight up once a second, all pairs firing together. Leveling up adds another pair, spread further toward the arc's edges. EARTH uniquely levels to 7, for a full seven-pair formation.",
+  EARTH: { intro: "Stations pairs of pods riding along a glowing planet-horizon arc at the bottom of the screen, sliding gently left and right, each firing an aimed laser at its own enemy on a steady shared cadence, all pairs firing together. Leveling up adds another pair, spread further toward the arc's edges. EARTH uniquely levels to 7, for a full seven-pair formation.",
     levels: ["1 pair.", "2 pairs.", "3 pairs.", "4 pairs.", "5 pairs.", "6 pairs.", "7 pairs, full staircase."] },
+  FUNNEL: { intro: "Stations small diamond-shaped funnels just below the ship's sides, facing straight up and holding position there until they lock onto a target — any enemy, asteroid, crystal, mini-boss, or the boss itself. Once locked, it moves in and rapid-fires an aimed laser at it from 200px away for as long as it stays in range, then flies back to its fixed spot to pick its next target. Every funnel only ever goes after a target none of its siblings are already after. Leveling up adds another funnel to each side, stacked at the same spot. FUNNEL uniquely levels to 7.",
+    levels: ["1 funnel/side.", "2 funnels/side.", "3 funnels/side.", "4 funnels/side.", "5 funnels/side.", "6 funnels/side.", "7 funnels/side."] },
   MISSILE: { intro: "Fires pairs of orange missiles from the rear corners: each launches backward, loops into forward flight, climbs, then splits into two diagonal fragments. Stray missiles curve back onto the screen instead of vanishing. Leveling up adds more pairs. MISSILE uniquely levels to 7, filling the screen with looping, splitting missiles.",
     levels: ["2 missiles.", "4 missiles.", "6 missiles.", "8 missiles.", "10 missiles.", "12 missiles.", "14 missiles, screen-filling swarm."] },
   HOMING: { intro: "Each shot locks its own distinct target — enemies, asteroids, and crystals all count. Shots launch from the tip, fly 200px straight while accelerating, then curve in. Leveling up adds shots AND widens their launch angles, tapering at directly-behind. HOMING uniquely levels to 7, for a full-circle locking volley.",
@@ -2869,16 +2879,16 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["6 orbs, 120° cone.", "10 orbs, 110° cone.", "14 orbs, 100° cone.", "18 orbs, 90° cone.", "22 orbs, 80° cone.", "26 orbs, 70° cone.", "30 orbs, 60° cone, tightest and densest."] },
   VULCAN: { intro: "A rapid burst of scattering orange bolts from the ship's tip, always finishing within half a second regardless of level. Each bolt also repeats itself once per level with almost no delay, doubling your output as you level — more bolts per burst AND more repeats. VULCAN uniquely levels to 7 and stacks cleanly with RAPID.",
     levels: ["2-shot burst, 1x repeat.", "4-shot burst, 2x repeat.", "6-shot burst, 3x repeat.", "8-shot burst, 4x repeat.", "10-shot burst, 5x repeat.", "12-shot burst, 6x repeat.", "14-shot burst, 7x repeat, same 0.5s window."] },
-  WHIPS: { intro: "Lashes out a curved tether per level from the ship to the nearest enemy, cracking for damage every tenth of a second while connected. Tethers follow the ship and instantly retarget when their enemy dies, each preferring a distinct target from the others. Leveling up adds a tether and more damage per crack. WHIPS uniquely levels to 7.",
-    levels: ["1 tether, 1dmg.", "2 tethers, 2dmg.", "3 tethers, 3dmg.", "4 tethers, 4dmg.", "5 tethers, 5dmg.", "6 tethers, 6dmg.", "7 tethers, 7dmg."] },
+  WHIPS: { intro: "Lashes out curved tethers (2 per level) from the ship to the nearest enemies, cracking for damage every tenth of a second while connected. Tethers follow the ship and instantly retarget when their enemy dies, each preferring a distinct target from the others. Leveling up adds two tethers and more damage per crack. WHIPS uniquely levels to 7.",
+    levels: ["2 tethers, 2dmg.", "4 tethers, 4dmg.", "6 tethers, 6dmg.", "8 tethers, 8dmg.", "10 tethers, 10dmg.", "12 tethers, 12dmg.", "14 tethers, 14dmg."] },
   PHANTOM: { intro: "Instantly flashes a wide beam to the top of the screen, hitting everything inside the moment it fires. Anything still caught as the flash fades is slowed to half speed and takes a second damage tick. Width grows and cooldown shrinks, down to a tenth of a second, with level. PHANTOM uniquely levels to 7 for near-constant flashing.",
     levels: ["100px wide, 1.0s cooldown.", "120px wide, 0.8s cooldown.", "140px wide, 0.6s cooldown.", "160px wide, 0.4s cooldown.", "180px wide, 0.2s cooldown.", "200px wide, 0.15s cooldown.", "220px wide, 0.1s cooldown."] },
   QIX: { intro: "Fires one slim wireframe rod that pierces everything, tumbling irregularly around an off-center pivot with a few fading afterimages trailing behind it. Leveling up stretches the rod another 25px rather than adding more rods. QIX uniquely levels to 7 for a long tumbling reach.",
     levels: ["50px long.", "75px long.", "100px long.", "125px long.", "150px long.", "175px long.", "200px long."] },
   CURVE: { intro: "Launches two violet beams per level, each locking a different target near the top of the screen and curving along a gentle, ever-tightening arc. A generous 20px hitbox lets it pierce incidental targets for lesser damage en route to its real target. CURVE uniquely levels to 7, covering nearly the whole top row.",
     levels: ["2 beams.", "4 beams.", "6 beams.", "8 beams.", "10 beams.", "12 beams.", "14 beams, covers nearly the whole top row."] },
-  THUNDER: { intro: "A bolt that chains to the nearest untouched target on hit, forming one unbroken line of lightning. If it runs out of fresh targets it clears its memory and re-chains through the same ones, up to a per-bolt reset cap that itself grows at the top levels. Jumps scale steadily up to 35 by level 7; THUNDER uniquely levels to 7 for more jumps and, at the top levels, more resets too.",
-    levels: ["5 jumps, up to 5 resets.", "10 jumps, up to 5 resets.", "15 jumps, up to 5 resets.", "20 jumps, up to 5 resets.", "25 jumps, up to 5 resets.", "30 jumps, up to 7 resets.", "35 jumps, up to 9 resets."] },
+  THUNDER: { intro: "A bolt that chains to the nearest untouched target on hit, forming one unbroken line of lightning. If it runs out of fresh targets it clears its memory once and re-chains through the same ones, then ends when it runs out again. Jumps scale steadily up to 35 by level 7; THUNDER uniquely levels to 7 for more jumps.",
+    levels: ["5 jumps, 1 reset.", "10 jumps, 1 reset.", "15 jumps, 1 reset.", "20 jumps, 1 reset.", "25 jumps, 1 reset.", "30 jumps, 1 reset.", "35 jumps, 1 reset."] },
   REFECT: { intro: "Fires bolts that launch near-vertical, then bounce to the mirror-image angle every fixed stretch for a zig-zagging climb. It pierces everything instead of stopping on contact. Leveling up adds more bolts, each with its own randomized starting angle. REFECT uniquely levels to 7 for a dense crisscrossing wall.",
     levels: ["1 bolt.", "2 bolts.", "3 bolts.", "4 bolts.", "5 bolts.", "6 bolts.", "7 bolts, dense zig-zagging coverage."] },
   ORBITAL: { intro: "Wireframe rings share one elliptical orbit around the ship, which itself slowly tumbles and reorients over time. Every ring fires a fine forward laser that forks into two on its first pierce. Leveling up adds rings in diametrically opposite pairs. ORBITAL uniquely levels to 7 for a fully-layered defensive formation.",
@@ -2932,8 +2942,8 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 2000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY'];
-const EQUIP_UPDATE_TAG = ['MISSILE', 'CURVE', 'VULCAN', 'LASER']; // shows "UPDATE" instead of "NEW"
+const EQUIP_UPDATED = ['ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL'];
+const EQUIP_UPDATE_TAG = ['MISSILE', 'CURVE', 'VULCAN', 'LASER', 'BUBBLE', 'THUNDER']; // shows "UPDATE" instead of "NEW"
 const EQUIP_RENEW_TAG = ['EARTH']; // shows "RENEW" instead of "NEW"/"UPDATE"
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
@@ -3117,7 +3127,7 @@ function updatePlayer(dt) {
   // a fine laser straight ahead from wherever it currently sits on the shared orbit
   if (player.weapon === 'ORBITAL') {
     const ringCount = player.weaponLevel * 2; // two rings per level, always diametrically opposite (evenly spaced around an even count)
-    const ORBIT_RX = 130, ORBIT_RY = 70; // elliptical orbit semi-axes
+    const ORBIT_RX = 160, ORBIT_RY = 80; // elliptical orbit semi-axes
     player.orbitalAngle = (player.orbitalAngle || 0) + dt * 3; // shared rotation speed for all rings around the ellipse (2x)
     player.orbitalEllipseAngle = (player.orbitalEllipseAngle || 0) + dt * 0.6; // the ellipse's own orientation slowly tumbles
     player.orbitalRings = player.orbitalRings || [];
@@ -3143,7 +3153,8 @@ function updatePlayer(dt) {
 
   // ZAPPER: a pair of small diamonds stationed beside the ship per level, each one
   // independently hunting down a distinct target, dashing to it, clinging on to deal
-  // repeated damage, then racing back to its resting spot with a brief cooldown
+  // repeated damage, then racing back to its resting spot and immediately searching
+  // again — no cooldown before seeking the next target
   if (player.weapon === 'ZAPPER') {
     const pairCount = player.weaponLevel;
     player.zapperSquares = player.zapperSquares || [];
@@ -3193,7 +3204,7 @@ function updatePlayer(dt) {
         } else if (sq.state === 'returning') {
           const dx = homeX - sq.x, dy = homeY - sq.y;
           const dist = Math.hypot(dx, dy);
-          if (dist < 5) { sq.x = homeX; sq.y = homeY; sq.state = 'idle'; sq.cooldownTimer = 0.2; }
+          if (dist < 5) { sq.x = homeX; sq.y = homeY; sq.state = 'idle'; sq.cooldownTimer = 0; }
           else { sq.x += dx / dist * ZAPPER_SPEED * dt; sq.y += dy / dist * ZAPPER_SPEED * dt; }
         }
       });
@@ -3211,14 +3222,21 @@ function updatePlayer(dt) {
     const R = 250 + 50 * (pairCount - 1);
     const rx = R, ry = R / 2; // same flattened ellipse as drawEarthHorizon
     // clamp horizontally too (not just vertically) so pods never slide off the
-    // left/right edge of the screen once rx grows past half the screen width
-    const widthHalfAngle = Math.acos(Math.max(-1, Math.min(1, (W / 2 - 20) / rx)));
+    // left/right edge of the screen once rx grows past half the screen width —
+    // the pod's x-offset from center is rx*sin(offset), so the bound uses asin
+    // (NOT acos, which bounds the cos-driven y-offset instead and let pods drift
+    // off-screen at high levels/oscillation phases)
+    const widthHalfAngle = Math.asin(Math.max(-1, Math.min(1, (W / 2 - 20) / rx)));
     const arcHalfAngle = Math.min(Math.PI / 2, Math.acos(Math.max(-1, Math.min(1, -H / ry))), widthHalfAngle);
     player.earthSlideT = (player.earthSlideT || 0) + dt;
     // shared fire timer so every pod fires at exactly the same moment
-    player.earthFireTimer = (player.earthFireTimer === undefined ? rand(0, 2.5) : player.earthFireTimer) - dt;
+    player.earthFireTimer = (player.earthFireTimer === undefined ? rand(0, 0.8) : player.earthFireTimer) - dt;
     const firingNow = player.earthFireTimer <= 0 && player.alive;
-    if (firingNow) player.earthFireTimer = 2.5; // 1.0 × 2.5
+    if (firingNow) player.earthFireTimer = 0.8;
+    // each pod aims at its own target when firing — every pod prefers a distinct
+    // enemy/asteroid/mini-boss vertex from its siblings, falling back to sharing
+    // a target only once nothing exclusive is left (reuses ZAPPER's own targeting)
+    const earthClaimed = firingNow ? new Set() : null;
     for (let pi = 0; pi < pairCount; pi++) {
       // pairs spread out from near the arc's center toward its edges
       const pairFrac = (pi + 1) / pairCount;
@@ -3235,10 +3253,21 @@ function updatePlayer(dt) {
         pod.x = W / 2 + Math.cos(angle) * rx;
         pod.y = H + Math.sin(angle) * ry;
         if (firingNow) {
-          const EARTH_LASER_SPEED = 303.75; // 1215 ÷ 4
+          const EARTH_LASER_SPEED = 607.5; // 303.75 × 2
           const spawnOffset = 15; // spawns just above the pod, not overlapping it
+          let target = findZapperTarget(pod.x, pod.y, earthClaimed, false);
+          if (!target) target = findZapperTarget(pod.x, pod.y, earthClaimed, true);
+          if (target) earthClaimed.add(target);
+          const tPos = target ? zapperTargetPos(target) : null;
+          let vx = 0, vy = -EARTH_LASER_SPEED;
+          if (tPos) {
+            const dx = tPos.x - pod.x, dy = tPos.y - (pod.y - spawnOffset);
+            const len = Math.hypot(dx, dy) || 1;
+            vx = (dx / len) * EARTH_LASER_SPEED;
+            vy = (dy / len) * EARTH_LASER_SPEED;
+          }
           playerBullets.push({
-            x: pod.x, y: pod.y - spawnOffset, vx: 0, vy: -EARTH_LASER_SPEED, r: 8, power: 20,
+            x: pod.x, y: pod.y - spawnOffset, vx, vy, r: 8, power: 20,
             earthLaser: true, tickCooldowns: new Map(),
           });
         }
@@ -3259,12 +3288,112 @@ function updatePlayer(dt) {
     player.earthPods = null;
   }
 
-  // WHIPS: a single curved tether from the ship to the nearest valid target,
-  // dealing `level` damage every 0.05s while connected; snaps to a fresh nearest
-  // target the instant its current one is destroyed or otherwise invalidated
+  // FUNNEL: `level` funnels stationed on each side (2×level total), all stacked at
+  // the same fixed launch point diagonally below the ship regardless of level,
+  // facing straight up and staying put there — not moving at all — while idle with
+  // no target. Each idle funnel claims a strictly distinct target (never shares one
+  // with a sibling — just stays idle if nothing exclusive is available), THEN moves
+  // toward it; once within 200px it holds there and rapid-fires an aimed piercing
+  // laser (spawned 20px ahead of itself) at it repeatedly until that target dies or
+  // drifts back out of range, then actually flies back to its fixed spot (rather
+  // than snapping there) before picking its next target — and if a fresh exclusive
+  // target turns up while it's still flying back, it peels off after that new
+  // target immediately, from wherever it currently is.
+  if (player.weapon === 'FUNNEL') {
+    const pairCount = player.weaponLevel;
+    player.funnels = player.funnels || [];
+    player.funnels.length = pairCount * 2;
+    const funnelClaimed = new Set();
+    player.funnels.forEach(f => { if (f && f.target) funnelClaimed.add(f.target); });
+    const FUNNEL_SPEED_TO_TARGET = 243.75; // 162.5 × 1.5
+    const FUNNEL_SPEED_RETURN = 812.5; // 162.5 × 5
+    const FUNNEL_HOME_DX = 22, FUNNEL_HOME_DY = 20; // fixed diagonal below-left/right spot, same for every level
+    const FUNNEL_FIRE_DIST = 200; // starts rapid-firing once it gets this close to its target
+    const FUNNEL_SPAWN_OFFSET = 20; // laser spawns this far ahead of the funnel, not right on top of it
+    const FUNNEL_FIRE_INTERVAL = 0.2;
+    const funnelIdleAngle = () => -Math.PI / 2; // faces straight up while idle beside the ship
+    for (let pi = 0; pi < pairCount; pi++) {
+      [-1, 1].forEach(side => {
+        const idx = pi * 2 + (side < 0 ? 0 : 1);
+        if (!player.funnels[idx]) {
+          player.funnels[idx] = {
+            side, x: player.x + side * FUNNEL_HOME_DX, y: player.y + FUNNEL_HOME_DY,
+            angle: funnelIdleAngle(side), state: 'idle', target: null, fireTimer: 0,
+          };
+        }
+        const f = player.funnels[idx];
+        const homeX = player.x + side * FUNNEL_HOME_DX, homeY = player.y + FUNNEL_HOME_DY;
+        if (f.state === 'idle') {
+          // stays fixed right here beside the ship until it has a target to chase
+          f.x = homeX; f.y = homeY;
+          // strictly distinct targets only — never shares one with a sibling, even
+          // as a fallback; a funnel with nothing exclusive left just stays idle
+          const found = findZapperTarget(f.x, f.y, funnelClaimed, false);
+          if (found) { f.target = found; funnelClaimed.add(found); f.state = 'seeking'; }
+        } else if (f.state === 'seeking') {
+          const pos = f.target ? zapperTargetPos(f.target) : null;
+          if (!pos) {
+            f.state = 'returning'; f.target = null;
+          } else {
+            const dx = pos.x - f.x, dy = pos.y - f.y;
+            const dist = Math.hypot(dx, dy);
+            f.angle = Math.atan2(dy, dx);
+            if (dist < FUNNEL_FIRE_DIST) {
+              f.state = 'engaging'; f.fireTimer = 0;
+            } else {
+              f.x += dx / dist * FUNNEL_SPEED_TO_TARGET * dt;
+              f.y += dy / dist * FUNNEL_SPEED_TO_TARGET * dt;
+            }
+          }
+        } else if (f.state === 'engaging') {
+          // holds its ground and rapid-fires at its target for as long as it stays
+          // within range, rather than leaving after a single shot
+          const pos = f.target ? zapperTargetPos(f.target) : null;
+          if (!pos || Math.hypot(pos.x - f.x, pos.y - f.y) >= FUNNEL_FIRE_DIST) {
+            f.state = 'returning'; f.target = null;
+          } else {
+            f.angle = Math.atan2(pos.y - f.y, pos.x - f.x);
+            f.fireTimer -= dt;
+            if (f.fireTimer <= 0) {
+              f.fireTimer = FUNNEL_FIRE_INTERVAL;
+              const FUNNEL_LASER_SPEED = 1400;
+              // RAPID adds extra lasers fanned a degree or two off the main aim:
+              // Lv1 = ±1° (2 total), Lv2 = 0°/±1° (3 total), Lv3 = ±1°/±2° (4 total)
+              const rapidLvl = player.rapidLevel || 0;
+              const offsetsDeg = rapidLvl === 1 ? [-1, 1] : rapidLvl === 2 ? [-1, 0, 1] : rapidLvl >= 3 ? [-2, -1, 1, 2] : [0];
+              offsetsDeg.forEach(offDeg => {
+                const a = f.angle + offDeg * Math.PI / 180;
+                playerBullets.push({
+                  x: f.x + Math.cos(a) * FUNNEL_SPAWN_OFFSET, y: f.y + Math.sin(a) * FUNNEL_SPAWN_OFFSET,
+                  vx: Math.cos(a) * FUNNEL_LASER_SPEED, vy: Math.sin(a) * FUNNEL_LASER_SPEED, r: 6, power: 5,
+                  funnelLaser: true, tickCooldowns: new Map(),
+                });
+              });
+            }
+          }
+        } else if (f.state === 'returning') {
+          // while flying home, keep checking for a fresh, still-exclusive target —
+          // if one turns up, peel off after it immediately from the current
+          // position, no need to finish the trip home first
+          const found = findZapperTarget(f.x, f.y, funnelClaimed, false);
+          if (found) { f.target = found; funnelClaimed.add(found); f.state = 'seeking'; return; }
+          const dx = homeX - f.x, dy = homeY - f.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 5) { f.x = homeX; f.y = homeY; f.state = 'idle'; f.angle = funnelIdleAngle(side); }
+          else { f.angle = Math.atan2(dy, dx); f.x += dx / dist * FUNNEL_SPEED_RETURN * dt; f.y += dy / dist * FUNNEL_SPEED_RETURN * dt; }
+        }
+      });
+    }
+  } else {
+    player.funnels = null;
+  }
+
+  // WHIPS: level×2 curved tethers from the ship to the nearest valid targets,
+  // each dealing `level×2` damage every 0.05s while connected; snaps to a fresh
+  // nearest target the instant its current one is destroyed or otherwise invalidated
   if (player.weapon === 'WHIPS') {
     player.whipT = (player.whipT || 0) + dt;
-    const count = player.weaponLevel;
+    const count = player.weaponLevel * 2; // tether count is level×2
     const originX = player.x, originY = player.y - 15; // tether starts 15px ahead of the ship, not at its exact center
     player.whipTethers = player.whipTethers || [];
     player.whipTethers.length = count;
@@ -3503,7 +3632,7 @@ function updateBullets(dt) {
     if (!b.bubble && !b.noTrail) {
       if (!b.trail) b.trail = [];
       b.trail.push({ x: b.x, y: b.y, rot: b.angle !== undefined ? b.angle : b.rot, traveled: b.traveled });
-      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.missile ? 10 : b.orbitalBolt ? 24 : b.earthShipLaser ? 8 : b.earthLaser ? 32 : b.double ? 24 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
+      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.missile ? 10 : b.orbitalBolt ? 24 : b.earthShipLaser ? 8 : (b.earthLaser || b.funnelLaser) ? 32 : b.double ? 24 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
       if (b.trail.length > maxTrail) b.trail.shift();
     }
     if (b.homing) {
@@ -3540,7 +3669,7 @@ function updateBullets(dt) {
     if (b.xcross) {
       b.xcrossAngle = (b.xcrossAngle || 0) + dt * 6; // continuous spin while flying
     }
-    if (b.earthLaser && b.tickCooldowns) {
+    if ((b.earthLaser || b.funnelLaser) && b.tickCooldowns) {
       // ticks damage repeatedly (every 0.1s) to whatever it's overlapping while it
       // pierces through, rather than a single hit-once-per-target
       for (const [target, cd] of b.tickCooldowns) {
@@ -3595,7 +3724,7 @@ function updateBullets(dt) {
     }
     if (b.missile) {
       if (b.missileStuckBoss) {
-        // stuck to a mini-boss vertex: follows its position, deals 1dmg every 0.5s,
+        // stuck to a mini-boss vertex: follows its position, deals 2dmg every 0.1s,
         // for up to 3s or until that mini-boss is destroyed, whichever comes first
         const boss = b.missileStuckBoss, vk = b.missileStuckVertex;
         if (!enemies.includes(boss) || !boss.miniBossHp || boss.miniBossHp[vk] <= 0) {
@@ -3607,9 +3736,9 @@ function updateBullets(dt) {
         b.missileStickT = (b.missileStickT || 0) + dt;
         if (b.missileStickT >= 3.0) { playerBullets.splice(i, 1); continue; }
         b.missileTickTimer = (b.missileTickTimer || 0) + dt;
-        if (b.missileTickTimer >= 0.2) {
-          b.missileTickTimer -= 0.2;
-          boss.miniBossHp[vk] -= 1;
+        if (b.missileTickTimer >= 0.1) {
+          b.missileTickTimer -= 0.1;
+          boss.miniBossHp[vk] -= 2;
           score += 10;
           if (boss.miniBossHp[vk] <= 0) {
             spawnDeathParticles(pos.x, pos.y, boss.def.color, 14, 220);
@@ -3623,7 +3752,7 @@ function updateBullets(dt) {
       }
       if (b.missileStuckTo) {
         // stuck to its target (enemy or asteroid/crystal): follows its position,
-        // deals 1dmg every 0.5s, for up to 3s or until destroyed, whichever's first
+        // deals 2dmg every 0.1s, for up to 3s or until destroyed, whichever's first
         const target = b.missileStuckTo;
         const isAsteroidTarget = b.missileStuckKind === 'asteroid';
         const stillAlive = isAsteroidTarget ? asteroids.includes(target) : enemies.includes(target);
@@ -3632,14 +3761,14 @@ function updateBullets(dt) {
         b.missileStickT = (b.missileStickT || 0) + dt;
         if (b.missileStickT >= 3.0) { playerBullets.splice(i, 1); continue; }
         b.missileTickTimer = (b.missileTickTimer || 0) + dt;
-        if (b.missileTickTimer >= 0.2) {
-          b.missileTickTimer -= 0.2;
+        if (b.missileTickTimer >= 0.1) {
+          b.missileTickTimer -= 0.1;
           if (isAsteroidTarget) {
             score += wave * 20;
-            registerAsteroidDamage(1, target);
+            registerAsteroidDamage(2, target);
             spawnDeathParticles(target.x, target.y, target.isCrystal ? '#7CFFF0' : '#bbbbbb', 2);
           } else {
-            target.hp -= 1;
+            target.hp -= 2;
             score += 10;
             if (target.hp <= 0) {
               handleEnemyDeath(target);
@@ -3803,9 +3932,9 @@ function updateBullets(dt) {
         const last = b.chainPath[b.chainPath.length - 1];
         let next = findNearestChainTargetExcluding(last.x, last.y, b.hitSet);
         let inRange = next && dist2(last.x, last.y, next.x, next.y) < 2560 * 2560;
-        if ((!next || !inRange) && b.loopsLeft > 0 && (b.resetLoops || 0) < (b.maxResets || 3)) {
+        if ((!next || !inRange) && b.loopsLeft > 0 && (b.resetLoops || 0) < (b.maxResets || 1)) {
           // jumps remain but no un-hit target is left in range — reset the hit list
-          // and keep chaining, up to 3 resets total
+          // and keep chaining, but only once
           b.hitSet.clear();
           b.resetLoops = (b.resetLoops || 0) + 1;
           next = findNearestChainTargetExcluding(last.x, last.y, b.hitSet);
@@ -4374,7 +4503,7 @@ function handleCollisions() {
     if (b.dying) continue; // erasing its trail, no longer active
     if (b.spark) continue; // no hit detection until it bursts
     if (b.chaining) continue; // thunder: handled entirely in updateBullets once chaining starts
-    if (b.earthLaser) {
+    if (b.earthLaser || b.funnelLaser) {
       // pierces through everything, ticking damage every 0.1s to whatever it's
       // currently overlapping rather than a single hit-once-per-target
       for (let i = enemies.length - 1; i >= 0; i--) {
@@ -5069,8 +5198,34 @@ function drawPlayer() {
       const pos = zapperTargetPos(w.target);
       if (pos) ctx.strokeRect(pos.x - 15, pos.y - 15, 30, 30);
     });
+  } else if (player.weapon === 'FUNNEL' && player.funnels) {
+    // FUNNEL's own drones: small kite/diamond shapes (a shrunk copy of the ship's
+    // own body), rotated to face whichever direction they're currently traveling
+    player.funnels.forEach(f => drawFunnelShape(f.x, f.y, f.angle || 0, '#00b7ff'));
   }
   drawPlayerShape(player.x, player.y, '#7CFFF0');
+}
+
+function drawFunnelShape(x, y, angle, color) {
+  // a shrunk copy of just the ship's own kite/diamond body (no side wings), rotated
+  // so its tip points in the funnel's current travel direction
+  const r = player.r * 0.55 * 1.2 * 1.2; // another 1.2x larger
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle + Math.PI / 2); // the kite's tip natively points "up" (angle -90°)
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = color;
+  ctx.fillStyle = hexToRgba(color, 0.15);
+  ctx.beginPath();
+  roundedPolygonPath([
+    { x: 0, y: -r * 1.9 },
+    { x: -r * 0.7, y: r * 0.05 },
+    { x: 0, y: r * 1.1 },
+    { x: r * 0.7, y: r * 0.05 },
+  ], 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawPlayerShape(x, y, color) {
@@ -5408,7 +5563,7 @@ function handleAsteroidCollisions() {
     if (b.dying) continue; // erasing its trail, no longer active
     if (b.spark) continue; // no hit detection until it bursts
     if (b.chaining) continue; // thunder: handled entirely in updateBullets once chaining starts
-    if (b.earthLaser) {
+    if (b.earthLaser || b.funnelLaser) {
       for (let i = 0; i < asteroids.length; i++) {
         const a = asteroids[i];
         if (b.tickCooldowns.has(a)) continue;
@@ -5839,6 +5994,38 @@ function drawBullets() {
       ctx.translate(b.x, b.y);
       ctx.rotate(ang);
       ctx.strokeStyle = '#00dcdc';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, 40);
+      ctx.lineTo(0, -40);
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
+    if (b.funnelLaser) {
+      // blue laser bolt fired by a FUNNEL, same fading-trail style as EARTH's pod
+      // lasers but its own color, oriented to its current travel direction
+      const ang = Math.atan2(b.vy, b.vx) + Math.PI / 2;
+      if (b.trail && b.trail.length > 1) {
+        for (let k = 0; k < b.trail.length; k++) {
+          const p = b.trail[k];
+          const alpha = ((k + 1) / (b.trail.length + 1)) * 0.25;
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(ang);
+          ctx.strokeStyle = `rgba(0,183,255,${alpha})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(0, 40);
+          ctx.lineTo(0, -40);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(ang);
+      ctx.strokeStyle = '#00b7ff';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, 40);
