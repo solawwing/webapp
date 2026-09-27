@@ -363,7 +363,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-27 09:42';
+const LAST_UPDATED = '2026-09-27 10:15';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1343,19 +1343,20 @@ function fireWeapon() {
       chainTimer: 0, family: { active: 1 }, maxResets,
     });
   } else if (player.weapon === 'REFECT') {
-    // fires `level` shots from the ship's center, each starting within ±20 degrees of
-    // straight DOWN for the first zig-zag leg (traveling backward/away first, only
-    // 50px before its first bend), then reverses to travel forward (straight up ±
-    // the same angle) from the second zig-zag onward, using the normal leg distance;
-    // always zig-zags exactly 8 times regardless of level, then fades
+    // fires `level` shots from the ship's center, each starting within ±(level×5)
+    // degrees of straight DOWN for the first zig-zag leg (traveling backward/away
+    // first, only 50px before its first bend), then reverses to travel forward
+    // (straight up ± the same angle) from the second zig-zag onward, using a
+    // randomized 20-50px leg distance each time it reverses; always zig-zags
+    // exactly 20 times regardless of level, then fades
     const centerX = player.x, centerY = player.y;
     for (let k = 0; k < lvl; k++) {
-      const rad = rand(-20, 20) * Math.PI / 180;
+      const rad = rand(-lvl * 5, lvl * 5) * Math.PI / 180;
       playerBullets.push({
         x: centerX, y: centerY, vx: Math.sin(rad) * 1600, vy: Math.cos(rad) * 1600, r: 3, power: 2,
         refect: true, refectAngle: rad, refectBaseAngle: rad, refectSign: rad < 0 ? -1 : 1, refectDist: 0, pierceLeft: 999, hitSet: new Set(),
         refectFirstLeg: true,
-        zigzagsLeft: 8, refectLegDist: 50, refectNormalLegDist: 120, fullTrail: [{ x: centerX, y: centerY, t: 0 }], refectAge: 0, noTrail: true,
+        zigzagsLeft: 20, refectLegDist: 50, fullTrail: [{ x: centerX, y: centerY, t: 0 }], refectAge: 0, noTrail: true,
       });
     }
   } else if (player.weapon === 'ORBITAL') {
@@ -3743,16 +3744,17 @@ function updateBullets(dt) {
           if (b.refectFirstLeg) {
             // first leg finished (traveled backward/down) — now reverse to travel
             // forward (upward) along the same original angle, then normal zig-zag
-            // bending takes over from the second leg onward, using the normal
-            // (longer) leg distance from here on
+            // bending takes over from the second leg onward, using a freshly
+            // randomized 20-50px leg distance each time it reverses from here on
             b.refectFirstLeg = false;
-            b.refectLegDist = b.refectNormalLegDist || 120;
+            b.refectLegDist = rand(20, 50);
             b.refectAngle = b.refectBaseAngle || 0;
             b.vx = Math.sin(b.refectAngle) * spd;
             b.vy = -Math.cos(b.refectAngle) * spd;
           } else {
             b.refectSign = -(b.refectSign || 1);
             b.refectAngle = (b.refectBaseAngle || 0) + b.refectSign * rand(20, 50) * Math.PI / 180;
+            b.refectLegDist = rand(20, 50);
             b.vx = Math.sin(b.refectAngle) * spd;
             b.vy = -Math.cos(b.refectAngle) * spd;
           }
