@@ -367,7 +367,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-28 00:16';
+const LAST_UPDATED = '2026-09-28 00:30';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -5209,7 +5209,7 @@ function drawPlayer() {
 function drawFunnelShape(x, y, angle, color) {
   // a shrunk copy of just the ship's own kite/diamond body (no side wings), rotated
   // so its tip points in the funnel's current travel direction
-  const r = player.r * 0.55 * 1.2 * 1.2; // another 1.2x larger
+  const r = player.r * 0.55 * 1.2 * 1.2 * 1.2; // another 1.2x larger
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle + Math.PI / 2); // the kite's tip natively points "up" (angle -90°)
