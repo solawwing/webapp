@@ -363,7 +363,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-27 09:16';
+const LAST_UPDATED = '2026-09-27 09:42';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -983,7 +983,7 @@ function zapperTargetPos(target) {
   }
 }
 function zapperDealDamage(target) {
-  // applies ZAPPER's damage tick to whatever kind of target it is: 2dmg against
+  // applies ZAPPER's damage tick to whatever kind of target it is: 3dmg against
   // asteroids/crystals/mini-bosses/the boss body, 1dmg against regular enemies —
   // plus +1 per RAPID level (stacks with RAPID same as other weapons). Returns
   // true if that destroyed it (drone should return home), false if it should
@@ -992,7 +992,7 @@ function zapperDealDamage(target) {
   if (target.isMiniBoss) {
     const boss = target.bossRef, vk = target.vertexIndex;
     const pos = bossVertexWorldPos(boss, vk);
-    boss.miniBossHp[vk] -= (2 + rapidBonus);
+    boss.miniBossHp[vk] -= (3 + rapidBonus);
     score += 10;
     if (boss.miniBossHp[vk] <= 0) {
       spawnDeathParticles(pos.x, pos.y, boss.def.color, 14, 220);
@@ -1002,11 +1002,11 @@ function zapperDealDamage(target) {
     return false;
   } else if (target.isAsteroidObj) {
     score += wave * 20;
-    registerAsteroidDamage(2 + rapidBonus, target);
+    registerAsteroidDamage(3 + rapidBonus, target);
     spawnDeathParticles(target.x, target.y, target.isCrystal ? '#7CFFF0' : '#bbbbbb', 2);
     return false; // asteroids/crystals are indestructible — drone keeps clinging until it splits away naturally
   } else {
-    target.hp -= (target.type === 'GIANTBOSS' ? 2 : 1) + rapidBonus;
+    target.hp -= (target.type === 'GIANTBOSS' ? 3 : 1) + rapidBonus;
     score += 10;
     if (target.hp <= 0) {
       handleEnemyDeath(target);
@@ -1957,7 +1957,7 @@ let asteroidBonusGiven = false;
 let asteroidRapidGiven = false;
 let asteroidWaveTimer = 0;
 let asteroidSpawnTimer = 0;
-let asteroidBigSpawned = false; // one giant 5x asteroid partway through each asteroid-belt stage
+let asteroidBigSpawned = false; // one giant 3x asteroid partway through each asteroid-belt stage
 let asteroidItemTimer = 0;
 let crystalEnemyTimer = 0;
 let asteroidSpeedMul = 1;
@@ -3207,9 +3207,12 @@ function updatePlayer(dt) {
     const pairCount = player.weaponLevel;
     player.earthPods = player.earthPods || [];
     player.earthPods.length = pairCount * 2;
-    const R = 100 + 50 * (pairCount - 1);
+    const R = 250 + 50 * (pairCount - 1);
     const rx = R, ry = R / 2; // same flattened ellipse as drawEarthHorizon
-    const arcHalfAngle = Math.min(Math.PI / 2, Math.acos(Math.max(-1, Math.min(1, -H / ry))));
+    // clamp horizontally too (not just vertically) so pods never slide off the
+    // left/right edge of the screen once rx grows past half the screen width
+    const widthHalfAngle = Math.acos(Math.max(-1, Math.min(1, (W / 2 - 20) / rx)));
+    const arcHalfAngle = Math.min(Math.PI / 2, Math.acos(Math.max(-1, Math.min(1, -H / ry))), widthHalfAngle);
     player.earthSlideT = (player.earthSlideT || 0) + dt;
     // shared fire timer so every pod fires at exactly the same moment
     player.earthFireTimer = (player.earthFireTimer === undefined ? rand(0, 2.5) : player.earthFireTimer) - dt;
@@ -3234,7 +3237,7 @@ function updatePlayer(dt) {
           const EARTH_LASER_SPEED = 303.75; // 1215 ÷ 4
           const spawnOffset = 15; // spawns just above the pod, not overlapping it
           playerBullets.push({
-            x: pod.x, y: pod.y - spawnOffset, vx: 0, vy: -EARTH_LASER_SPEED, r: 8, power: 3,
+            x: pod.x, y: pod.y - spawnOffset, vx: 0, vy: -EARTH_LASER_SPEED, r: 8, power: 20,
             earthLaser: true, tickCooldowns: new Map(),
           });
         }
@@ -5190,12 +5193,12 @@ function updateAsteroidWave(dt) {
   asteroidWaveTimer += dt;
   asteroidSpawnTimer -= dt;
   if (asteroidSpawnTimer <= 0 && asteroidWaveTimer < 55) {
-    if (isCry) { spawnCrystal(); asteroidSpawnTimer = rand(0.6, 1.2); }
+    if (isCry) { spawnCrystal(); asteroidSpawnTimer = rand(0.6, 1.2) / 0.75; } // 3/4 as many crystals
     else { spawnAsteroid(); asteroidSpawnTimer = rand(0.6, 1.2) / 0.9; } // 0.9x as many asteroids (3/4 of the previous 1.2x; crystal belt unaffected)
   }
-  // one giant 5x-size asteroid (half speed) partway through the asteroid stage
+  // one giant 3x-size asteroid (half speed) partway through the asteroid stage
   if (!isCry && isAsteroidKind(kind) && !asteroidBigSpawned && asteroidWaveTimer >= 20) {
-    spawnAsteroid(asteroidSizeMul * 5, asteroidSpeedMul * 0.5);
+    spawnAsteroid(asteroidSizeMul * 3, asteroidSpeedMul * 0.5);
     asteroidBigSpawned = true;
   }
   asteroidItemTimer -= dt;
@@ -6298,12 +6301,15 @@ function drawEarthHorizon() {
   // EARTH's own themed background: styled like the title screen's fading arc
   // (same cyan, same edge-to-center-to-edge opacity fade, rounded caps) — but
   // as a partial arc peeking up from the very bottom of the screen like a
-  // planet's horizon. Radius grows 50px per level, starting at 100px for Lv1.
+  // planet's horizon. Radius grows 50px per level, starting at 250px for Lv1.
   // Drawn as a flattened ellipse (half as tall as it is wide) rather than a
   // true circle.
   if (player.weapon !== 'EARTH') return;
-  const R = 100 + 50 * (player.weaponLevel - 1);
+  const R = 250 + 50 * (player.weaponLevel - 1);
   const rx = R, ry = R / 2; // half the height of a true circular arc
+  // the VISUAL arc itself still spans all the way out to the screen edges (height
+  // constraint only) — only the pods' own placement is separately clamped so they
+  // stay on-screen even though the arc line they ride keeps going past that point
   const halfAngle = Math.min(Math.PI / 2, Math.acos(Math.max(-1, Math.min(1, -H / ry))));
   const startAngle = -Math.PI / 2 - halfAngle, endAngle = -Math.PI / 2 + halfAngle;
   const x0 = W / 2 + Math.cos(startAngle) * rx, x1 = W / 2 + Math.cos(endAngle) * rx;
