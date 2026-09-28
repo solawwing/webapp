@@ -367,7 +367,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-28 00:36';
+const LAST_UPDATED = '2026-09-29 01:12';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1191,7 +1191,7 @@ function fireWeapon() {
     const fireDoublePattern = (originX, originY) => {
       doubleOffsets.forEach(ox => {
         const rad = (ox < 0 ? -1 : 1) * Math.PI / 180;
-        playerBullets.push({ x: originX + ox, y: originY, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 2, double: true });
+        playerBullets.push({ x: originX + ox, y: originY, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 2 + (player.rapidLevel || 0), double: true });
       });
     };
     fireDoublePattern(bx, by);
@@ -1212,7 +1212,7 @@ function fireWeapon() {
       [-1, 1].forEach(side => {
         const backAngle = side * (45 * Math.PI / 180); // launches down at 45° diagonal
         playerBullets.push({
-          x: spawnX, y: spawnY, vx: Math.sin(backAngle) * 260, vy: Math.cos(backAngle) * 260, r: 3, power: 2,
+          x: spawnX, y: spawnY, vx: Math.sin(backAngle) * 260, vy: Math.cos(backAngle) * 260, r: 3, power: 2 + (player.rapidLevel || 0),
           missile: true, missileSide: side, missilePhase: 'back', missileT: 0, missileGen: 0, missilePair: p,
           trail: [], spawnDelay: (p * 0.2),
         });
@@ -1423,7 +1423,7 @@ function fireVulcanShot() {
   const rad = rand(-15, 15) * Math.PI / 180;
   const repeats = Math.max(1, player.weaponLevel);
   for (let k = 0; k < repeats; k++) {
-    playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 400, vy: -Math.cos(rad) * 400, r: 1, power: Math.floor(rand(1, 8)), vulcanLine: true, spawnDelay: k * 0.01 });
+    playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 400, vy: -Math.cos(rad) * 400, r: 1, power: Math.floor(rand(1, 8)) + (player.rapidLevel || 0), vulcanLine: true, spawnDelay: k * 0.01 });
   }
 }
 
@@ -3305,8 +3305,8 @@ function updatePlayer(dt) {
     player.funnels.length = pairCount * 2;
     const funnelClaimed = new Set();
     player.funnels.forEach(f => { if (f && f.target) funnelClaimed.add(f.target); });
-    const FUNNEL_SPEED_TO_TARGET = 243.75; // 162.5 × 1.5
-    const FUNNEL_SPEED_RETURN = 812.5; // 162.5 × 5
+    const FUNNEL_SPEED_TO_TARGET = 365.625; // 243.75 × 1.5
+    const FUNNEL_SPEED_RETURN = 1218.75; // 812.5 × 1.5
     const FUNNEL_HOME_DX = 22, FUNNEL_HOME_DY = 20; // fixed diagonal below-left/right spot, same for every level
     const FUNNEL_FIRE_DIST = 200; // starts rapid-firing once it gets this close to its target
     const FUNNEL_SPAWN_OFFSET = 20; // laser spawns this far ahead of the funnel, not right on top of it
@@ -4079,11 +4079,12 @@ function handleEnemyDeath(e) {
 }
 
 function handleOptionCollisions() {
-  // DOUBLE's trailing options: touching an enemy/boss/mini-boss/asteroid/crystal
-  // deals 1dmg (option itself is unaffected/indestructible), touching an enemy
-  // bullet destroys it
+  // DOUBLE's trailing options: touching an enemy deals 1dmg, touching an
+  // asteroid/crystal/mini-boss/boss deals 5+RAPIDレベル dmg (option itself is
+  // unaffected/indestructible), touching an enemy bullet destroys it
   if (!player.options || player.options.length === 0) return;
   const optR = 5; // roughly half the 15x5 rectangle's longer dimension
+  const bigDmg = 5 + (player.rapidLevel || 0);
   player.options.forEach(opt => {
     for (let i = enemies.length - 1; i >= 0; i--) {
       const e = enemies[i];
@@ -4094,7 +4095,7 @@ function handleOptionCollisions() {
           const miniR = (e.def.r / 3) * 0.7;
           const rr2 = (miniR + optR) * (miniR + optR);
           if (dist2(opt.x, opt.y, pos.x, pos.y) < rr2) {
-            e.miniBossHp[vk] -= 1;
+            e.miniBossHp[vk] -= bigDmg;
             score += 10;
             if (e.miniBossHp[vk] <= 0) {
               spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4);
@@ -4107,7 +4108,7 @@ function handleOptionCollisions() {
       const rr = (e.def.r + optR) * (e.def.r + optR);
       if (dist2(opt.x, opt.y, e.x, e.y) < rr) {
         if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
-        e.hp -= 1;
+        e.hp -= (e.type === 'GIANTBOSS' ? bigDmg : 1);
         score += 10;
         if (e.hp <= 0) {
           handleEnemyDeath(e);
@@ -4122,7 +4123,7 @@ function handleOptionCollisions() {
       const rr = (a.r + optR) * (a.r + optR);
       if (dist2(opt.x, opt.y, a.x, a.y) < rr) {
         score += wave * 20;
-        registerAsteroidDamage(1, a);
+        registerAsteroidDamage(bigDmg, a);
         spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 5);
       }
     }
@@ -5105,7 +5106,7 @@ function checkWaveClear() {
       if (bossExplosionBurstTimer <= 0) {
         const px = rand(0, W), py = rand(0, H * 0.7);
         spawnDeathParticles(px, py, lastBossColor, 20, 300);
-        spawnItem(px, 0); // items drop in from the top of the screen, above the burst's x position
+        if (waveClearTimer < 2.0) spawnItem(px, 0); // items only drop during the first 2s of the burst phase; items drop in from the top of the screen, above the burst's x position
         bossExplosionBurstTimer = rand(0.3, 0.6);
       }
     }
