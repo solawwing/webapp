@@ -367,7 +367,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-29 01:12';
+const LAST_UPDATED = '2026-09-29 07:50';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -3322,6 +3322,7 @@ function updatePlayer(dt) {
           };
         }
         const f = player.funnels[idx];
+        f.t = (f.t || 0) + dt;
         const homeX = player.x + side * FUNNEL_HOME_DX, homeY = player.y + FUNNEL_HOME_DY;
         if (f.state === 'idle') {
           // stays fixed right here beside the ship until it has a target to chase
@@ -3382,6 +3383,10 @@ function updatePlayer(dt) {
           if (dist < 5) { f.x = homeX; f.y = homeY; f.state = 'idle'; f.angle = funnelIdleAngle(side); }
           else { f.angle = Math.atan2(dy, dx); f.x += dx / dist * FUNNEL_SPEED_RETURN * dt; f.y += dy / dist * FUNNEL_SPEED_RETURN * dt; }
         }
+        // leaves a trail of fading afterimages behind it as it moves, QIX-style
+        f.history = f.history || [];
+        f.history.push({ x: f.x, y: f.y, angle: f.angle, t: f.t });
+        while (f.history.length > 1 && f.t - f.history[0].t > 0.2) f.history.shift();
       });
     }
   } else {
@@ -5201,22 +5206,36 @@ function drawPlayer() {
     });
   } else if (player.weapon === 'FUNNEL' && player.funnels) {
     // FUNNEL's own drones: small kite/diamond shapes (a shrunk copy of the ship's
-    // own body), rotated to face whichever direction they're currently traveling
-    player.funnels.forEach(f => drawFunnelShape(f.x, f.y, f.angle || 0, '#00b7ff'));
+    // own body), rotated to face whichever direction they're currently traveling,
+    // leaving a few faded afterimages behind along their recent path (QIX-style)
+    player.funnels.forEach(f => {
+      if (f.history && f.history.length > 1) {
+        [0.2, 0.15, 0.1, 0.05].forEach(agoTarget => {
+          const targetT = (f.t || 0) - agoTarget;
+          let closest = f.history[0];
+          for (const snap of f.history) {
+            if (Math.abs(snap.t - targetT) < Math.abs(closest.t - targetT)) closest = snap;
+          }
+          if (targetT >= (f.history[0].t || 0)) drawFunnelShape(closest.x, closest.y, closest.angle || 0, '#00b7ff', 0.45);
+        });
+      }
+      drawFunnelShape(f.x, f.y, f.angle || 0, '#00b7ff', 1.0);
+    });
   }
   drawPlayerShape(player.x, player.y, '#7CFFF0');
 }
 
-function drawFunnelShape(x, y, angle, color) {
+function drawFunnelShape(x, y, angle, color, alpha) {
   // a shrunk copy of just the ship's own kite/diamond body (no side wings), rotated
   // so its tip points in the funnel's current travel direction
+  const a = alpha === undefined ? 1.0 : alpha;
   const r = player.r * 0.55 * 1.2 * 1.2 * 1.2; // another 1.2x larger
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle + Math.PI / 2); // the kite's tip natively points "up" (angle -90°)
   ctx.lineWidth = 1;
-  ctx.strokeStyle = color;
-  ctx.fillStyle = hexToRgba(color, 0.15);
+  ctx.strokeStyle = hexToRgba(color, a);
+  ctx.fillStyle = hexToRgba(color, 0.15 * a);
   ctx.beginPath();
   roundedPolygonPath([
     { x: 0, y: -r * 1.9 },
