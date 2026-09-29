@@ -367,7 +367,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-30 01:59';
+const LAST_UPDATED = '2026-09-30 02:04';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -2420,7 +2420,7 @@ function drawWaveAnnounce() {
   ctx.globalAlpha = Math.max(0, alpha);
   ctx.fillStyle = '#7CFFF0';
   // match the title screen's style: same font-size clamp and 20px letter-spacing
-  const fontPx = clamp(W * 0.035, 8, 18);
+  const fontPx = clamp(W * 0.035, 8, 18) * (2 / 3);
   const lines = a.text.split('\n');
   const lineGap = fontPx * 1.6;
   const startY = H / 2 - (lineGap * (lines.length - 1)) / 2;
@@ -6672,12 +6672,12 @@ function drawPausedOverlay() {
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
   ctx.fillRect(0, 0, W, H);
   ctx.fillStyle = '#7CFFF0';
-  const fontPx = clamp(W * 0.035, 8, 18);
+  const fontPx = clamp(W * 0.035, 8, 18) * (2 / 3);
   drawSpacedText('PAUSE', W / 2, H / 2, fontPx, 20);
 }
 function drawNextStageText() {
   ctx.fillStyle = '#7CFFF0';
-  const fontPx = clamp(W * 0.035, 8, 18);
+  const fontPx = clamp(W * 0.035, 8, 18) * (2 / 3);
   const lineGap = fontPx * 1.6;
   drawSpacedText('GOOD JOB!', W / 2, H / 2 - lineGap / 2, fontPx, 20);
   drawSpacedText('NEXT STAGE', W / 2, H / 2 + lineGap / 2, fontPx, 20);
