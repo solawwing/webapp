@@ -367,7 +367,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-30 02:04';
+const LAST_UPDATED = '2026-09-30 13:22';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -489,7 +489,7 @@ function resetPlayer() {
 
 // ---------- items ----------
 const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL'];
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff8c1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff' };
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff7a1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -1416,14 +1416,14 @@ function fireWeapon() {
 
 function fireVulcanShot() {
   // fires from the ship's apex (its topmost/frontmost point), not just above center;
-  // firing angle is randomized between -5 and +5 degrees on every shot. As level
-  // increases, the same bullet is fired repeatedly in place (0.01s apart), `level`
-  // times, instead of a single shot — power is random 1-3 per shot.
+  // always fires straight up, no random angle. As level increases, the same bullet
+  // is fired repeatedly in place (0.01s apart), `level` times, instead of a single
+  // shot — power is a flat 3 + RAPID level.
   const bx = player.x, by = player.y - player.r * 1.9 * 1.4;
-  const rad = rand(-15, 15) * Math.PI / 180;
+  const rad = 0;
   const repeats = Math.max(1, player.weaponLevel);
   for (let k = 0; k < repeats; k++) {
-    playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 400, vy: -Math.cos(rad) * 400, r: 1, power: Math.floor(rand(1, 8)) + (player.rapidLevel || 0), vulcanLine: true, spawnDelay: k * 0.01 });
+    playerBullets.push({ x: bx, y: by, vx: Math.sin(rad) * 400, vy: -Math.cos(rad) * 400, r: 1, power: 3 + (player.rapidLevel || 0), vulcanLine: true, spawnDelay: k * 0.01 });
   }
 }
 
@@ -2033,7 +2033,8 @@ function spawnAsteroid(sizeMulOverride, speedMulOverride) {
   const fallAngleDeg = rand(0, 10) * (Math.random() < 0.5 ? -1 : 1); // slight random drift, 0-10 degrees off vertical
   const fallAngleRad = fallAngleDeg * Math.PI / 180;
   const fallSpeed = rand(110, 220) * speedMul;
-  const willSplit = Math.random() < 0.15; // rare chance to split into two while above mid-screen
+  const armored = Math.random() < 0.1; // 1 in 10 asteroids are armored: takes 256 cumulative damage, then destroyed outright instead of splitting
+  const willSplit = !armored && Math.random() < 0.15; // rare chance to split into two while above mid-screen
   asteroids.push({
     x: rand(80, W - 80), y: -90,
     r,
@@ -2044,7 +2045,7 @@ function spawnAsteroid(sizeMulOverride, speedMulOverride) {
     vx: Math.sin(fallAngleRad) * fallSpeed,
     vy: Math.cos(fallAngleRad) * fallSpeed, // each asteroid falls at its own speed, faster overall
     willSplit, hasSplit: false, splitStage: 0, splitY: willSplit ? rand(20, H / 2) : null,
-    damageTaken: 0,
+    damageTaken: 0, armored, armoredDamage: 0,
     // off-center "core" point (simulated light source) used to fake a faceted,
     // 3D-looking rock via a radial gradient + internal facet lines to each vertex
   });
@@ -3637,7 +3638,7 @@ function updateBullets(dt) {
     if (!b.bubble && !b.noTrail) {
       if (!b.trail) b.trail = [];
       b.trail.push({ x: b.x, y: b.y, rot: b.angle !== undefined ? b.angle : b.rot, traveled: b.traveled });
-      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.missile ? 10 : b.orbitalBolt ? 24 : b.earthShipLaser ? 8 : (b.earthLaser || b.funnelLaser) ? 32 : b.double ? 24 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
+      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.missile ? 10 : b.orbitalBolt ? 24 : b.earthShipLaser ? 8 : (b.earthLaser || b.funnelLaser) ? 32 : b.double ? 24 : b.vulcanLine ? 5 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
       if (b.trail.length > maxTrail) b.trail.shift();
     }
     if (b.homing) {
@@ -5435,7 +5436,7 @@ function drawAsteroids() {
   ctx.lineWidth = 1;
   asteroids.forEach(a => {
     ctx.strokeStyle = a.isCrystal ? '#7CFFF0' : '#bbbbbb';
-    ctx.fillStyle = a.isCrystal ? 'rgba(124,255,240,0.25)' : 'rgba(187,187,187,0.25)';
+    ctx.fillStyle = a.isCrystal ? 'rgba(124,255,240,0.25)' : (a.armored ? 'rgba(220,220,220,0.3)' : 'rgba(187,187,187,0.25)');
     ctx.save();
     ctx.translate(a.x, a.y);
     if (a.isCrystal) {
@@ -5558,6 +5559,20 @@ function registerAsteroidDamage(amount, target) {
   score += 10; // +10 for dealing damage, on top of any per-weapon score
   asteroidHitCount += 1;
   asteroidTotalDamage += amount;
+  if (target && target.armored) {
+    // armored asteroids don't split by stage HP — they just soak up 256
+    // cumulative damage, then get destroyed outright (no smaller pieces)
+    target.armoredDamage = (target.armoredDamage || 0) + amount;
+    if (target.armoredDamage >= 256) {
+      const idx = asteroids.indexOf(target);
+      if (idx !== -1) {
+        asteroids.splice(idx, 1);
+        score += choice([1000, 2000, 4000, 8000]);
+        spawnDeathGhost(target.x, target.y, target.r, target.angle || 0, '#ffffff', undefined, target.verts);
+      }
+    }
+    return;
+  }
   if (target) {
     target.damageTaken = (target.damageTaken || 0) + amount;
     // HP per stage: 50 for the original, 40 once split, 30 twice split
@@ -6369,26 +6384,26 @@ function drawBullets() {
       ctx.lineWidth = 1;
       ctx.restore();
     } else if (b.vulcanLine) {
-      // two parallel bars "||", each 2x5px, 3px gap between them; afterimage trail
+      // two parallel bars "||", each 1x5px, 5px gap between them; afterimage trail
       // rendered the same way enemy bullets' trails are (outline squares fading with
       // distance), rather than filled shapes
       if (b.trail) {
         b.trail.forEach((p, idx) => {
           const alpha = ((idx + 1) / (b.trail.length + 1)) * 0.4;
           ctx.strokeStyle = `rgba(255,106,0,${alpha})`;
-          ctx.strokeRect(p.x - 3.5, p.y - 2.5, 2, 5);
-          ctx.strokeRect(p.x + 1.5, p.y - 2.5, 2, 5);
+          ctx.strokeRect(p.x - 3.5, p.y - 2.5, 1, 5);
+          ctx.strokeRect(p.x + 2.5, p.y - 2.5, 1, 5);
         });
       }
       // brightness scales with this shot's power (1-3): dim/muted at low power,
       // bright at high power
       const t = ((b.power || 1) - 1) / 6;
-      const cr = Math.round(120 + (255 - 120) * t);
-      const cg = Math.round(50 + (160 - 50) * t);
-      const cb = Math.round(0 + (70 - 0) * t);
+      const cr = Math.round(255 + (255 - 255) * t);
+      const cg = Math.round(110 + (190 - 110) * t);
+      const cb = Math.round(20 + (60 - 20) * t);
       ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
-      ctx.fillRect(b.x - 3.5, b.y - 2.5, 2, 5);
-      ctx.fillRect(b.x + 1.5, b.y - 2.5, 2, 5);
+      ctx.fillRect(b.x - 3.5, b.y - 2.5, 1, 5);
+      ctx.fillRect(b.x + 2.5, b.y - 2.5, 1, 5);
     } else if (b.double) {
       // single bar "|", 2x5px — just one of VULCAN's two bars; ONE long trailing line
       // (not multiple discrete copies) that fades from the bullet to fully transparent
