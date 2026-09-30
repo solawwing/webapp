@@ -367,7 +367,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-30 22:13';
+const LAST_UPDATED = '2026-10-01 07:29';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -409,6 +409,8 @@ let state = STATE.TITLE;
 let paused = false;
 let score = 0;
 let wave = 1;
+let specialStarCollected = 0; // count of background stars caught this run
+let scoreMultiplier = 1.0; // +0.1 for every 10 special stars caught
 
 // ---------- utility ----------
 function bezier(p0, p1, p2, p3, t) {
@@ -559,12 +561,12 @@ function updateShockwaves(dt) {
       timer -= dt;
       if (timer <= 0) {
         if (kind === 'asteroid') {
-          score += wave * 20;
+          score += scoreMultiplier * wave * 20;
           registerAsteroidDamage(1, target);
           spawnDeathParticles(tx, ty, target.isCrystal ? '#7CFFF0' : '#bbbbbb', 3);
         } else if (kind === 'miniboss') {
           boss.miniBossHp[vk] -= 1;
-          score += 10;
+          score += scoreMultiplier * 10;
           if (boss.miniBossHp[vk] <= 0) {
             spawnDeathParticles(tx, ty, boss.def.color, 14, 220);
           } else {
@@ -572,7 +574,7 @@ function updateShockwaves(dt) {
           }
         } else if (!(target.type === 'GIANTBOSS' && !isBossVulnerable(target))) {
           target.hp -= 1;
-          score += 10; // +10 for dealing damage
+          score += scoreMultiplier * 10; // +10 for dealing damage
           if (target.hp <= 0) {
             handleEnemyDeath(target);
             const idx = enemies.indexOf(target);
@@ -633,7 +635,7 @@ function applyGravitySplash(x, y, radius, excludeEnemy) {
     if (dist2(x, y, e.x, e.y) <= radius * radius) {
       if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
       e.hp -= 5;
-      score += 10; // +10 for dealing damage
+      score += scoreMultiplier * 10; // +10 for dealing damage
       if (e.hp <= 0) {
         handleEnemyDeath(e);
         enemies.splice(i, 1);
@@ -645,7 +647,7 @@ function applyGravitySplash(x, y, radius, excludeEnemy) {
   asteroids.forEach(a => {
     if (a === excludeEnemy) return;
     if (dist2(x, y, a.x, a.y) <= radius * radius) {
-      score += wave * 20;
+      score += scoreMultiplier * wave * 20;
       registerAsteroidDamage(5, a);
       spawnDeathParticles(a.x, a.y, '#bbbbbb', 3);
     }
@@ -723,7 +725,7 @@ function updateItems(dt) {
         waveAnnounce = { text: 'GOOD JOB!\nBONUS 1up', t: 0, hold: 1.2, fade: 0.6 };
       } else if (it.type === 'RAPID') {
         if (player.rapidLevel >= 3) {
-          score += 999990;
+          score += scoreMultiplier * 999990;
         } else {
           player.rapidLevel = Math.min(3, player.rapidLevel + 1);
           pickupTexts.push({ text: 'RAPID Lv' + player.rapidLevel, x: player.x, y: player.y - player.r - 6, t: 0, duration: 2.0 });
@@ -803,17 +805,18 @@ function updatePickupTexts(dt) {
 function drawPickupTexts() {
   pickupTexts.forEach(p => {
     const fade = p.fadeDuration || 0.6;
+    const sizeMul = p.sizeMul || 1;
     let alpha, size, rise;
     if (p.t < p.duration) {
       // hold phase: grow quickly, then stay fully visible
       const growFrac = Math.min(1, p.t / 0.3);
-      size = 5 * (1 + growFrac * 1.8);
+      size = 5 * (1 + growFrac * 1.8) * sizeMul;
       rise = growFrac * 18;
       alpha = 1;
     } else {
       // fade phase: stay large, drift up slightly, fade to transparent
       const fadeFrac = (p.t - p.duration) / fade;
-      size = 5 * 2.8;
+      size = 5 * 2.8 * sizeMul;
       rise = 18 + fadeFrac * 10;
       alpha = 1 - fadeFrac;
     }
@@ -997,7 +1000,7 @@ function zapperDealDamage(target) {
     const boss = target.bossRef, vk = target.vertexIndex;
     const pos = bossVertexWorldPos(boss, vk);
     boss.miniBossHp[vk] -= (3 + rapidBonus);
-    score += 10;
+    score += scoreMultiplier * 10;
     if (boss.miniBossHp[vk] <= 0) {
       spawnDeathParticles(pos.x, pos.y, boss.def.color, 14, 220);
       return true;
@@ -1005,13 +1008,13 @@ function zapperDealDamage(target) {
     spawnDeathParticles(pos.x, pos.y, boss.def.color, 2);
     return false;
   } else if (target.isAsteroidObj) {
-    score += wave * 20;
+    score += scoreMultiplier * wave * 20;
     registerAsteroidDamage(3 + rapidBonus, target);
     spawnDeathParticles(target.x, target.y, target.isCrystal ? '#7CFFF0' : '#bbbbbb', 2);
     return false; // asteroids/crystals are indestructible — drone keeps clinging until it splits away naturally
   } else {
     target.hp -= (target.type === 'GIANTBOSS' ? 3 : 2) + rapidBonus;
-    score += 10;
+    score += scoreMultiplier * 10;
     if (target.hp <= 0) {
       handleEnemyDeath(target);
       const idx = enemies.indexOf(target);
@@ -1043,7 +1046,7 @@ function whipDealDamage(target, dmg) {
     const boss = target.bossRef, vk = target.vertexIndex;
     const pos = bossVertexWorldPos(boss, vk);
     boss.miniBossHp[vk] -= dmg;
-    score += 10;
+    score += scoreMultiplier * 10;
     if (boss.miniBossHp[vk] <= 0) {
       spawnDeathParticles(pos.x, pos.y, boss.def.color, 14, 220);
       return true;
@@ -1051,13 +1054,13 @@ function whipDealDamage(target, dmg) {
     spawnDeathParticles(pos.x, pos.y, boss.def.color, 2);
     return false;
   } else if (target.isAsteroidObj) {
-    score += wave * 20;
+    score += scoreMultiplier * wave * 20;
     registerAsteroidDamage(dmg, target);
     spawnDeathParticles(target.x, target.y, target.isCrystal ? '#7CFFF0' : '#bbbbbb', 2);
     return false; // asteroids/crystals are indestructible — whip keeps lashing until it invalidates naturally
   } else {
     target.hp -= dmg;
-    score += 10;
+    score += scoreMultiplier * 10;
     if (target.hp <= 0) {
       handleEnemyDeath(target);
       const idx = enemies.indexOf(target);
@@ -1339,9 +1342,9 @@ function fireWeapon() {
       });
     }
   } else if (player.weapon === 'THUNDER') {
-    const maxResets = 1; // hit-list resets only once, then the chain ends when it runs out of targets
+    const maxResets = 2; // hit-list resets up to twice, then the chain ends when it runs out of targets
     playerBullets.push({
-      x: bx, y: by, vx: 0, vy: -700, r: 3, power: 3, thunder: true,
+      x: bx, y: by, vx: 0, vy: -1000, r: 3, power: 3, thunder: true,
       length: 50, chaining: false, dying: false, finished: false, hitSet: new Set(), chainPath: [], loopsLeft: THUNDER_LOOP_COUNTS[lvl],
       chainTimer: 0, family: { active: 1 }, maxResets,
     });
@@ -1440,7 +1443,7 @@ function applyPhantomTickDamage(f) {
     if (e.x >= f.x && e.x <= f.x + f.w && e.y >= f.y && e.y <= f.y + f.h) {
       if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
       e.hp -= (e.type === 'GIANTBOSS' ? 10 : 5);
-      score += 10;
+      score += scoreMultiplier * 10;
       if (e.hp <= 0) {
         handleEnemyDeath(e);
         enemies.splice(i, 1);
@@ -1452,7 +1455,7 @@ function applyPhantomTickDamage(f) {
   for (let i = asteroids.length - 1; i >= 0; i--) {
     const a = asteroids[i];
     if (a.x >= f.x && a.x <= f.x + f.w && a.y >= f.y && a.y <= f.y + f.h) {
-      score += wave * 20;
+      score += scoreMultiplier * wave * 20;
       registerAsteroidDamage(5, a);
       spawnDeathParticles(a.x, a.y, '#bbbbbb', 4);
     }
@@ -1464,7 +1467,7 @@ function applyPhantomTickDamage(f) {
       const pos = bossVertexWorldPos(e, vk);
       if (pos.x >= f.x && pos.x <= f.x + f.w && pos.y >= f.y && pos.y <= f.y + f.h) {
         e.miniBossHp[vk] -= 10;
-        score += 10;
+        score += scoreMultiplier * 10;
         if (e.miniBossHp[vk] <= 0) {
           const miniR = (e.def.r / 3) * 0.7;
           spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4);
@@ -1525,7 +1528,7 @@ function firePhantomFlash() {
     if (e.x >= left && e.x <= right && e.y >= top && e.y <= bottom) {
       if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
       e.hp -= (e.type === 'GIANTBOSS' ? 15 : 5);
-      score += 10; // +10 for dealing damage
+      score += scoreMultiplier * 10; // +10 for dealing damage
       if (e.hp <= 0) {
         handleEnemyDeath(e);
         enemies.splice(i, 1);
@@ -1537,7 +1540,7 @@ function firePhantomFlash() {
   for (let i = asteroids.length - 1; i >= 0; i--) {
     const a = asteroids[i];
     if (a.x >= left && a.x <= right && a.y >= top && a.y <= bottom) {
-      score += wave * 20;
+      score += scoreMultiplier * wave * 20;
       registerAsteroidDamage(5, a);
       spawnDeathParticles(a.x, a.y, '#bbbbbb', 10);
     }
@@ -1550,7 +1553,7 @@ function firePhantomFlash() {
       const pos = bossVertexWorldPos(e, vk);
       if (pos.x >= left && pos.x <= right && pos.y >= top && pos.y <= bottom) {
         e.miniBossHp[vk] -= 5;
-        score += 10;
+        score += scoreMultiplier * 10;
         if (e.miniBossHp[vk] <= 0) {
           const miniR = (e.def.r / 3) * 0.7;
           spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4);
@@ -2032,7 +2035,7 @@ function spawnAsteroid(sizeMulOverride, speedMulOverride) {
   const fallAngleDeg = rand(0, 10) * (Math.random() < 0.5 ? -1 : 1); // slight random drift, 0-10 degrees off vertical
   const fallAngleRad = fallAngleDeg * Math.PI / 180;
   const fallSpeed = rand(110, 220) * speedMul;
-  const armored = Math.random() < 0.1; // 1 in 10 asteroids are armored: takes 256 cumulative damage, then destroyed outright instead of splitting
+  const armored = Math.random() < 0.05; // 1 in 20 asteroids are armored: takes 128 cumulative damage, then destroyed outright instead of splitting
   const willSplit = !armored && Math.random() < 0.15; // rare chance to split into two while above mid-screen
   asteroids.push({
     x: rand(80, W - 80), y: -90,
@@ -2085,7 +2088,7 @@ function splitByDamage(target) {
     spawnGhostSplitPieces(target);
     return;
   }
-  score += choice([1000, 2000, 4000, 8000]); // random split bonus
+  score += scoreMultiplier * choice([1000, 2000, 4000, 8000]); // random split bonus
   if (target.isCrystal) {
     const origHalfW = target.r;
     const origHalfH = Math.abs(target.verts[0].y);
@@ -2664,7 +2667,7 @@ function checkMiniBossHits(e) {
       }
       if (!hit) continue;
       e.miniBossHp[vk] -= (b.refect || b.gravity) ? 5 : b.sparkFrag ? 3 : (b.power || 1);
-      score += 10;
+      score += scoreMultiplier * 10;
       if (e.miniBossHp[vk] <= 0) {
         spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4); // bigger burst on actual destruction
       } else {
@@ -2942,9 +2945,9 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 2000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL'];
-const EQUIP_UPDATE_TAG = ['MISSILE', 'CURVE', 'VULCAN', 'LASER', 'BUBBLE', 'THUNDER', 'HOMING']; // shows "UPDATE" instead of "NEW"
-const EQUIP_RENEW_TAG = ['EARTH']; // shows "RENEW" instead of "NEW"/"UPDATE"
+const EQUIP_UPDATED = ['FUNNEL', 'XCROSS', 'ZAPPER', 'WHIPS', 'QIX'];
+const EQUIP_UPDATE_TAG = ['DOUBLE', 'EARTH', 'LASER']; // shows "UPDATE" instead of "NEW"
+const EQUIP_RENEW_TAG = []; // shows "RENEW" instead of "NEW"/"UPDATE"
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -3013,6 +3016,7 @@ function beginGame() {
   equipScreen.classList.add('hidden');
   if (equipDescInterval) { clearInterval(equipDescInterval); equipDescInterval = null; }
   score = 0; wave = debugStartAtBoss ? 12 : 1; killCount = 0; starReverse = false; globalSpeedBonus = 0;
+  specialStarCollected = 0; scoreMultiplier = 1.0;
   resetPlayer();
   playerBullets = []; enemyBullets = []; items = []; pickupTexts = []; particles = []; shockwaves = []; phantomFlashes = [];
   startWave();
@@ -3505,7 +3509,7 @@ function updatePlayer(dt) {
               if (whipTouchesAnySegment(segs, mpos.x, mpos.y, miniR)) {
                 w.hitCooldowns.set(marker, TICK);
                 e.miniBossHp[vk] -= whipDmg;
-                score += 10;
+                score += scoreMultiplier * 10;
                 if (e.miniBossHp[vk] <= 0) { spawnDeathParticles(mpos.x, mpos.y, e.def.color, 14, 220); spawnDeathGhost(mpos.x, mpos.y, miniR, 0, e.def.color, 4); }
                 else spawnDeathParticles(mpos.x, mpos.y, e.def.color, 2);
               }
@@ -3744,7 +3748,7 @@ function updateBullets(dt) {
         if (b.missileTickTimer >= 0.1) {
           b.missileTickTimer -= 0.1;
           boss.miniBossHp[vk] -= 5;
-          score += 10;
+          score += scoreMultiplier * 10;
           if (boss.miniBossHp[vk] <= 0) {
             spawnDeathParticles(pos.x, pos.y, boss.def.color, 14, 220);
             playerBullets.splice(i, 1);
@@ -3769,12 +3773,12 @@ function updateBullets(dt) {
         if (b.missileTickTimer >= 0.1) {
           b.missileTickTimer -= 0.1;
           if (isAsteroidTarget) {
-            score += wave * 20;
+            score += scoreMultiplier * wave * 20;
             registerAsteroidDamage(5, target);
             spawnDeathParticles(target.x, target.y, target.isCrystal ? '#7CFFF0' : '#bbbbbb', 2);
           } else {
             target.hp -= 5;
-            score += 10;
+            score += scoreMultiplier * 10;
             if (target.hp <= 0) {
               handleEnemyDeath(target);
               const idx = enemies.indexOf(target);
@@ -3953,20 +3957,20 @@ function updateBullets(dt) {
           b.hitSet.add(next);
           if (next.isMiniBoss) {
             const boss = next.bossRef, vk = next.vertexIndex;
-            boss.miniBossHp[vk] -= 2;
-            score += 10;
+            boss.miniBossHp[vk] -= 5;
+            score += scoreMultiplier * 10;
             if (boss.miniBossHp[vk] <= 0) {
               spawnDeathParticles(next.x, next.y, boss.def.color, 14, 220);
             } else {
               spawnDeathParticles(next.x, next.y, boss.def.color, 3);
             }
           } else if (next.isAsteroidObj) {
-            score += wave * 20;
-            registerAsteroidDamage(2, next);
+            score += scoreMultiplier * wave * 20;
+            registerAsteroidDamage(5, next);
             spawnDeathParticles(next.x, next.y, '#bbbbbb', 3);
           } else {
-            next.hp -= (next.type === 'GIANTBOSS' ? 5 : 2);
-            score += 10; // +10 for dealing damage
+            next.hp -= 5;
+            score += scoreMultiplier * 10; // +10 for dealing damage
             if (next.hp <= 0) {
               handleEnemyDeath(next);
               enemies.splice(enemies.indexOf(next), 1);
@@ -3976,7 +3980,7 @@ function updateBullets(dt) {
           }
           b.chainPath.push({ x: next.x, y: next.y });
           b.loopsLeft -= 1;
-          b.chainTimer = 0.02;
+          b.chainTimer = 0.005; // fast chain propagation between targets
           // branching disabled: each chain stays a single line, no independent
           // branch spawns anymore
         } else {
@@ -4061,9 +4065,9 @@ function updateBullets(dt) {
 
 function handleEnemyDeath(e) {
   if (e.type === 'GIANTBOSS') {
-    score += wave * 10000;
+    score += scoreMultiplier * wave * 10000;
   } else {
-    score += e.def.score * wave * 10;
+    score += scoreMultiplier * e.def.score * wave * 10;
   }
   if (e.slot) e.slot.filled = false;
   killCount += 1;
@@ -4103,7 +4107,7 @@ function handleOptionCollisions() {
           const rr2 = (miniR + optR) * (miniR + optR);
           if (dist2(opt.x, opt.y, pos.x, pos.y) < rr2) {
             e.miniBossHp[vk] -= bigDmg;
-            score += 10;
+            score += scoreMultiplier * 10;
             if (e.miniBossHp[vk] <= 0) {
               spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4);
             } else {
@@ -4116,7 +4120,7 @@ function handleOptionCollisions() {
       if (dist2(opt.x, opt.y, e.x, e.y) < rr) {
         if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
         e.hp -= (e.type === 'GIANTBOSS' ? bigDmg : 1);
-        score += 10;
+        score += scoreMultiplier * 10;
         if (e.hp <= 0) {
           handleEnemyDeath(e);
           enemies.splice(i, 1);
@@ -4129,7 +4133,7 @@ function handleOptionCollisions() {
       const a = asteroids[i];
       const rr = (a.r + optR) * (a.r + optR);
       if (dist2(opt.x, opt.y, a.x, a.y) < rr) {
-        score += wave * 20;
+        score += scoreMultiplier * wave * 20;
         registerAsteroidDamage(bigDmg, a);
         spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 5);
       }
@@ -4179,7 +4183,7 @@ function handleOptionCollisions() {
             const rr2 = (miniR + lineR) * (miniR + lineR);
             if (lineSegs.some(seg => distSqToSegment(pos.x, pos.y, seg.x1, seg.y1, seg.x2, seg.y2) < rr2)) {
               e.miniBossHp[vk] -= lineDmg;
-              score += 10;
+              score += scoreMultiplier * 10;
               if (e.miniBossHp[vk] <= 0) {
                 spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4);
               } else {
@@ -4192,7 +4196,7 @@ function handleOptionCollisions() {
         if (lineSegs.some(seg => distSqToSegment(e.x, e.y, seg.x1, seg.y1, seg.x2, seg.y2) < rr)) {
           if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
           e.hp -= lineDmg;
-          score += 10;
+          score += scoreMultiplier * 10;
           if (e.hp <= 0) {
             handleEnemyDeath(e);
             enemies.splice(i, 1);
@@ -4205,7 +4209,7 @@ function handleOptionCollisions() {
         const a = asteroids[i];
         const rr = (a.r + lineR) * (a.r + lineR);
         if (lineSegs.some(seg => distSqToSegment(a.x, a.y, seg.x1, seg.y1, seg.x2, seg.y2) < rr)) {
-          score += wave * 20;
+          score += scoreMultiplier * wave * 20;
           registerAsteroidDamage(lineDmg, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 5);
         }
@@ -4230,7 +4234,7 @@ function handleOrbitalRingCollisions() {
           const rr2 = (miniR + ringR) * (miniR + ringR);
           if (dist2(ring.x, ring.y, pos.x, pos.y) < rr2) {
             e.miniBossHp[vk] -= 1;
-            score += 10;
+            score += scoreMultiplier * 10;
             if (e.miniBossHp[vk] <= 0) {
               spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4);
             } else {
@@ -4243,7 +4247,7 @@ function handleOrbitalRingCollisions() {
       if (dist2(ring.x, ring.y, e.x, e.y) < rr) {
         if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
         e.hp -= 1;
-        score += 10;
+        score += scoreMultiplier * 10;
         if (e.hp <= 0) {
           handleEnemyDeath(e);
           enemies.splice(i, 1);
@@ -4256,7 +4260,7 @@ function handleOrbitalRingCollisions() {
       const a = asteroids[i];
       const rr = (a.r + ringR) * (a.r + ringR);
       if (dist2(ring.x, ring.y, a.x, a.y) < rr) {
-        score += wave * 20;
+        score += scoreMultiplier * wave * 20;
         registerAsteroidDamage(1, a);
         spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 5);
       }
@@ -4424,7 +4428,7 @@ function applyXCrossStrike(cx, cy, reach, rotationAngle, level) {
           const miniR = (e.def.r / 3) * 0.7;
           if (onAnyArm(pos.x, pos.y, miniR)) {
             e.miniBossHp[vk] -= 10;
-            score += 10;
+            score += scoreMultiplier * 10;
             if (!isOrigin(pos.x, pos.y)) spawnXCrossMiniFlash(pos.x, pos.y, rot, level);
             if (e.miniBossHp[vk] <= 0) { spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4); }
             else spawnDeathParticles(pos.x, pos.y, e.def.color, 3);
@@ -4435,7 +4439,7 @@ function applyXCrossStrike(cx, cy, reach, rotationAngle, level) {
     }
     if (onAnyArm(e.x, e.y, e.def.r)) {
       e.hp -= (e.type === 'GIANTBOSS' ? 10 : 5);
-      score += 10;
+      score += scoreMultiplier * 10;
       if (!isOrigin(e.x, e.y)) spawnXCrossMiniFlash(e.x, e.y, rot, level);
       if (e.hp <= 0) {
         handleEnemyDeath(e);
@@ -4448,7 +4452,7 @@ function applyXCrossStrike(cx, cy, reach, rotationAngle, level) {
   for (let i = asteroids.length - 1; i >= 0; i--) {
     const a = asteroids[i];
     if (onAnyArm(a.x, a.y, a.r)) {
-      score += wave * 20;
+      score += scoreMultiplier * wave * 20;
       registerAsteroidDamage(10, a);
       if (!isOrigin(a.x, a.y)) spawnXCrossMiniFlash(a.x, a.y, rot, level);
       spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 5);
@@ -4599,7 +4603,7 @@ function handleCollisions() {
             if (dist2(pos.x, pos.y, b.x, b.y) < rr) {
               b.tickCooldowns.set(marker, 0.05);
               e.miniBossHp[vk] -= (b.power || 1);
-              score += 10;
+              score += scoreMultiplier * 10;
               if (e.miniBossHp[vk] <= 0) { spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4); }
               else spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
             }
@@ -4611,7 +4615,7 @@ function handleCollisions() {
           if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
           b.tickCooldowns.set(e, 0.05);
           e.hp -= (b.power || 1);
-          score += 10;
+          score += scoreMultiplier * 10;
           if (e.hp <= 0) {
             handleEnemyDeath(e);
             enemies.splice(i, 1);
@@ -4638,7 +4642,7 @@ function handleCollisions() {
             if (dist2(pos.x, pos.y, b.x, b.y) < rr) {
               b.arrowOverlapNow = true;
               e.miniBossHp[vk] -= 1;
-              score += 10;
+              score += scoreMultiplier * 10;
               if (e.miniBossHp[vk] <= 0) { spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4); }
               else spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
             }
@@ -4649,7 +4653,7 @@ function handleCollisions() {
           if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
           b.arrowOverlapNow = true;
           e.hp -= 1;
-          score += 10;
+          score += scoreMultiplier * 10;
           if (e.hp <= 0) {
             handleEnemyDeath(e);
             enemies.splice(i, 1);
@@ -4693,7 +4697,7 @@ function handleCollisions() {
               if (distSqToSegment(pos.x, pos.y, seg.x1, seg.y1, seg.x2, seg.y2) < miniR * miniR) {
                 b.qixHitSets[si].add(marker);
                 e.miniBossHp[vk] -= si === 0 ? (b.power || 5) : 2;
-                score += 10;
+                score += scoreMultiplier * 10;
                 if (e.miniBossHp[vk] <= 0) { spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4); }
                 else spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
               }
@@ -4707,7 +4711,7 @@ function handleCollisions() {
             if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
             b.qixHitSets[si].add(e);
             e.hp -= si === 0 ? (b.power || 5) : 2;
-            score += 10;
+            score += scoreMultiplier * 10;
             if (e.hp <= 0) {
               handleEnemyDeath(e);
               enemies.splice(i, 1);
@@ -4733,7 +4737,7 @@ function handleCollisions() {
             const rr = (miniR + b.r) * (miniR + b.r);
             if (dist2(pos.x, pos.y, b.x, b.y) < rr) {
               e.miniBossHp[vk] -= (b.power || 1);
-              score += 10;
+              score += scoreMultiplier * 10;
               if (e.miniBossHp[vk] <= 0) {
                 spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4);
               } else {
@@ -4750,7 +4754,7 @@ function handleCollisions() {
         if (dist2(e.x, e.y, b.x, b.y) < rr) {
           if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
           e.hp -= (b.power || 1);
-          score += 10;
+          score += scoreMultiplier * 10;
           if (e.hp <= 0) {
             handleEnemyDeath(e);
             enemies.splice(i, 1);
@@ -4809,7 +4813,7 @@ function handleCollisions() {
             if (dist2(pos.x, pos.y, b.x, b.y) < rr2) {
               b.hitSet.add(marker);
               e.miniBossHp[vk] -= (b.power || 1);
-              score += 10;
+              score += scoreMultiplier * 10;
               if (e.miniBossHp[vk] <= 0) {
                 spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4);
               } else {
@@ -4825,7 +4829,7 @@ function handleCollisions() {
           if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
           b.hitSet.add(e);
           e.hp -= (b.power || 1);
-          score += 10;
+          score += scoreMultiplier * 10;
           if (e.hp <= 0) {
             handleEnemyDeath(e);
             enemies.splice(i, 1);
@@ -4894,7 +4898,7 @@ function handleCollisions() {
           if (dist2(e.x, e.y, closest.x, closest.y) < rr) {
             if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
             e.hp -= (b.power || 1);
-            score += 10; // +10 for dealing damage
+            score += scoreMultiplier * 10; // +10 for dealing damage
             if (e.hp <= 0) {
               handleEnemyDeath(e);
               enemies.splice(i, 1);
@@ -4914,7 +4918,7 @@ function handleCollisions() {
           if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
           b.hitSet.add(e);
           e.hp -= (b.power || 1);
-          score += 10; // +10 for dealing damage
+          score += scoreMultiplier * 10; // +10 for dealing damage
           if (e.hp <= 0) {
             handleEnemyDeath(e);
             enemies.splice(i, 1);
@@ -4944,7 +4948,7 @@ function handleCollisions() {
             marker.x = pos.x; marker.y = pos.y; marker.isMiniBoss = true; marker.bossRef = boss; marker.vertexIndex = vk;
             b.hitSet.add(marker);
             boss.miniBossHp[vk] -= (b.power || 3); // initial hit — same power as vs a regular enemy/asteroid
-            score += 10;
+            score += scoreMultiplier * 10;
             if (boss.miniBossHp[vk] <= 0) {
               spawnDeathParticles(pos.x, pos.y, boss.def.color, 14, 220);
             } else {
@@ -4966,7 +4970,7 @@ function handleCollisions() {
           if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
           b.hitSet.add(e);
           e.hp -= (e.type === 'GIANTBOSS' ? 5 : (b.power || 3));
-          score += 10; // +10 for dealing damage
+          score += scoreMultiplier * 10; // +10 for dealing damage
           if (e.hp <= 0) {
             handleEnemyDeath(e);
             enemies.splice(i, 1);
@@ -4991,7 +4995,7 @@ function handleCollisions() {
           const wasTarget = e === b.target;
           b.hitSet.add(e);
           e.hp -= 5; // uniform damage regardless of locked target vs incidental pierce hit
-          score += 10; // +10 for dealing damage
+          score += scoreMultiplier * 10; // +10 for dealing damage
           if (e.hp <= 0) {
             handleEnemyDeath(e);
             enemies.splice(i, 1);
@@ -5012,7 +5016,7 @@ function handleCollisions() {
           if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
           b.hitSet.add(e);
           e.hp -= (e.type === 'GIANTBOSS' ? 5 : (b.power || 2));
-          score += 10; // +10 for dealing damage
+          score += scoreMultiplier * 10; // +10 for dealing damage
           if (e.hp <= 0) {
             handleEnemyDeath(e);
             enemies.splice(i, 1);
@@ -5038,7 +5042,7 @@ function handleCollisions() {
             const rr = (miniR + b.r) * (miniR + b.r);
             if (dist2(pos.x, pos.y, b.x, b.y) < rr) {
               e.miniBossHp[vk] -= (b.power || 1);
-              score += 10;
+              score += scoreMultiplier * 10;
               if (e.miniBossHp[vk] <= 0) { spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4); }
               else spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
               hit = true;
@@ -5051,7 +5055,7 @@ function handleCollisions() {
         if (dist2(e.x, e.y, b.x, b.y) < rr) {
           if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
           e.hp -= (b.power || 1);
-          score += 10;
+          score += scoreMultiplier * 10;
           if (e.hp <= 0) {
             handleEnemyDeath(e);
             enemies.splice(i, 1);
@@ -5086,7 +5090,7 @@ function handleCollisions() {
           const isBoss = e.type === 'GIANTBOSS';
           if (!(isBoss && !isBossVulnerable(e))) {
             e.hp -= (b.gravity && isBoss) ? 5 : (b.sparkFrag && isBoss) ? 3 : (b.power || 1);
-            score += 10; // +10 for dealing damage
+            score += scoreMultiplier * 10; // +10 for dealing damage
           }
           if (e.hp <= 0) {
             handleEnemyDeath(e);
@@ -5157,7 +5161,7 @@ function checkWaveClear() {
       beltDamageBonusApplied = true;
       const cycleNum = Math.floor((wave - 1) / CYCLE_LEN) + 1;
       const bonusAmount = Math.round(asteroidTotalDamage) * 100 * cycleNum;
-      score += bonusAmount;
+      score += scoreMultiplier * bonusAmount;
     }
     enemies = [];
     spawnQueue = [];
@@ -5174,7 +5178,7 @@ function checkWaveClear() {
       // clears, award a random (1-100)×100 score bonus
       bossPostDeathBonusTimer -= 1/60;
       if (bossPostDeathBonusTimer <= 0) {
-        score += Math.floor(rand(1, 101)) * 100;
+        score += scoreMultiplier * Math.floor(rand(1, 101)) * 100;
         bossPostDeathBonusTimer = 0.2;
       }
     }
@@ -5645,19 +5649,21 @@ function drawSideBeamMarkers() {
   });
 }
 function registerAsteroidDamage(amount, target) {
-  score += 10; // +10 for dealing damage, on top of any per-weapon score
+  score += scoreMultiplier * 10; // +10 for dealing damage, on top of any per-weapon score
   asteroidHitCount += 1;
   asteroidTotalDamage += amount;
   if (target && target.armored) {
-    // armored asteroids don't split by stage HP — they just soak up 256
-    // cumulative damage, then get destroyed outright (no smaller pieces)
+    // armored asteroids don't split by stage HP — they just soak up 128
+    // cumulative damage, then get destroyed outright (no smaller pieces), with a
+    // wide burst of sparks instead of the normal small explosion
     target.armoredDamage = (target.armoredDamage || 0) + amount;
-    if (target.armoredDamage >= 256) {
+    if (target.armoredDamage >= 128) {
       const idx = asteroids.indexOf(target);
       if (idx !== -1) {
         asteroids.splice(idx, 1);
-        score += choice([1000, 2000, 4000, 8000]);
+        score += scoreMultiplier * choice([1000, 2000, 4000, 8000]);
         spawnDeathGhost(target.x, target.y, target.r, target.angle || 0, '#ffffff', undefined, target.verts);
+        spawnDeathParticles(target.x, target.y, '#ffffff', 160, 420);
       }
     }
     return;
@@ -5695,7 +5701,7 @@ function handleAsteroidCollisions() {
         const rr = (a.r + b.r) * (a.r + b.r);
         if (dist2(a.x, a.y, b.x, b.y) < rr) {
           b.tickCooldowns.set(a, 0.05);
-          score += wave * 20;
+          score += scoreMultiplier * wave * 20;
           registerAsteroidDamage(b.power || 1, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 3);
         }
@@ -5708,7 +5714,7 @@ function handleAsteroidCollisions() {
         const rr = (a.r + b.r) * (a.r + b.r);
         if (dist2(a.x, a.y, b.x, b.y) < rr) {
           b.arrowOverlapNow = true;
-          score += wave * 20;
+          score += scoreMultiplier * wave * 20;
           registerAsteroidDamage(1, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 3);
         }
@@ -5735,7 +5741,7 @@ function handleAsteroidCollisions() {
           const seg = segs[si];
           if (distSqToSegment(a.x, a.y, seg.x1, seg.y1, seg.x2, seg.y2) < a.r * a.r) {
             b.qixHitSets[si].add(a);
-            score += wave * 20;
+            score += scoreMultiplier * wave * 20;
             registerAsteroidDamage(si === 0 ? (b.power || 5) : 2, a);
             spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 3);
           }
@@ -5749,7 +5755,7 @@ function handleAsteroidCollisions() {
         const a = asteroids[i];
         const rr = (a.r + b.r) * (a.r + b.r);
         if (dist2(a.x, a.y, b.x, b.y) < rr) {
-          score += wave * 20;
+          score += scoreMultiplier * wave * 20;
           registerAsteroidDamage(b.power || 1, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 3);
           b.x = a.x; b.y = a.y; b.vx = 0; b.vy = 0; b.kuru2Bursting = true;
@@ -5778,7 +5784,7 @@ function handleAsteroidCollisions() {
         const rr = (a.r + b.r) * (a.r + b.r);
         if (dist2(a.x, a.y, b.x, b.y) < rr) {
           b.hitSet.add(a);
-          score += wave * 20;
+          score += scoreMultiplier * wave * 20;
           registerAsteroidDamage(b.power || 1, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 5);
           if (splitOrbitalBoltOnHit(b)) { playerBullets.splice(j, 1); break; }
@@ -5810,7 +5816,7 @@ function handleAsteroidCollisions() {
           const closest = closestPointOnLaser(b, a.x, a.y);
           const rr = (a.r + b.r) * (a.r + b.r);
           if (dist2(a.x, a.y, closest.x, closest.y) < rr) {
-            score += wave * 20;
+            score += scoreMultiplier * wave * 20;
             registerAsteroidDamage(b.power || 1, a);
             spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
           }
@@ -5824,7 +5830,7 @@ function handleAsteroidCollisions() {
         const rr = (a.r + b.r) * (a.r + b.r);
         if (dist2(a.x, a.y, closest.x, closest.y) < rr) {
           b.hitSet.add(a);
-          score += wave * 20;
+          score += scoreMultiplier * wave * 20;
           registerAsteroidDamage(b.power || 1, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
           if (b.subLaser) subLaserBendOnHit(b);
@@ -5838,7 +5844,7 @@ function handleAsteroidCollisions() {
         const a = asteroids[i];
         const rr = (a.r + b.r) * (a.r + b.r);
         if (dist2(a.x, a.y, b.x, b.y) < rr) {
-          score += wave * 20;
+          score += scoreMultiplier * wave * 20;
           registerAsteroidDamage(b.power || 3, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
           // starts the same chain-lightning hop into nearby enemies as a direct enemy hit would
@@ -5858,7 +5864,7 @@ function handleAsteroidCollisions() {
         if (dx <= a.r + 20 && dy <= a.r + b.r) {
           // incidental hit like a non-target enemy: registers, doesn't end the beam's journey
           b.hitSet.add(a);
-          score += wave * 20;
+          score += scoreMultiplier * wave * 20;
           registerAsteroidDamage(3, a); // lower than its 5dmg vs enemies/mini-bosses/boss, uniform regardless of locked target vs incidental pierce hit
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
           break;
@@ -5871,7 +5877,7 @@ function handleAsteroidCollisions() {
         const rr = (a.r + b.r) * (a.r + b.r);
         if (closestDistSqOnPolyline(b.fullTrail, a.x, a.y) < rr) {
           b.hitSet.add(a);
-          score += wave * 20;
+          score += scoreMultiplier * wave * 20;
           registerAsteroidDamage(5, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
           splitRefectOnHit(b); // splits into two new bolts (30°/90° turn) instead of piercing straight through
@@ -5885,7 +5891,7 @@ function handleAsteroidCollisions() {
         const rr = (a.r + b.r) * (a.r + b.r);
         if (dist2(a.x, a.y, b.x, b.y) < rr) {
           playerBullets.splice(j, 1);
-          score += wave * 20;
+          score += scoreMultiplier * wave * 20;
           registerAsteroidDamage(b.power || 1, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
           if (b.gravity) applyGravitySplash(a.x, a.y, b.gravityRadius, null);
@@ -6728,7 +6734,10 @@ function updateSpecialStars(dt) {
     if (player.alive && state === STATE.PLAYING && !paused) {
       const rr = (player.r + 6) * (player.r + 6); // star's own half-size (~6px) plus the ship's radius
       if (dist2(player.x, player.y, s.x, s.y) < rr) {
-        score += 50000;
+        score += scoreMultiplier * 50000;
+        specialStarCollected += 1;
+        scoreMultiplier = 1.0 + Math.floor(specialStarCollected / 10) * 0.1;
+        pickupTexts.push({ text: '+0.01', x: s.x, y: s.y, t: 0, duration: 2.0, color: '#7CFFF0', sizeMul: 0.6 });
         specialStars.splice(i, 1);
         continue; // consumed on contact — a single one-time bonus, then it's gone
       }
@@ -6833,6 +6842,9 @@ function drawHUD() {
   ctx.font = '10px "Montserrat", sans-serif';
   if (player.weapon !== 'NORMAL') drawLevelBar(player.weapon, player.weaponLevel, weaponMaxLevel(player.weapon), W - 12, 26);
   if (player.rapidLevel > 0) drawLevelBar('RAPID', player.rapidLevel, 3, W - 12, 44);
+  ctx.fillStyle = '#7CFFF0';
+  ctx.textAlign = 'right';
+  ctx.fillText('x' + scoreMultiplier.toFixed(1), W - 12, player.rapidLevel > 0 ? 58 : 40);
   ctx.font = '12px "Montserrat", sans-serif';
   ctx.textAlign = 'left';
 
