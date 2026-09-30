@@ -367,7 +367,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-09-30 13:22';
+const LAST_UPDATED = '2026-09-30 22:13';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1186,12 +1186,11 @@ function fireWeapon() {
   const bx = player.x, by = player.y - player.r;
   const lvl = player.weaponLevel;
   if (player.weapon === 'DOUBLE') {
-    // always 2 shots regardless of level, 20px spacing, both angled 1 degree outward
+    // always 2 shots regardless of level, 20px spacing, both fired straight up (no angle)
     const doubleOffsets = [-10, 10];
     const fireDoublePattern = (originX, originY) => {
       doubleOffsets.forEach(ox => {
-        const rad = (ox < 0 ? -1 : 1) * Math.PI / 180;
-        playerBullets.push({ x: originX + ox, y: originY, vx: Math.sin(rad) * 540, vy: -Math.cos(rad) * 540, r: 3, power: 2 + (player.rapidLevel || 0), double: true });
+        playerBullets.push({ x: originX + ox, y: originY, vx: 0, vy: -540, r: 3, power: 3 + (player.rapidLevel || 0), double: true });
       });
     };
     fireDoublePattern(bx, by);
@@ -3638,7 +3637,7 @@ function updateBullets(dt) {
     if (!b.bubble && !b.noTrail) {
       if (!b.trail) b.trail = [];
       b.trail.push({ x: b.x, y: b.y, rot: b.angle !== undefined ? b.angle : b.rot, traveled: b.traveled });
-      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.missile ? 10 : b.orbitalBolt ? 24 : b.earthShipLaser ? 8 : (b.earthLaser || b.funnelLaser) ? 32 : b.double ? 24 : b.vulcanLine ? 5 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
+      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.missile ? 10 : b.orbitalBolt ? 24 : b.earthShipLaser ? 8 : (b.earthLaser || b.funnelLaser) ? 32 : b.double ? 8 : b.vulcanLine ? 5 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
       if (b.trail.length > maxTrail) b.trail.shift();
     }
     if (b.homing) {
@@ -4088,7 +4087,8 @@ function handleEnemyDeath(e) {
 function handleOptionCollisions() {
   // DOUBLE's trailing options: touching an enemy deals 1dmg, touching an
   // asteroid/crystal/mini-boss/boss deals 5+RAPIDレベル dmg (option itself is
-  // unaffected/indestructible), touching an enemy bullet destroys it
+  // unaffected/indestructible), touching an enemy bullet destroys it. The thin
+  // lines connecting them are also a hitbox (see below).
   if (!player.options || player.options.length === 0) return;
   const optR = 5; // roughly half the 15x5 rectangle's longer dimension
   const bigDmg = 5 + (player.rapidLevel || 0);
@@ -4142,6 +4142,76 @@ function handleOptionCollisions() {
       }
     }
   });
+  // the thin connecting lines (ship-to-option and option-to-option, each stopping
+  // 10px short of its endpoints) also count as a hitbox: destroys enemy bullets on
+  // contact every frame, and ticks 2dmg every 0.05s to anything else touching it
+  const chain = [{ x: player.x, y: player.y }, ...player.options];
+  const lineSegs = [];
+  for (let i = 0; i < chain.length - 1; i++) {
+    const oa = chain[i], ob = chain[i + 1];
+    const dx = ob.x - oa.x, dy = ob.y - oa.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > 20) {
+      const ux = dx / dist, uy = dy / dist;
+      lineSegs.push({ x1: oa.x + ux * 10, y1: oa.y + uy * 10, x2: ob.x - ux * 10, y2: ob.y - uy * 10 });
+    }
+  }
+  if (lineSegs.length > 0) {
+    const lineR = 3;
+    for (let i = enemyBullets.length - 1; i >= 0; i--) {
+      const b = enemyBullets[i];
+      const rr = (lineR + b.r) * (lineR + b.r);
+      if (lineSegs.some(seg => distSqToSegment(b.x, b.y, seg.x1, seg.y1, seg.x2, seg.y2) < rr)) {
+        enemyBullets.splice(i, 1);
+      }
+    }
+    player.doubleLineTickTimer = (player.doubleLineTickTimer || 0) - (1 / 60);
+    if (player.doubleLineTickTimer <= 0) {
+      player.doubleLineTickTimer = 0.05;
+      const lineDmg = 2;
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        if (e.type === 'GIANTBOSS' && e.miniBossHp) {
+          for (let vk = 0; vk < e.miniBossHp.length; vk++) {
+            if (e.miniBossHp[vk] <= 0) continue;
+            const pos = bossVertexWorldPos(e, vk);
+            const miniR = (e.def.r / 3) * 0.7;
+            const rr2 = (miniR + lineR) * (miniR + lineR);
+            if (lineSegs.some(seg => distSqToSegment(pos.x, pos.y, seg.x1, seg.y1, seg.x2, seg.y2) < rr2)) {
+              e.miniBossHp[vk] -= lineDmg;
+              score += 10;
+              if (e.miniBossHp[vk] <= 0) {
+                spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4);
+              } else {
+                spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
+              }
+            }
+          }
+        }
+        const rr = (e.def.r + lineR) * (e.def.r + lineR);
+        if (lineSegs.some(seg => distSqToSegment(e.x, e.y, seg.x1, seg.y1, seg.x2, seg.y2) < rr)) {
+          if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
+          e.hp -= lineDmg;
+          score += 10;
+          if (e.hp <= 0) {
+            handleEnemyDeath(e);
+            enemies.splice(i, 1);
+          } else if (e.type !== 'GIANTBOSS') {
+            spawnDeathParticles(e.x, e.y, e.def.color, 3);
+          }
+        }
+      }
+      for (let i = asteroids.length - 1; i >= 0; i--) {
+        const a = asteroids[i];
+        const rr = (a.r + lineR) * (a.r + lineR);
+        if (lineSegs.some(seg => distSqToSegment(a.x, a.y, seg.x1, seg.y1, seg.x2, seg.y2) < rr)) {
+          score += wave * 20;
+          registerAsteroidDamage(lineDmg, a);
+          spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 5);
+        }
+      }
+    }
+  }
 }
 
 function handleOrbitalRingCollisions() {
@@ -5142,7 +5212,26 @@ function drawPlayer() {
       drawPlayerShape(p.x, p.y, `rgba(124,255,240,${alpha})`);
     });
   } else if (player.weapon === 'DOUBLE') {
-    // DOUBLE's trailing options: rotating cyan rectangles (15x5)
+    // DOUBLE's trailing options: rotating cyan rectangles (15x5), connected to each
+    // other (and to the ship itself) by a thin light-cyan line that stops 10px short
+    // of each endpoint
+    {
+      const chain = [{ x: player.x, y: player.y }, ...player.options];
+      ctx.strokeStyle = 'rgba(78,240,255,0.35)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < chain.length - 1; i++) {
+        const oa = chain[i], ob = chain[i + 1];
+        const dx = ob.x - oa.x, dy = ob.y - oa.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 20) {
+          const ux = dx / dist, uy = dy / dist;
+          ctx.beginPath();
+          ctx.moveTo(oa.x + ux * 10, oa.y + uy * 10);
+          ctx.lineTo(ob.x - ux * 10, ob.y - uy * 10);
+          ctx.stroke();
+        }
+      }
+    }
     ctx.strokeStyle = '#4ef0ff';
     ctx.lineWidth = 1;
     player.options.forEach(opt => {
