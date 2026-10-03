@@ -367,7 +367,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-10-01 07:45';
+const LAST_UPDATED = '2026-10-03 14:13';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -487,6 +487,7 @@ function resetPlayer() {
   player.zapperSquares = [];
   player.earthPods = []; player.earthT = 0;
   player.whipTethers = null; player.whipT = 0;
+  player.infinityTriAngle = 0; player.infinityHitCooldowns = null; player.infinityLineHistory = []; player.infinityTimeAcc = 0; player.infinityTriRadii = null; player.infinityTriBaseRadii = null;
 }
 
 // ---------- items ----------
@@ -1185,6 +1186,27 @@ const CURVE_SPECS = [null,
   { turn: 7.5 },
 ];
 const THUNDER_LOOP_COUNTS = [0, 5, 10, 15, 20, 25, 30, 35];
+// INFINITY: fires a single bullet from one ∞-tracing line's own current head position
+// (its most recent point) toward a RANDOMLY chosen on-screen target (any enemy,
+// mini-boss vertex, the vulnerable boss, or any asteroid/crystal) — no homing, no split.
+function fireInfinityLine(trail) {
+  const speed = 650;
+  const head = (trail && trail.length > 0) ? trail[trail.length - 1] : { ox: 0, oy: player.r - 1 };
+  const sx = player.x + head.ox, sy = player.y + head.oy;
+  const targetPos = infinityRandomOnScreenTargetPos();
+  let vx, vy;
+  if (targetPos) {
+    const dx = targetPos.x - sx, dy = targetPos.y - sy;
+    const d = Math.hypot(dx, dy) || 1;
+    vx = (dx / d) * speed;
+    vy = (dy / d) * speed;
+    if (vy > 0) vy = -vy; // never fires downward, even if the target is below this point
+  } else {
+    vx = 0; vy = -speed; // nothing to aim at — just goes straight up
+  }
+  playerBullets.push({ x: sx, y: sy, vx, vy, r: 2, power: 2 + (player.rapidLevel || 0), infinityBullet: true, noTrail: true });
+  infinityRings.push({ x: sx, y: sy, t: 0, duration: 1.2, maxR: 100 });
+}
 function fireWeapon() {
   const bx = player.x, by = player.y - player.r;
   const lvl = player.weaponLevel;
@@ -1240,34 +1262,6 @@ function fireWeapon() {
       const hx = player.x + Math.sin(rad) * 20, hy = player.y - Math.cos(rad) * 20;
       playerBullets.push({ x: hx, y: hy, vx: Math.sin(rad) * 100, vy: -Math.cos(rad) * 100, r: 3, homing: true, target, power: 20, homingLevel: lvl, speed: 100, maxSpeed: 500, homingAge: 0, straightDist: 200, homingTraveled: 0 });
     });
-  } else if (player.weapon === 'INFINITY') {
-    // spawns level×10 bullets in an annulus around the ship — anywhere from 20px
-    // to 350px out (never right on top of the ship) — each one then flies in a
-    // straight line toward a RANDOMLY chosen on-screen target (any enemy, mini-
-    // boss vertex, the vulnerable boss, or any asteroid/crystal), picked fresh
-    // per bullet — no homing, no split. Power 1, fires once per second.
-    const speed = 650;
-    const count = lvl * 10;
-    for (let i = 0; i < count; i++) {
-      const spawnAngle = rand(0, Math.PI * 2);
-      // sqrt-scaled so points land evenly across the ANNULUS AREA rather than
-      // bunching up near the inner edge (plain uniform distance sampling would
-      // over-favor the smaller inner radii, since less area exists there)
-      const spawnDist = Math.sqrt(rand(20 * 20, 350 * 350));
-      const sx = player.x + Math.cos(spawnAngle) * spawnDist;
-      const sy = player.y + Math.sin(spawnAngle) * spawnDist;
-      const targetPos = infinityRandomOnScreenTargetPos();
-      let vx, vy;
-      if (targetPos) {
-        const dx = targetPos.x - sx, dy = targetPos.y - sy;
-        const d = Math.hypot(dx, dy) || 1;
-        vx = (dx / d) * speed;
-        vy = (dy / d) * speed;
-      } else {
-        vx = 0; vy = -speed; // nothing to aim at — just goes straight up
-      }
-      playerBullets.push({ x: sx, y: sy, vx, vy, r: 2, power: 2 + (player.rapidLevel || 0), infinitySquare: true, noTrail: true, growSize: 2, growTimer: 0.08 });
-    }
   } else if (player.weapon === 'LASER') {
     // a long, clean, straight beam that pierces every enemy in its path with no
     // pierce limit at all, ticking a flat 2 damage every 0.05s to anything still
@@ -1411,6 +1405,9 @@ function fireWeapon() {
       x: bx, y: by, vx: 0, vy: -350, r: qixLength / 6, power: 5,
       qix: true, qixPhase: rand(0, Math.PI * 2), qixDir: rand(0, 1) < 0.5 ? 1 : -1, qixPivot: rand(0.15, 0.85), qixHitSets: [new Set(), new Set(), new Set(), new Set(), new Set()], qixHistory: [], qixLength,
     });
+  } else if (player.weapon === 'INFINITY') {
+    // INFINITY never fires any bullets — its rotating triangle's vertex lasers
+    // (handled in updatePlayer) are its only source of damage
   } else {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, power: 5 });
   }
@@ -1620,6 +1617,7 @@ function burstSpark(b) {
 // ---------- bullets ----------
 let playerBullets = [];
 let enemyBullets = [];
+let infinityRings = []; // INFINITY's launch-moment fading rings, centered on where each bullet actually fires
 
 // ---------- enemy types ----------
 const TYPES = {
@@ -2872,7 +2870,7 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["2 missiles.", "4 missiles.", "6 missiles.", "8 missiles.", "10 missiles.", "12 missiles.", "14 missiles, screen-filling swarm."] },
   HOMING: { intro: "Each shot locks its own distinct target — enemies, asteroids, and crystals all count. Shots launch from the tip, fly 200px straight while accelerating, then curve in. Leveling up adds shots AND widens their launch angles, tapering at directly-behind. HOMING uniquely levels to 7, for a full-circle locking volley.",
     levels: ["2 shots at ±10°.", "4 shots, up to ±40°.", "6 shots, up to ±70°.", "8 shots, up to ±100°.", "10 shots, up to ±130°.", "12 shots, up to ±160°.", "14 shots, up to ±180°."] },
-  INFINITY: { intro: "White square bullets appear randomly 20-350px around the ship, sit still growing for a moment, then dart off in a straight line toward a random on-screen target — any enemy, mini-boss vertex, vulnerable boss, or asteroid/crystal. A spark marks every impact. Leveling up spawns ten more squares per level. Fires once a second; a single hit destroys, with no piercing or splitting.",
+  INFINITY: { intro: "`level` points continuously trace a shared, wide ∞ shape just behind the ship, evenly spaced around the loop, each trailing a long afterimage. Every 0.05s, each of those points independently fires a bullet from its own current position in a straight line toward a random on-screen target — any enemy, mini-boss vertex, vulnerable boss, or asteroid/crystal — with a fading ring marking each launch spot. A single hit destroys, with no piercing or splitting.",
     levels: ["10 squares.", "20 squares.", "30 squares.", "40 squares.", "50 squares.", "60 squares.", "70 squares."] },
   LASER: { intro: "A piercing cyan beam plus two faster independent side beams, all sharing the same length, pierce count, and speed per level. The main beam also thickens each level, doubling its growth rate for the last two levels. LASER uniquely levels to 7, becoming an enormous, fast, ten-target-piercing shaft of light.",
     levels: ["200px, pierces 5, 2px thick.", "250px, pierces 5, 3px thick.", "300px, pierces 5, 4px thick.", "400px, pierces 10, 5px thick.", "500px, pierces 10, 6px thick.", "600px, pierces 10, 8px thick.", "700px, pierces 10, 10px thick."] },
@@ -2947,7 +2945,7 @@ function startEquipDescCycle() {
 const equipRow = document.getElementById('equipRow');
 const EQUIP_UPDATED = ['FUNNEL', 'XCROSS', 'ZAPPER', 'WHIPS', 'QIX'];
 const EQUIP_UPDATE_TAG = ['DOUBLE', 'EARTH', 'LASER']; // shows "UPDATE" instead of "NEW"
-const EQUIP_RENEW_TAG = []; // shows "RENEW" instead of "NEW"/"UPDATE"
+const EQUIP_RENEW_TAG = ['INFINITY']; // shows "RENEW" instead of "NEW"/"UPDATE"
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -3018,7 +3016,7 @@ function beginGame() {
   score = 0; wave = debugStartAtBoss ? 12 : 1; killCount = 0; starReverse = false; globalSpeedBonus = 0;
   specialStarCollected = 0; scoreMultiplier = 1.0;
   resetPlayer();
-  playerBullets = []; enemyBullets = []; items = []; pickupTexts = []; particles = []; shockwaves = []; phantomFlashes = [];
+  playerBullets = []; enemyBullets = []; items = []; pickupTexts = []; particles = []; shockwaves = []; phantomFlashes = []; infinityRings = [];
   startWave();
 }
 
@@ -3290,6 +3288,137 @@ function updatePlayer(dt) {
     }
   } else {
     player.earthPods = null;
+  }
+
+  // INFINITY: `level` points all trace the same Gerono-lemniscate (∞-shaped) path
+  // just behind (above the earlier spot, now 15px higher) the ship, continuously,
+  // leaving long fading dot-trails — each point evenly spaced in phase around the
+  // shared loop (so Lv2 is a half-cycle apart, Lv3 a third-cycle apart, etc.)
+  if (player.weapon === 'INFINITY') {
+    // an irregular triangle (uneven side lengths), centered on the ship, slowly rotating.
+    // No bullets are fired at all — instead, from each of its 3 vertices a laser line is
+    // always drawn straight up, and anything it touches takes damage (ticking every 0.1s
+    // per target so continuous contact doesn't deal damage every single frame).
+    // The triangle's base size is randomized fresh every time INFINITY is newly
+    // equipped (not re-rolled on every level-up); rotation speed and laser damage
+    // both scale up with weapon level, and the size itself grows ×1.1 per level
+    // on top of that random base.
+    if (!player.infinityTriBaseRadii) {
+      const r1 = rand(47, 73), r2 = r1 + rand(5, 13), r3 = r2 + rand(5, 13);
+      player.infinityTriBaseRadii = [r1, r2, r3];
+    }
+    const infinitySpeedMul = 1 + (player.weaponLevel - 1) * 0.05; // +5% per level
+    player.infinityTriAngle = (player.infinityTriAngle || 0) + dt * 2.8 * infinitySpeedMul;
+    const infinityDmg = player.weaponLevel; // +1 damage per level (Lv1 = 1)
+    const infinitySizeMul = Math.pow(1.1, player.weaponLevel - 1); // ×1.1 per level
+    player.infinityTriRadii = player.infinityTriBaseRadii.map(r => r * infinitySizeMul);
+    const triVerts = [
+      { r: player.infinityTriRadii[0], a: 0 },
+      { r: player.infinityTriRadii[1], a: Math.PI * 2 / 3 },
+      { r: player.infinityTriRadii[2], a: Math.PI * 4 / 3 },
+    ].map(v => ({
+      x: player.x + Math.cos(v.a + player.infinityTriAngle) * v.r,
+      y: player.y + Math.sin(v.a + player.infinityTriAngle) * v.r,
+    }));
+    // keeps a short history of recent vertex positions so the lasers can leave a
+    // faint trailing afterimage behind as the triangle rotates
+    player.infinityLineHistory = player.infinityLineHistory || [];
+    player.infinityTimeAcc = (player.infinityTimeAcc || 0) + dt;
+    player.infinityLineHistory.push({ t: player.infinityTimeAcc, verts: triVerts.map(v => ({ x: v.x, y: v.y })) });
+    while (player.infinityLineHistory.length > 1 && player.infinityTimeAcc - player.infinityLineHistory[0].t > 0.3) player.infinityLineHistory.shift();
+    player.infinityHitCooldowns = player.infinityHitCooldowns || new Map();
+    for (const [target, cd] of player.infinityHitCooldowns) {
+      const next = cd - dt;
+      if (next <= 0) player.infinityHitCooldowns.delete(target); else player.infinityHitCooldowns.set(target, next);
+    }
+    const INFINITY_TICK = 0.1;
+    // the sub-laser (drawn in drawPlayer with matching geometry) attaches to ALL 3
+    // lasers as soon as RAPID is at least Lv1 (none at RAPID Lv0), and its radius
+    // (the left-right swing amplitude) grows with RAPID level: Lv1=2, Lv2=5, Lv3=10.
+    // Any line carrying a sub-laser deals double damage. The sub-laser's own wavy
+    // path has its own hitbox too, not just the straight main line underneath it.
+    const INFINITY_SUB_RADII = [0, 5, 15, 30]; // indexed by rapidLevel (0 = none)
+    const subLaserActive = (player.rapidLevel || 0) >= 1;
+    const SUB_WAVELENGTH = 50, SUB_AMPLITUDE = INFINITY_SUB_RADII[player.rapidLevel || 0], SUB_CRAWL_SPEED = 75; // must match drawPlayer's sub-laser constants
+    const subLaserPaths = triVerts.map((v, vi) => {
+      if (!subLaserActive) return null;
+      const steps = Math.max(4, Math.round(Math.abs(v.y) / 6));
+      const phaseOffset = vi * (Math.PI * 2 / 3);
+      const pts = [];
+      for (let si = 0; si <= steps; si++) {
+        const t = si / steps;
+        const y = v.y + (0 - v.y) * t;
+        const phase = -(v.y - y) / SUB_WAVELENGTH * Math.PI * 2 + phaseOffset - player.infinityTimeAcc * SUB_CRAWL_SPEED;
+        pts.push({ x: v.x + Math.sin(phase) * SUB_AMPLITUDE, y });
+      }
+      return pts;
+    });
+    // returns the best damage multiplier among the lines actually touched (0 = no hit)
+    const touchesInfinityLine = (tx, ty, tr) => {
+      let mul = 0;
+      for (let vi = 0; vi < triVerts.length; vi++) {
+        const v = triVerts[vi];
+        if (distSqToSegment(tx, ty, v.x, v.y, v.x, 0) < tr * tr) {
+          mul = Math.max(mul, subLaserActive ? 2 : 1);
+          continue;
+        }
+        const path = subLaserPaths[vi];
+        if (path) {
+          for (let si = 1; si < path.length; si++) {
+            if (distSqToSegment(tx, ty, path[si - 1].x, path[si - 1].y, path[si].x, path[si].y) < tr * tr) {
+              mul = Math.max(mul, 2);
+              break;
+            }
+          }
+        }
+      }
+      return mul;
+    };
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      const e = enemies[i];
+      if (e.type === 'GIANTBOSS' && e.miniBossHp) {
+        e.miniBossMarkers = e.miniBossMarkers || [];
+        for (let vk = 0; vk < e.miniBossHp.length; vk++) {
+          if (e.miniBossHp[vk] <= 0) continue;
+          if (!e.miniBossMarkers[vk]) e.miniBossMarkers[vk] = {};
+          const marker = e.miniBossMarkers[vk];
+          if (player.infinityHitCooldowns.has(marker)) continue;
+          const mpos = bossVertexWorldPos(e, vk);
+          const miniR = (e.def.r / 3) * 0.7;
+          const mul = touchesInfinityLine(mpos.x, mpos.y, miniR);
+          if (mul > 0) {
+            player.infinityHitCooldowns.set(marker, INFINITY_TICK);
+            e.miniBossHp[vk] -= infinityDmg * mul;
+            score += scoreMultiplier * 10;
+            if (e.miniBossHp[vk] <= 0) { spawnDeathParticles(mpos.x, mpos.y, e.def.color, 14, 220); spawnDeathGhost(mpos.x, mpos.y, miniR, 0, e.def.color, 4); }
+            else spawnDeathParticles(mpos.x, mpos.y, e.def.color, 2);
+          }
+        }
+      }
+      if (player.infinityHitCooldowns.has(e)) continue;
+      if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
+      const mulE = touchesInfinityLine(e.x, e.y, e.def.r);
+      if (mulE > 0) {
+        player.infinityHitCooldowns.set(e, INFINITY_TICK);
+        whipDealDamage(e, infinityDmg * mulE);
+      }
+    }
+    for (let i = 0; i < asteroids.length; i++) {
+      const a = asteroids[i];
+      if (player.infinityHitCooldowns.has(a)) continue;
+      const mulA = touchesInfinityLine(a.x, a.y, a.r);
+      if (mulA > 0) {
+        player.infinityHitCooldowns.set(a, INFINITY_TICK);
+        whipDealDamage(a, infinityDmg * mulA);
+      }
+    }
+  } else {
+    player.infinityTriAngle = null;
+    player.infinityHitCooldowns = null;
+    player.infinityLineHistory = null;
+    player.infinityTimeAcc = 0;
+    player.infinityTriRadii = null;
+    player.infinityTriBaseRadii = null;
   }
 
   // FUNNEL: `level` funnels stationed on each side (2×level total), all stacked at
@@ -4009,14 +4138,7 @@ function updateBullets(dt) {
         b.vx += dirSign * lateralAccel * dt;
       }
     }
-    if (b.infinitySquare && b.growSize < 8) {
-      // grows 1px at a time while sitting at its spawn point; once it reaches
-      // 8px it immediately starts flying (no separate fixed wait timer anymore)
-      b.growTimer -= dt;
-      if (b.growTimer <= 0) { b.growSize += 1; b.growTimer = 0.08; }
-    } else {
-      b.x += b.vx * dt; b.y += b.vy * dt;
-    }
+    b.x += b.vx * dt; b.y += b.vy * dt;
     if (b.sparkFrag) {
       b.rot += b.rotSpeed * dt;
       b.traveled += Math.hypot(b.vx, b.vy) * dt;
@@ -5028,7 +5150,7 @@ function handleCollisions() {
           break;
         }
       }
-    } else if (b.infinitySquare) {
+    } else if (b.infinityBullet) {
       // hits enemies AND mini-boss vertices AND the (vulnerable) boss body — a
       // single hit, then the bullet is destroyed (no split)
       let hit = false;
@@ -5316,6 +5438,100 @@ function drawPlayer() {
       }
       drawFunnelShape(f.x, f.y, f.angle || 0, '#00b7ff', 1.0);
     });
+  } else if (player.weapon === 'INFINITY' && player.infinityTriAngle !== null && player.infinityTriAngle !== undefined) {
+    // an irregular triangle (uneven side lengths), centered on the ship, slowly rotating
+    const INFINITY_COLOR = '#99FFFF'; // fluorescent light-blue with more white mixed in (triangle + lasers)
+    const radii = player.infinityTriRadii || [64, 88, 112];
+    const verts = [
+      { r: radii[0], a: 0 },
+      { r: radii[1], a: Math.PI * 2 / 3 },
+      { r: radii[2], a: Math.PI * 4 / 3 },
+    ].map(v => ({
+      x: player.x + Math.cos(v.a + player.infinityTriAngle) * v.r,
+      y: player.y + Math.sin(v.a + player.infinityTriAngle) * v.r,
+    }));
+    // faint trailing afterimages of the lasers' recent positions, faded out.
+    // drawn from EVERY recorded frame (not just a few sparse sample times) so
+    // consecutive afterimages sit right next to each other with no visible gaps,
+    // forming one smooth, continuous fading streak as the triangle rotates
+    if (player.infinityLineHistory && player.infinityLineHistory.length > 1) {
+      const nowT = player.infinityTimeAcc || 0;
+      const MAX_AGE = 0.22;
+      player.infinityLineHistory.forEach(snap => {
+        const age = nowT - snap.t;
+        if (age <= 0 || age > MAX_AGE) return;
+        const alpha = 0.22 * (1 - age / MAX_AGE);
+        ctx.strokeStyle = hexToRgba(INFINITY_COLOR, alpha);
+        ctx.lineWidth = 1;
+        snap.verts.forEach(v => {
+          ctx.beginPath();
+          ctx.moveTo(v.x, v.y);
+          ctx.lineTo(v.x, 0);
+          ctx.stroke();
+        });
+      });
+    }
+    ctx.strokeStyle = hexToRgba(INFINITY_COLOR, 0.3);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(verts[0].x, verts[0].y);
+    ctx.lineTo(verts[1].x, verts[1].y);
+    ctx.lineTo(verts[2].x, verts[2].y);
+    ctx.closePath();
+    ctx.stroke();
+    // from each vertex, a laser line drawn straight up (not fired — always rendered),
+    // always 1px thick. Depth is judged per-line by where that line's OWN vertex
+    // currently sits as the triangle rotates — below the ship is in front
+    // (brighter), above it is behind (dimmer) — smoothly fading between the two
+    // as the vertex swings past the ship's y, rather than snapping instantly
+    const INFINITY_DEPTH_RANGE = 60; // px of smoothing on either side of the ship's y
+    verts.forEach(v => {
+      const frac = Math.max(-1, Math.min(1, (v.y - player.y) / INFINITY_DEPTH_RANGE));
+      const alpha = 0.4 + (1.0 - 0.4) * ((frac + 1) / 2);
+      ctx.strokeStyle = hexToRgba(INFINITY_COLOR, alpha);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(v.x, v.y);
+      ctx.lineTo(v.x, 0);
+      ctx.stroke();
+    });
+    // a thin sub-laser spirals around each main laser, winding left-right as it
+    // climbs and slowly crawling upward over time, to read as wrapping around the
+    // main beam in 3D rather than sitting flat on top of it
+    const SUB_WAVELENGTH = 50; // px per full wave cycle
+    // sub-lasers attach to ALL 3 lasers once RAPID is at least Lv1 (also doubling
+    // their damage — see updatePlayer), and their radius grows with RAPID level
+    const INFINITY_SUB_RADII = [0, 5, 15, 30]; // indexed by rapidLevel (0 = none)
+    const subLaserActive = (player.rapidLevel || 0) >= 1;
+    const SUB_AMPLITUDE = INFINITY_SUB_RADII[player.rapidLevel || 0];
+    const SUB_CRAWL_SPEED = 75; // how fast the wave pattern scrolls over time
+    verts.forEach((v, vi) => {
+      if (!subLaserActive) return;
+      const len = v.y - 0;
+      const steps = Math.max(4, Math.round(Math.abs(len) / 6));
+      const phaseOffset = vi * (Math.PI * 2 / 3); // each of the 3 lasers offset so they don't sync up
+      // true orbit around the main laser's own axis: sin(phase) swings it left-right,
+      // cos(phase) stands in for depth — in front of the main beam (brighter, thicker,
+      // drawn on top) half the time, behind it (dimmer, thinner) the other half —
+      // drawn segment-by-segment so each stretch can carry its own depth look
+      let prevX = null, prevY = null;
+      for (let si = 0; si <= steps; si++) {
+        const t = si / steps;
+        const y = v.y + (0 - v.y) * t;
+        const phase = -(v.y - y) / SUB_WAVELENGTH * Math.PI * 2 + phaseOffset - (player.infinityTimeAcc || 0) * SUB_CRAWL_SPEED;
+        const x = v.x + Math.sin(phase) * SUB_AMPLITUDE;
+        const depth = Math.cos(phase); // +1 = fully in front, -1 = fully behind
+        if (prevX !== null) {
+          ctx.strokeStyle = hexToRgba(INFINITY_COLOR, (depth >= 0 ? 0.3 + 0.4 * depth : 0.15) * 0.5);
+          ctx.lineWidth = depth >= 0 ? 1 + depth : 0.6;
+          ctx.beginPath();
+          ctx.moveTo(prevX, prevY);
+          ctx.lineTo(x, y);
+          ctx.stroke();
+        }
+        prevX = x; prevY = y;
+      }
+    });
   }
   drawPlayerShape(player.x, player.y, '#7CFFF0');
 }
@@ -5361,13 +5577,21 @@ function drawPlayerShape(x, y, color) {
   }
 
   // central kite/diamond body (hand-sketch inspired) — unaffected by movement lean
-  ctx.beginPath();
   const kitePts = [
     { x: x,            y: y - r * 1.9 * vs },  // top point
     { x: x - r * 0.7,  y: y + r * 0.05 * vs }, // left point (widest)
     { x: x,            y: y + r * 1.1 * vs },  // bottom point
     { x: x + r * 0.7,  y: y + r * 0.05 * vs }, // right point (widest)
   ];
+  // solid black mask drawn first so the ship always reads as frontmost — nothing
+  // behind it (e.g. INFINITY's ∞ trail lines) shows through its translucent fill
+  ctx.save();
+  ctx.fillStyle = '#000000';
+  ctx.beginPath();
+  roundedPolygonPath(kitePts, 2);
+  ctx.fill();
+  ctx.restore();
+  ctx.beginPath();
   roundedPolygonPath(kitePts, 2);
   ctx.fill();
   ctx.stroke();
@@ -6518,24 +6742,17 @@ function drawBullets() {
       }
       ctx.fillStyle = '#4ef0ff';
       ctx.fillRect(b.x - 1, b.y - 2.5, 2, 5);
-    } else if (b.infinitySquare) {
+    } else if (b.infinityBullet) {
+      // draws as a 1px-thick, 10px-long white line oriented along its travel direction
       ctx.globalAlpha = 1; ctx.shadowBlur = 0; // guards against any leftover glow/alpha state from other bullet types drawn just before
-      if (b.growSize < 8) {
-        // growing square while sitting at its spawn point, 2px up to 8px
-        ctx.fillStyle = '#ffffff';
-        const s = b.growSize;
-        ctx.fillRect(b.x - s / 2, b.y - s / 2, s, s);
-      } else {
-        // once moving, draws as a 1px-thick, 10px-long white line oriented along its travel direction
-        const spd = Math.hypot(b.vx, b.vy) || 1;
-        const ux = b.vx / spd, uy = b.vy / spd;
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(b.x - ux * 5, b.y - uy * 5);
-        ctx.lineTo(b.x + ux * 5, b.y + uy * 5);
-        ctx.stroke();
-      }
+      const spd = Math.hypot(b.vx, b.vy) || 1;
+      const ux = b.vx / spd, uy = b.vy / spd;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(b.x - ux * 5, b.y - uy * 5);
+      ctx.lineTo(b.x + ux * 5, b.y + uy * 5);
+      ctx.stroke();
     } else if (b.spark && !b.burst) {
       // small rising spark, harmless until it bursts above mid-screen — 3x3px square
       ctx.strokeStyle = '#ffe93a';
@@ -6745,6 +6962,52 @@ function updateSpecialStars(dt) {
     if (s.y > H + 20) specialStars.splice(i, 1);
   }
 }
+
+// a ring that expands outward from the bullet's launch point while fading to transparent
+function updateInfinityRings(dt) {
+  for (let i = infinityRings.length - 1; i >= 0; i--) {
+    const r = infinityRings[i];
+    r.t += dt;
+    if (r.t >= r.duration) { infinityRings.splice(i, 1); continue; }
+    if (!r.hitSet) r.hitSet = new Set();
+    const radius = r.maxR * (r.t / r.duration);
+    // deals 1 damage, once each, to anything the expanding ring's edge currently sweeps through
+    for (let ei = enemies.length - 1; ei >= 0; ei--) {
+      const e = enemies[ei];
+      if (r.hitSet.has(e)) continue;
+      if (Math.abs(Math.hypot(e.x - r.x, e.y - r.y) - radius) <= e.def.r) {
+        if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
+        r.hitSet.add(e);
+        e.hp -= 1;
+        score += scoreMultiplier * 10;
+        if (e.hp <= 0) { handleEnemyDeath(e); enemies.splice(ei, 1); }
+        else if (e.type !== 'GIANTBOSS') spawnDeathParticles(e.x, e.y, e.def.color, 3);
+      }
+    }
+    for (let ai = asteroids.length - 1; ai >= 0; ai--) {
+      const a = asteroids[ai];
+      if (r.hitSet.has(a)) continue;
+      if (Math.abs(Math.hypot(a.x - r.x, a.y - r.y) - radius) <= a.r) {
+        r.hitSet.add(a);
+        registerAsteroidDamage(1, a);
+        spawnDeathParticles(a.x, a.y, '#bbbbbb', 2);
+      }
+    }
+  }
+}
+function drawInfinityRings() {
+  ctx.lineWidth = 1;
+  infinityRings.forEach(r => {
+    const frac = r.t / r.duration;
+    const radius = r.maxR * frac;
+    ctx.globalAlpha = 1 - frac;
+    ctx.strokeStyle = '#3a3a3a';
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+  ctx.globalAlpha = 1;
+}
 function drawSpecialStars() {
   if (starReverse) return;
   ctx.strokeStyle = 'rgba(255,255,255,0.6)';
@@ -6890,6 +7153,7 @@ function frameBody(now) {
   drawEarthHorizon();
   updateSpecialStars(dt);
   drawSpecialStars();
+  updateInfinityRings(dt); // keeps the ring's contact-damage mechanic; the ring itself is no longer drawn (removed per-request lingering afterimage)
 
   if (state === STATE.PLAYING && !paused) {
     updateSpawns(dt);
