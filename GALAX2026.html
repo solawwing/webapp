@@ -6,7 +6,7 @@
 <title>GALAX</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
   html, body {
     margin: 0; padding: 0; width: 100%; height: 100%;
@@ -252,6 +252,10 @@
         <div class="item-header"><span class="item-icon">T</span><span class="item-name">THUNDER</span></div>
         <div class="item-desc">Chain lightning jumps between targets.</div>
       </div>
+      <div class="item-entry" data-weapon="UNLEASH">
+        <div class="item-header"><span class="item-icon">U</span><span class="item-name">UNLEASH</span></div>
+        <div class="item-desc">Charges, then unleashes a piercing beam.</div>
+      </div>
       <div class="item-entry" data-weapon="VULCAN">
         <div class="item-header"><span class="item-icon">V</span><span class="item-name">VULCAN</span></div>
         <div class="item-desc">Rapid burst from the tip, per level.</div>
@@ -367,7 +371,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-10-03 16:57';
+const LAST_UPDATED = '2026-10-03 20:01';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -431,9 +435,13 @@ const BOSS_HIT_CAP = 5; // mini-bosses and the main boss can never lose more tha
 function capBossDmg(d) { return Math.min(d, BOSS_HIT_CAP); }
 let lastHitDamage = 0, damagePopupTimer = 0; // single-hit damage readout shown top-right in the HUD
 function reportDamage(d) { if (d > 0) { lastHitDamage = Math.round(d * 10) / 10; damagePopupTimer = 1.0; } return d; }
+// UNLEASH: each charge ring's 1.8s base shrink time is cut by 0.1s per RAPID
+// level (RAPID maxes at Lv3, so each ring can shrink in as little as 1.5s);
+// shared by both the update logic and the draw code so their timing always matches
+function unleashPulseTime() { return Math.max(0.5, 1.8 - (player.rapidLevel || 0) * 0.1); }
 function weaponMaxLevel(type) {
   // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL/ZAPPER/XCROSS/KURU2/ARROW/QIX/EARTH/WHIPS/INFINITY/FUNNEL uniquely level up to 7, every other weapon caps at 5
-  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS' || type === 'INFINITY' || type === 'FUNNEL') ? 7 : 5;
+  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS' || type === 'INFINITY' || type === 'FUNNEL' || type === 'UNLEASH') ? 7 : 5;
 }
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function formatScore(n) { return Math.round(n).toLocaleString('en-US'); }
@@ -492,11 +500,13 @@ function resetPlayer() {
   player.earthPods = []; player.earthT = 0;
   player.whipTethers = null; player.whipT = 0;
   player.infinityTriAngle = 0; player.infinityHitCooldowns = null; player.infinityLineHistory = []; player.infinityTimeAcc = 0; player.infinityTriRadii = null; player.infinityTriBaseRadii = null;
+  player.unleashState = null; player.unleashT = 0; player.unleashBeams = null; player.unleashHitCooldowns = null;
+  player.unleashPulses = null; player.unleashPulseCount = 0; player.unleashFadeBeams = null; player.unleashFadeT = 0;
 }
 
 // ---------- items ----------
-const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL'];
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff7a1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff' };
+const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL', 'UNLEASH'];
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff7a1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff', UNLEASH: '#ff2fd4' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -768,7 +778,7 @@ function updateItems(dt) {
     }
   }
 }
-const ITEM_GLYPHS = { LIFE: '+', DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E', WHIPS: 'W', INFINITY: 'I', FUNNEL: 'F' };
+const ITEM_GLYPHS = { LIFE: '+', DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E', WHIPS: 'W', INFINITY: 'I', FUNNEL: 'F', UNLEASH: 'U' };
 function drawItems() {
   ctx.lineWidth = 1;
   items.forEach(it => {
@@ -1113,6 +1123,13 @@ function whipTouchesAnySegment(segs, tx, ty, tr) {
   }
   return false;
 }
+function unleashTouchesAnyBeam(beams, tx, ty, tr) {
+  // tr should already include half the beam's own width, added by the caller
+  for (const b of beams) {
+    if (distSqToSegment(tx, ty, b.x1, b.y1, b.x2, b.y2) < tr * tr) return true;
+  }
+  return false;
+}
 function findNearestEnemyAhead(x, y, excludeSet, maxY) {
   // like findNearestEnemyExcluding, but ignores targets behind the reference point (y > maxY);
   // asteroids count as valid targets too (there are no other enemies during the Asteroid Belt)
@@ -1267,7 +1284,7 @@ function fireWeapon() {
       // spawns 20px from ship center in the firing direction, then flies straight for
       // 200px before it starts homing in on its target
       const hx = player.x + Math.sin(rad) * 20, hy = player.y - Math.cos(rad) * 20;
-      playerBullets.push({ x: hx, y: hy, vx: Math.sin(rad) * 100, vy: -Math.cos(rad) * 100, r: 3, homing: true, target, power: 20, homingLevel: lvl, speed: 100, maxSpeed: 500, homingAge: 0, straightDist: 200, homingTraveled: 0 });
+      playerBullets.push({ x: hx, y: hy, vx: Math.sin(rad) * 100, vy: -Math.cos(rad) * 100, r: 3, homing: true, target, power: 5, homingLevel: lvl, speed: 100, maxSpeed: 500, homingAge: 0, straightDist: 200, homingTraveled: 0 });
     });
   } else if (player.weapon === 'LASER') {
     // a long, clean, straight beam that pierces every enemy in its path with no
@@ -1355,7 +1372,7 @@ function fireWeapon() {
     // first, only 50px before its first bend), then reverses to travel forward
     // (straight up ± the same angle) from the second zig-zag onward, using a
     // randomized 20-50px leg distance each time it reverses; always zig-zags
-    // exactly 20 times regardless of level, then fades
+    // exactly 30 times regardless of level, then fades
     const centerX = player.x, centerY = player.y;
     for (let k = 0; k < lvl; k++) {
       const rad = rand(-lvl * 5, lvl * 5) * Math.PI / 180;
@@ -1363,7 +1380,7 @@ function fireWeapon() {
         x: centerX, y: centerY, vx: Math.sin(rad) * 1600, vy: Math.cos(rad) * 1600, r: 3, power: 2,
         refect: true, refectAngle: rad, refectBaseAngle: rad, refectSign: rad < 0 ? -1 : 1, refectDist: 0, pierceLeft: 999, hitSet: new Set(),
         refectFirstLeg: true,
-        zigzagsLeft: 20, refectLegDist: 50, fullTrail: [{ x: centerX, y: centerY, t: 0 }], refectAge: 0, noTrail: true,
+        zigzagsLeft: 30, refectLegDist: 50, fullTrail: [{ x: centerX, y: centerY, t: 0 }], refectAge: 0, noTrail: true,
       });
     }
   } else if (player.weapon === 'ORBITAL') {
@@ -1380,6 +1397,9 @@ function fireWeapon() {
     // its own in updatePlayer, not through this dispatch
   } else if (player.weapon === 'FUNNEL') {
     // no per-trigger action — FUNNEL's drones hunt/move/fire entirely on their own
+    // state machine in updatePlayer, not through this dispatch
+  } else if (player.weapon === 'UNLEASH') {
+    // no per-trigger action — UNLEASH's charge/fire cycle runs entirely on its own
     // state machine in updatePlayer, not through this dispatch
   } else if (player.weapon === 'XCROSS') {
     // fires a small X-shaped bolt; ignores damage on its own, but on hitting
@@ -2466,8 +2486,8 @@ function updateSpawns(dt) {
         // the last enemy to enter in a formation is bigger and tougher — cloning
         // `def` (rather than mutating the shared per-tier TYPES object) so other
         // enemies of the same tier keep their normal size
-        e.def = Object.assign({}, e.def, { r: e.def.r * 1.5 });
-        e.hp = e.maxHp = e.hp * 3;
+        e.def = Object.assign({}, e.def, { r: e.def.r * 1.2 });
+        e.hp = e.maxHp = e.hp * 5;
       }
       enemies.push(e);
       spawnQueue.splice(i, 1);
@@ -2862,7 +2882,7 @@ let debugStartWeapon = null;
 let debugStartAtBoss = false; // set via tapping the tier-A icon on the title screen
 let debugSkipEnemyWaves = false; // set via tapping the tier-C icon on the title screen — only ASTEROID/CRYSTAL/BOSS cycle positions play, ENEMY positions are silently skipped
 let debugStartMaxLevel = false; // set via tapping the tier-E icon on the title screen
-const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'KURU2', 'LASER', 'MISSILE', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'VULCAN', 'WHIPS', 'XCROSS', 'ZAPPER']; // no NORMAL — alphabetical order
+const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'KURU2', 'LASER', 'MISSILE', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'UNLEASH', 'VULCAN', 'WHIPS', 'XCROSS', 'ZAPPER']; // no NORMAL — alphabetical order
 function showEquipSelect() {
   showingEquip = true;
   titleScreen.classList.add('hidden');
@@ -2923,6 +2943,8 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["1 arrow.", "2 arrows.", "3 arrows.", "4 arrows.", "5 arrows.", "6 arrows.", "7 arrows, wide spread."] },
   SPARK: { intro: "A rare fireworks-themed pickup: twin sparks rise gently then burst into scattering fragments. Alternates every 40s between a calmer normal mode (8, 10, or 12-way bursts) and a wild spread mode (64, 128, or 256-way). Leveling up shifts the balance toward more spread time, almost entirely spread at max level.",
     levels: ["35s normal / 5s spread.", "30s normal / 10s spread.", "25s normal / 15s spread.", "20s normal / 20s spread.", "15s normal / 25s spread.", "10s normal / 30s spread.", "5s normal / 35s spread, mostly a spread barrage."] },
+  UNLEASH: { intro: "Charges through three 200px rings centered on the ship: the first two shrink down to half-size before handing off to the next one, while the third shrinks all the way down to nothing — then it unleashes a 50px-wide, piercing high-power beam straight ahead for 2 seconds before looping back into another 3-ring charge. The beam also destroys any enemy bullets passing through it. Leveling up fans the beam out into more simultaneous beams, spread wider around dead-ahead. UNLEASH uniquely levels to 7, for a wide piercing barrage.",
+    levels: ["1 beam.", "2 beams, ±4°.", "3 beams, ±8°.", "4 beams, ±12°.", "5 beams, ±16°.", "6 beams, ±20°.", "7 beams, ±24°, full barrage."] },
 };
 let equipDescIndex = 0;
 let equipDescInterval = null;
@@ -2962,7 +2984,7 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 2000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['FUNNEL', 'XCROSS', 'ZAPPER', 'WHIPS', 'QIX'];
+const EQUIP_UPDATED = ['FUNNEL', 'XCROSS', 'ZAPPER', 'WHIPS', 'QIX', 'UNLEASH'];
 const EQUIP_UPDATE_TAG = ['DOUBLE', 'EARTH', 'LASER']; // shows "UPDATE" instead of "NEW"
 const EQUIP_RENEW_TAG = ['INFINITY']; // shows "RENEW" instead of "NEW"/"UPDATE"
 EQUIP_CHOICES.forEach(type => {
@@ -3183,7 +3205,7 @@ function updatePlayer(dt) {
     const claimed = new Set();
     player.zapperSquares.forEach(sq => { if (sq && sq.target) claimed.add(sq.target); });
     const ZAPPER_SPEED = 700;
-    const ZAPPER_HOME_OFFSET = 35; // fixed for every pair, regardless of level
+    const ZAPPER_HOME_OFFSET = 35; // fixed — every pair's idle/home slot is the same 2 points beside the ship, stacked on top of each other
     for (let pi = 0; pi < pairCount; pi++) {
       [-1, 1].forEach((side) => {
         const idx = pi * 2 + (side < 0 ? 0 : 1);
@@ -3225,8 +3247,13 @@ function updatePlayer(dt) {
         } else if (sq.state === 'returning') {
           const dx = homeX - sq.x, dy = homeY - sq.y;
           const dist = Math.hypot(dx, dy);
-          if (dist < 5) { sq.x = homeX; sq.y = homeY; sq.state = 'idle'; sq.cooldownTimer = 0; }
-          else { sq.x += dx / dist * ZAPPER_SPEED * dt; sq.y += dy / dist * ZAPPER_SPEED * dt; }
+          // step is clamped to the remaining distance so it can't overshoot past the
+          // home point and wobble around it — with multiple pairs each overshooting by
+          // a slightly different amount, they'd settle into a small jittery cluster
+          // instead of landing exactly on top of each other
+          const step = Math.min(dist, ZAPPER_SPEED * dt);
+          if (dist < 0.5) { sq.x = homeX; sq.y = homeY; sq.state = 'idle'; sq.cooldownTimer = 0; }
+          else { sq.x += dx / dist * step; sq.y += dy / dist * step; }
         }
       });
     }
@@ -3686,6 +3713,133 @@ function updatePlayer(dt) {
     });
   } else {
     player.whipTethers = null;
+  }
+
+  // UNLEASH: a charge/fire cycle — three 200px circles centered on the ship, each
+  // shrinking over 1s; the moment one reaches half size, the next one starts
+  // shrinking from scratch. Once the 3rd circle reaches its own half size, a
+  // 50px-wide piercing beam (or several, fanned out per level) fires straight
+  // ahead for 2s, dealing 20dmg every 0.1s to anything it's overlapping, before
+  // looping right back into another 3-pulse charge
+  if (player.weapon === 'UNLEASH') {
+    // RAPID's level extends the beam's firing duration by 0.5s per level (RAPID
+    // maxes at Lv3, so firing can run from the base 2.0s up to 3.5s), and cuts
+    // each charge ring's shrink time by 0.1s per level (see unleashPulseTime)
+    const UNLEASH_PULSE_TIME = unleashPulseTime(), UNLEASH_PULSE_COUNT = 3, UNLEASH_FIRE_TIME = 2.0 + (player.rapidLevel || 0) * 0.5, UNLEASH_FADEOUT_TIME = 1.2;
+    const UNLEASH_WIDTH = 50, UNLEASH_POWER = 10, UNLEASH_LEN = 1600, UNLEASH_TICK = 0.1;
+    if (!player.unleashState) {
+      player.unleashState = 'charge';
+      player.unleashT = 0;
+      player.unleashPulses = [{ start: 0 }];
+      player.unleashPulseCount = 1;
+    }
+    player.unleashT = (player.unleashT || 0) + dt;
+    if (player.unleashState === 'charge') {
+      const lastPulse = player.unleashPulses[player.unleashPulses.length - 1];
+      const age = player.unleashT - lastPulse.start;
+      const isLastPulse = player.unleashPulseCount >= UNLEASH_PULSE_COUNT;
+      // every earlier ring only needs to reach its halfway point before handing off
+      // to the next one, but the LAST ring shrinks all the way down to nothing
+      // before firing — it shouldn't cut off at half size
+      const threshold = isLastPulse ? UNLEASH_PULSE_TIME : UNLEASH_PULSE_TIME / 2;
+      if (age >= threshold) {
+        if (!isLastPulse) {
+          player.unleashPulses.push({ start: player.unleashT });
+          player.unleashPulseCount++;
+        } else {
+          player.unleashState = 'fire';
+          player.unleashT = 0;
+          player.unleashPulses = null;
+          player.unleashPulseCount = 0;
+          player.unleashHitCooldowns = new Map();
+        }
+      }
+    } else if (player.unleashState === 'fire') {
+      // one beam per level, fanned out evenly around dead-ahead (straight up)
+      const lvl = player.weaponLevel;
+      const spreadTotal = (lvl - 1) * 8; // degrees, total fan width
+      const originX = player.x, originY = player.y - player.r * 0.9;
+      const beams = [];
+      for (let k = 0; k < lvl; k++) {
+        const a = lvl === 1 ? 0 : (-spreadTotal / 2 + k * (spreadTotal / (lvl - 1)));
+        const rad = a * Math.PI / 180;
+        const ux = Math.sin(rad), uy = -Math.cos(rad);
+        beams.push({ x1: originX, y1: originY, x2: originX + ux * UNLEASH_LEN, y2: originY + uy * UNLEASH_LEN });
+      }
+      player.unleashBeams = beams;
+      const halfW = UNLEASH_WIDTH / 2;
+      for (const [key, cd] of player.unleashHitCooldowns) {
+        const next = cd - dt;
+        if (next <= 0) player.unleashHitCooldowns.delete(key); else player.unleashHitCooldowns.set(key, next);
+      }
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        if (e.type === 'GIANTBOSS' && e.miniBossHp) {
+          e.miniBossMarkers = e.miniBossMarkers || [];
+          for (let vk = 0; vk < e.miniBossHp.length; vk++) {
+            if (e.miniBossHp[vk] <= 0) continue;
+            if (!e.miniBossMarkers[vk]) e.miniBossMarkers[vk] = {};
+            const marker = e.miniBossMarkers[vk];
+            if (player.unleashHitCooldowns.has(marker)) continue;
+            const mpos = bossVertexWorldPos(e, vk);
+            const miniR = (e.def.r / 3) * 0.7;
+            if (unleashTouchesAnyBeam(beams, mpos.x, mpos.y, miniR + halfW)) {
+              player.unleashHitCooldowns.set(marker, UNLEASH_TICK);
+              e.miniBossHp[vk] -= reportDamage(capBossDmg(UNLEASH_POWER));
+              score += scoreMultiplier * 10;
+              if (e.miniBossHp[vk] <= 0) { spawnDeathParticles(mpos.x, mpos.y, e.def.color, 14, 220); spawnDeathGhost(mpos.x, mpos.y, miniR, 0, e.def.color, 4); }
+              else spawnDeathParticles(mpos.x, mpos.y, e.def.color, 2);
+            }
+          }
+        }
+        if (player.unleashHitCooldowns.has(e)) continue;
+        if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
+        if (unleashTouchesAnyBeam(beams, e.x, e.y, e.def.r + halfW)) {
+          player.unleashHitCooldowns.set(e, UNLEASH_TICK);
+          whipDealDamage(e, UNLEASH_POWER);
+        }
+      }
+      for (let i = 0; i < asteroids.length; i++) {
+        const a = asteroids[i];
+        if (player.unleashHitCooldowns.has(a)) continue;
+        if (unleashTouchesAnyBeam(beams, a.x, a.y, a.r + halfW)) {
+          player.unleashHitCooldowns.set(a, UNLEASH_TICK);
+          whipDealDamage(a, UNLEASH_POWER);
+        }
+      }
+      // also destroys any enemy bullets it's piercing through
+      for (let i = enemyBullets.length - 1; i >= 0; i--) {
+        const eb = enemyBullets[i];
+        if (unleashTouchesAnyBeam(beams, eb.x, eb.y, eb.r + halfW)) {
+          enemyBullets.splice(i, 1);
+        }
+      }
+      if (player.unleashT >= UNLEASH_FIRE_TIME) {
+        // the beams don't vanish instantly — they hand off to a slow fade-out that
+        // runs independently alongside the NEXT charge, which starts immediately
+        // rather than waiting for the fade to finish
+        player.unleashFadeBeams = beams;
+        player.unleashFadeT = 0;
+        player.unleashState = 'charge';
+        player.unleashT = 0;
+        player.unleashBeams = null;
+        player.unleashHitCooldowns = null;
+        player.unleashPulses = [{ start: 0 }];
+        player.unleashPulseCount = 1;
+      }
+    }
+    // the fade-out (if one is playing) advances on its own timer, independent of
+    // the charge/fire state above, so it can overlap with the next charge
+    if (player.unleashFadeBeams) {
+      player.unleashFadeT = (player.unleashFadeT || 0) + dt;
+      if (player.unleashFadeT >= UNLEASH_FADEOUT_TIME) {
+        player.unleashFadeBeams = null;
+        player.unleashFadeT = 0;
+      }
+    }
+  } else {
+    player.unleashState = null; player.unleashT = 0; player.unleashBeams = null; player.unleashHitCooldowns = null;
+    player.unleashPulses = null; player.unleashPulseCount = 0; player.unleashFadeBeams = null; player.unleashFadeT = 0;
   }
 
   if (player.invT > 0) player.invT -= dt;
@@ -5471,6 +5625,129 @@ function drawPlayer() {
       }
       drawFunnelShape(f.x, f.y, f.angle || 0, '#00b7ff', 1.0);
     });
+  } else if (player.weapon === 'UNLEASH') {
+    // charge: a ring centered on the ship shrinking from 200px down to nothing over
+    // 2s; fire: one or more wide, piercing beams straight ahead, shown only as the
+    // translucent wash at the full 50px hit-width (no separate center line)
+    const UNLEASH_COLOR = '#ff2fd4'; // fluorescent pink
+    const UNLEASH_CHARGE_COLOR = '#ff2fd4'; // fluorescent pink
+    // PHANTOM-style rendering: a faint translucent fill across the beam's width,
+    // plus the two long side edges drawn as plain lines at a stronger alpha (no
+    // center-bright gradient) — same look as PHANTOM's flash, in fluorescent pink
+    const UNLEASH_HALFW = 25;
+    if (player.unleashState === 'fire' && player.unleashBeams) {
+      ctx.lineWidth = 1;
+      player.unleashBeams.forEach(b => {
+        const dx = b.x2 - b.x1, dy = b.y2 - b.y1;
+        const len = Math.hypot(dx, dy) || 1;
+        const px = -dy / len, py = dx / len; // unit perpendicular to the beam
+        ctx.globalAlpha = 0.1;
+        ctx.fillStyle = UNLEASH_COLOR;
+        ctx.beginPath();
+        ctx.moveTo(b.x1 + px * UNLEASH_HALFW, b.y1 + py * UNLEASH_HALFW);
+        ctx.lineTo(b.x2 + px * UNLEASH_HALFW, b.y2 + py * UNLEASH_HALFW);
+        ctx.lineTo(b.x2 - px * UNLEASH_HALFW, b.y2 - py * UNLEASH_HALFW);
+        ctx.lineTo(b.x1 - px * UNLEASH_HALFW, b.y1 - py * UNLEASH_HALFW);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 0.5;
+        ctx.strokeStyle = UNLEASH_COLOR;
+        ctx.beginPath();
+        ctx.moveTo(b.x1 + px * UNLEASH_HALFW, b.y1 + py * UNLEASH_HALFW);
+        ctx.lineTo(b.x2 + px * UNLEASH_HALFW, b.y2 + py * UNLEASH_HALFW);
+        ctx.moveTo(b.x1 - px * UNLEASH_HALFW, b.y1 - py * UNLEASH_HALFW);
+        ctx.lineTo(b.x2 - px * UNLEASH_HALFW, b.y2 - py * UNLEASH_HALFW);
+        ctx.stroke();
+      });
+      ctx.globalAlpha = 1;
+    }
+    // the fade-out of the PREVIOUS volley (if still playing) is drawn independently
+    // of the current state, since it now overlaps with the next charge instead of
+    // blocking it. The fill wipes away starting from the ship's end (near edge)
+    // toward the far tip (PHANTOM-style hard wipe); the two side edges use the
+    // earlier feathered wipe-front technique so they ALSO visibly fade starting
+    // from the ship's end, instead of staying at constant alpha until they vanish
+    if (player.unleashFadeBeams) {
+      const UNLEASH_FADEOUT_TIME = 1.2;
+      const UNLEASH_FADE_FEATHER = 300; // px width of the soft transition band on the edge wipe
+      const frac = Math.min(1, (player.unleashFadeT || 0) / UNLEASH_FADEOUT_TIME);
+      const UNLEASH_FADE_REF_LEN = Math.max(1, H) * 1.3;
+      const frontDist = frac * (UNLEASH_FADE_REF_LEN + UNLEASH_FADE_FEATHER) - UNLEASH_FADE_FEATHER;
+      ctx.lineWidth = 1;
+      player.unleashFadeBeams.forEach(b => {
+        const dx = b.x2 - b.x1, dy = b.y2 - b.y1;
+        const len = Math.hypot(dx, dy) || 1;
+        const ux = dx / len, uy = dy / len;
+        const px = -uy, py = ux;
+        const visibleLen = Math.max(0, len * (1 - frac));
+        if (visibleLen > 0) {
+          // the remaining visible portion stays anchored at the far tip and
+          // shrinks back from the ship's end, so the ship's end disappears first
+          const vx = b.x2 - ux * visibleLen, vy = b.y2 - uy * visibleLen;
+          ctx.globalAlpha = 0.1;
+          ctx.fillStyle = UNLEASH_COLOR;
+          ctx.beginPath();
+          ctx.moveTo(vx + px * UNLEASH_HALFW, vy + py * UNLEASH_HALFW);
+          ctx.lineTo(b.x2 + px * UNLEASH_HALFW, b.y2 + py * UNLEASH_HALFW);
+          ctx.lineTo(b.x2 - px * UNLEASH_HALFW, b.y2 - py * UNLEASH_HALFW);
+          ctx.lineTo(vx - px * UNLEASH_HALFW, vy - py * UNLEASH_HALFW);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.strokeStyle = UNLEASH_COLOR;
+        const SEG_LEN = 40;
+        const segCount = Math.ceil(len / SEG_LEN);
+        for (let si = 0; si < segCount; si++) {
+          const d0 = si * SEG_LEN, d1 = Math.min(len, d0 + SEG_LEN);
+          const dMid = (d0 + d1) / 2;
+          const segAlpha = Math.max(0, Math.min(1, (dMid - frontDist) / UNLEASH_FADE_FEATHER)) * 0.5;
+          if (segAlpha <= 0) continue;
+          ctx.globalAlpha = segAlpha;
+          ctx.beginPath();
+          ctx.moveTo(b.x1 + ux * d0 + px * UNLEASH_HALFW, b.y1 + uy * d0 + py * UNLEASH_HALFW);
+          ctx.lineTo(b.x1 + ux * d1 + px * UNLEASH_HALFW, b.y1 + uy * d1 + py * UNLEASH_HALFW);
+          ctx.moveTo(b.x1 + ux * d0 - px * UNLEASH_HALFW, b.y1 + uy * d0 - py * UNLEASH_HALFW);
+          ctx.lineTo(b.x1 + ux * d1 - px * UNLEASH_HALFW, b.y1 + uy * d1 - py * UNLEASH_HALFW);
+          ctx.stroke();
+        }
+      });
+      ctx.globalAlpha = 1;
+    }
+    if (player.unleashPulses) {
+      const UNLEASH_ECHO_COUNT = 4, UNLEASH_ECHO_STEP = 0.05; // trailing afterimage rings
+      const pulseTime = unleashPulseTime(); // matches the shrink-time RAPID shortens in updatePlayer
+      player.unleashPulses.forEach(pulse => {
+        const age = (player.unleashT || 0) - pulse.start;
+        // afterimage: a few faint rings at the radius the circle had slightly
+        // earlier (larger, since it's shrinking), trailing behind the main ring
+        // like a short motion trail as it shrinks
+        ctx.lineWidth = 1;
+        for (let k = UNLEASH_ECHO_COUNT; k >= 1; k--) {
+          const echoAge = age - k * UNLEASH_ECHO_STEP;
+          if (echoAge < 0) continue;
+          const et = Math.min(1, echoAge / pulseTime);
+          const er = Math.max(1, 200 * (1 - et));
+          const echoFadeIn = Math.min(1, echoAge / 0.15);
+          const echoAlpha = (0.9 - 0.7 * et) * echoFadeIn * (1 - k / (UNLEASH_ECHO_COUNT + 1)) * 0.5;
+          if (echoAlpha <= 0) continue;
+          ctx.strokeStyle = hexToRgba(UNLEASH_CHARGE_COLOR, echoAlpha);
+          ctx.beginPath();
+          ctx.arc(player.x, player.y, er, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.lineWidth = 1;
+        const t = Math.min(1, age / pulseTime);
+        const r = Math.max(1, 200 * (1 - t));
+        // brief fade-in right as each pulse starts, so the full 200px ring doesn't
+        // pop in at near-full opacity the instant it begins shrinking; opacity eases
+        // down from 0.9 at full size to 0.2 once fully shrunk, not all the way to 0
+        const fadeIn = Math.min(1, age / 0.15);
+        ctx.strokeStyle = hexToRgba(UNLEASH_CHARGE_COLOR, (0.9 - 0.7 * t) * fadeIn);
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, r, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+    }
   } else if (player.weapon === 'INFINITY' && player.infinityTriAngle !== null && player.infinityTriAngle !== undefined) {
     // an irregular triangle (uneven side lengths), centered on the ship, slowly rotating
     const INFINITY_COLOR = '#99FFFF'; // fluorescent light-blue with more white mixed in (triangle + lasers)
@@ -5566,7 +5843,19 @@ function drawPlayer() {
       }
     });
   }
-  drawPlayerShape(player.x, player.y, '#7CFFF0');
+  // UNLEASH: the ship's fill becomes less transparent (denser/brighter color) each
+  // time one of the 3 charge rings finishes shrinking, reaching its densest right
+  // as it fires
+  let shipFillAlpha = 0.15;
+  if (player.weapon === 'UNLEASH') {
+    if (player.unleashState === 'fire') {
+      shipFillAlpha = 0.5; // all 3 rings completed — capped at 50%
+    } else if (player.unleashPulses && player.unleashPulses.length) {
+      const completedRings = Math.max(0, (player.unleashPulseCount || 1) - 1); // 0,1,2
+      shipFillAlpha = 0.2 + completedRings * (0.3 / 3); // 0.2, 0.3, 0.4
+    }
+  }
+  drawPlayerShape(player.x, player.y, '#7CFFF0', shipFillAlpha);
 }
 
 function drawFunnelShape(x, y, angle, color, alpha) {
@@ -5592,7 +5881,7 @@ function drawFunnelShape(x, y, angle, color, alpha) {
   ctx.restore();
 }
 
-function drawPlayerShape(x, y, color) {
+function drawPlayerShape(x, y, color, fillAlpha) {
   const r = player.r;
   const vs = 1.4; // vertical stretch factor for a taller silhouette
   ctx.lineWidth = 1;
@@ -5603,7 +5892,7 @@ function drawPlayerShape(x, y, color) {
     grad.addColorStop(0.2, darkenColor(color, 0.5));
     grad.addColorStop(1, darkenColor(color, 0.5));
     ctx.strokeStyle = grad;
-    ctx.fillStyle = hexToRgba(color, 0.15);
+    ctx.fillStyle = hexToRgba(color, fillAlpha === undefined ? 0.15 : fillAlpha);
   } else {
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
@@ -6183,6 +6472,13 @@ function darkenColor(hex, amt, alpha) {
   const g = Math.round(parseInt(h.substring(2, 4), 16) * (1 - amt));
   const b = Math.round(parseInt(h.substring(4, 6), 16) * (1 - amt));
   return alpha === undefined ? `rgb(${r},${g},${b})` : `rgba(${r},${g},${b},${alpha})`;
+}
+function lightenColor(hex, amt) {
+  const h = hex.replace('#', '');
+  const r = Math.round(parseInt(h.substring(0, 2), 16) + (255 - parseInt(h.substring(0, 2), 16)) * amt);
+  const g = Math.round(parseInt(h.substring(2, 4), 16) + (255 - parseInt(h.substring(2, 4), 16)) * amt);
+  const b = Math.round(parseInt(h.substring(4, 6), 16) + (255 - parseInt(h.substring(4, 6), 16)) * amt);
+  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
 }
 function lerpColor(hexA, hexB, t) {
   const a = hexA.replace('#', ''), b = hexB.replace('#', '');
@@ -7095,7 +7391,7 @@ function drawNextStageText() {
 
 function drawHUD() {
   ctx.fillStyle = '#7CFFF0';
-  ctx.font = '12px "Montserrat", sans-serif';
+  ctx.font = '300 12px "Montserrat", sans-serif';
   ctx.textBaseline = 'top';
 
   // SCORE + HI: centered together as one block
@@ -7136,14 +7432,14 @@ function drawHUD() {
   }
 
   // item status: right side, as name + level block bar (font 2px smaller than the rest of the HUD)
-  ctx.font = '10px "Montserrat", sans-serif';
+  ctx.font = '300 10px "Montserrat", sans-serif';
   if (player.weapon !== 'NORMAL') drawLevelBar(player.weapon, player.weaponLevel, weaponMaxLevel(player.weapon), W - 12, 26);
   if (player.rapidLevel > 0) drawLevelBar('RAPID', player.rapidLevel, 3, W - 12, 44);
   ctx.fillStyle = '#7CFFF0';
   ctx.textAlign = 'right';
   const multiplierY = player.rapidLevel > 0 ? 58 : 40;
   ctx.fillText('x' + scoreMultiplier.toFixed(1), W - 12, multiplierY);
-  ctx.font = '12px "Montserrat", sans-serif';
+  ctx.font = '300 12px "Montserrat", sans-serif';
 
   // single-hit damage readout: just the number, right below the multiplier, fades out after a hit
   if (damagePopupTimer > 0) {
