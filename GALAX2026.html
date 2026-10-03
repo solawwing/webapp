@@ -367,7 +367,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-10-03 14:13';
+const LAST_UPDATED = '2026-10-03 16:28';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -3337,9 +3337,9 @@ function updatePlayer(dt) {
     // (the left-right swing amplitude) grows with RAPID level: Lv1=2, Lv2=5, Lv3=10.
     // Any line carrying a sub-laser deals double damage. The sub-laser's own wavy
     // path has its own hitbox too, not just the straight main line underneath it.
-    const INFINITY_SUB_RADII = [0, 5, 15, 30]; // indexed by rapidLevel (0 = none)
+    const INFINITY_SUB_RADII = [0, 5, 10, 15]; // indexed by rapidLevel (0 = none)
     const subLaserActive = (player.rapidLevel || 0) >= 1;
-    const SUB_WAVELENGTH = 50, SUB_AMPLITUDE = INFINITY_SUB_RADII[player.rapidLevel || 0], SUB_CRAWL_SPEED = 75; // must match drawPlayer's sub-laser constants
+    const SUB_WAVELENGTH = 100, SUB_AMPLITUDE = INFINITY_SUB_RADII[player.rapidLevel || 0], SUB_CRAWL_SPEED = 75; // must match drawPlayer's sub-laser constants
     const subLaserPaths = triVerts.map((v, vi) => {
       if (!subLaserActive) return null;
       const steps = Math.max(4, Math.round(Math.abs(v.y) / 6));
@@ -5498,10 +5498,10 @@ function drawPlayer() {
     // a thin sub-laser spirals around each main laser, winding left-right as it
     // climbs and slowly crawling upward over time, to read as wrapping around the
     // main beam in 3D rather than sitting flat on top of it
-    const SUB_WAVELENGTH = 50; // px per full wave cycle
+    const SUB_WAVELENGTH = 100; // px per full wave cycle
     // sub-lasers attach to ALL 3 lasers once RAPID is at least Lv1 (also doubling
     // their damage — see updatePlayer), and their radius grows with RAPID level
-    const INFINITY_SUB_RADII = [0, 5, 15, 30]; // indexed by rapidLevel (0 = none)
+    const INFINITY_SUB_RADII = [0, 5, 10, 15]; // indexed by rapidLevel (0 = none)
     const subLaserActive = (player.rapidLevel || 0) >= 1;
     const SUB_AMPLITUDE = INFINITY_SUB_RADII[player.rapidLevel || 0];
     const SUB_CRAWL_SPEED = 75; // how fast the wave pattern scrolls over time
@@ -5522,7 +5522,7 @@ function drawPlayer() {
         const x = v.x + Math.sin(phase) * SUB_AMPLITUDE;
         const depth = Math.cos(phase); // +1 = fully in front, -1 = fully behind
         if (prevX !== null) {
-          ctx.strokeStyle = hexToRgba(INFINITY_COLOR, (depth >= 0 ? 0.3 + 0.4 * depth : 0.15) * 0.5);
+          ctx.strokeStyle = hexToRgba(INFINITY_COLOR, depth >= 0 ? 0.3 + 0.4 * depth : 0.15);
           ctx.lineWidth = depth >= 0 ? 1 + depth : 0.6;
           ctx.beginPath();
           ctx.moveTo(prevX, prevY);
