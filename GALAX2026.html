@@ -371,7 +371,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-10-03 20:01';
+const LAST_UPDATED = '2026-10-05 00:56';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -435,10 +435,10 @@ const BOSS_HIT_CAP = 5; // mini-bosses and the main boss can never lose more tha
 function capBossDmg(d) { return Math.min(d, BOSS_HIT_CAP); }
 let lastHitDamage = 0, damagePopupTimer = 0; // single-hit damage readout shown top-right in the HUD
 function reportDamage(d) { if (d > 0) { lastHitDamage = Math.round(d * 10) / 10; damagePopupTimer = 1.0; } return d; }
-// UNLEASH: each charge ring's 1.8s base shrink time is cut by 0.1s per RAPID
-// level (RAPID maxes at Lv3, so each ring can shrink in as little as 1.5s);
+// UNLEASH: each charge ring's 1.3s base shrink time is cut by 0.1s per RAPID
+// level (RAPID maxes at Lv3, so each ring can shrink in as little as 1.0s);
 // shared by both the update logic and the draw code so their timing always matches
-function unleashPulseTime() { return Math.max(0.5, 1.8 - (player.rapidLevel || 0) * 0.1); }
+function unleashPulseTime() { return Math.max(0.5, 1.3 - (player.rapidLevel || 0) * 0.1); }
 function weaponMaxLevel(type) {
   // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL/ZAPPER/XCROSS/KURU2/ARROW/QIX/EARTH/WHIPS/INFINITY/FUNNEL uniquely level up to 7, every other weapon caps at 5
   return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS' || type === 'INFINITY' || type === 'FUNNEL' || type === 'UNLEASH') ? 7 : 5;
