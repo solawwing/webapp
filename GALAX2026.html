@@ -133,7 +133,7 @@
 <div id="overlay">
   <div id="titleScreen">
     <div class="title" id="titleText" style="font-size:clamp(8px,3.5vw,18px); cursor:pointer; pointer-events:auto;">GALAX2026</div>
-    <div style="font-size:14px; opacity:0.6; letter-spacing:2px; margin-top:2px; text-shadow:none;">version 3.1</div>
+    <div style="font-size:14px; opacity:0.6; letter-spacing:2px; margin-top:2px; text-shadow:none;">version 3.9</div>
     <svg width="360" height="26" viewBox="0 0 360 26" style="display:block; margin:0 auto 0;">
       <defs>
         <linearGradient id="titleArcFade" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -371,7 +371,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-10-05 00:56';
+const LAST_UPDATED = '2026-10-07 00:44';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1757,16 +1757,19 @@ const FAMILY_CURVE = {
             R: () => ({ p0: { x: W + 80, y: H * 0.05 }, p1: { x: W * 0.08, y: H * 0.4 } }) },
 };
 const PT_DEFS = {
-  PT1: { groups: [{ side: 'L', count: 8, family: 'SWOOP' }] },                                 // left, 8, gentle high-speed swoop
-  PT2: { groups: [{ side: 'R', count: 8, family: 'SWOOP' }] },                                 // right, 8, gentle high-speed swoop
-  PT3: { groups: [{ side: 'L', count: 4, family: 'SWOOP' }, { side: 'R', count: 4, family: 'SWOOP' }] }, // left+right, 4 each, swoop
-  PT4: { groups: [{ side: 'L', count: 8, family: 'ARC' }] },                                   // left, 8, big high-speed arc
-  PT5: { groups: [{ side: 'R', count: 8, family: 'ARC' }] },                                   // right, 8, big high-speed arc
-  PT6: { groups: [{ side: 'L', count: 4, family: 'ARC' }, { side: 'R', count: 4, family: 'ARC' }] },     // left+right, 4 each, arc
-  PT7: { groups: [{ side: 'L', count: 8, family: 'SCURVE' }] },                                // left-to-right, 8, big S-curve
-  PT8: { groups: [{ side: 'R', count: 8, family: 'SCURVE' }] },                                // right-to-left, 8, big S-curve
-  PT9: { groups: [{ side: 'L', count: 4, family: 'SCURVE' }, { side: 'R', count: 4, family: 'SCURVE' }] }, // both ways, 4 each, S-curve
+  PT1: { groups: [{ side: 'L', count: 8, family: 'SWOOP' }] },                                  // left, 8, gentle low swoop
+  PT2: { groups: [{ side: 'R', count: 8, family: 'SWOOP' }] },                                  // right, 8, gentle low swoop
+  PT3: { groups: [{ side: 'L', count: 8, family: 'SWOOP' }, { side: 'R', count: 8, family: 'SWOOP' }] },   // left 8 + right 8, swoop
+  PT4: { groups: [{ side: 'L', count: 8, family: 'ARC' }] },                                    // left, 8, big arc
+  PT5: { groups: [{ side: 'R', count: 8, family: 'ARC' }] },                                    // right, 8, big arc
+  PT6: { groups: [{ side: 'L', count: 8, family: 'ARC' }, { side: 'R', count: 8, family: 'ARC' }] },       // left 8 + right 8, arc
+  PT7: { groups: [{ side: 'L', count: 8, family: 'SCURVE' }] },                                 // left-to-right, 8, S-curve
+  PT8: { groups: [{ side: 'R', count: 8, family: 'SCURVE' }] },                                 // right-to-left, 8, S-curve
+  PT9: { groups: [{ side: 'L', count: 8, family: 'SCURVE' }, { side: 'R', count: 8, family: 'SCURVE' }] }, // left 8 + right 8, S-curve
 };
+function patternListEnemyCount(list) {
+  return list.reduce((sum, name) => sum + PT_DEFS[name].groups.reduce((t, g) => t + g.count, 0), 0);
+}
 
 function makeFormationEnemy(slot, p0, p1) {
   const t = TYPES[slot.type];
@@ -1809,6 +1812,7 @@ let waveTotalPatterns = 0;
 let waveIsDoubled = true;
 let activeEnterCount = 0;
 let waveEnemyGlobalIndex = 0;
+let waveLoopList = [];
 let waveItemDropIndices = new Set();
 let waveRapidDropIndex = -1;
 
@@ -1826,7 +1830,7 @@ function spawnPatternGroup(patternName) {
   // total enemies in this formation scales with the player's own strength: base
   // 8, plus weapon level plus RAPID level (e.g. Lv3 weapon + Lv2 RAPID = 13)
   const extra = (player.weaponLevel || 0) + (player.rapidLevel || 0);
-  const totalOriginal = def.groups.reduce((s, g) => s + g.count, 0); // 8, always
+  const totalOriginal = def.groups.reduce((s, g) => s + g.count, 0); // 8 or 16 (base)
   const totalNew = totalOriginal + extra;
   let assignedSoFar = 0;
   const groupCounts = def.groups.map((g, gi) => {
@@ -1846,7 +1850,7 @@ function spawnPatternGroup(patternName) {
       const { p0, p1 } = curveFn();
       const idx = waveEnemyGlobalIndex++;
       spawnQueue.push({
-        slot, delay: k * 0.4, isFormation: true, p0, p1,
+        slot, delay: (slotCursor - 1) * 0.2, isFormation: true, p0, p1, // one enemy enters every 0.2s, one formation at a time (L+R patterns: left group then right group in a single stream)
         dropsItem: waveItemDropIndices.has(idx),
         dropsRapid: idx === waveRapidDropIndex,
         firstPass: !isSecondPass,
@@ -1864,10 +1868,26 @@ function forceAllFormationEnemiesToDive() {
   });
 }
 
-function tryAdvanceWavePattern() {
+let patternWasEntering = false, patternGapT = 0;
+const PATTERN_GAP = 1.2; // seconds of breathing room between one formation finishing its entry and the next starting
+function tryAdvanceWavePattern(dt) {
   if (!waveActive) return;
-  if (activeEnterCount > 0) return; // current pattern still entering
-  if (wavePatternQueue.length === 0) return; // this wave's patterns are all done
+  if (activeEnterCount > 0) { patternWasEntering = true; return; } // current pattern still entering
+  if (patternWasEntering) { patternWasEntering = false; patternGapT = PATTERN_GAP; }
+  if (patternGapT > 0) { patternGapT -= (dt || 0); return; }
+  if (asteroidWaveTimer >= 40) return; // formations keep coming until the 40s mark
+  if (wavePatternQueue.length === 0) {
+    // time-limited enemy wave: loop the formation list until the 40s mark
+    if (waveLoopList.length === 0 || asteroidWaveTimer >= 40) return;
+    wavePatternQueue = [...waveLoopList];
+    const base = waveEnemyGlobalIndex, total = patternListEnemyCount(waveLoopList);
+    const idxs = Array.from({ length: total }, (_, i) => base + i);
+    for (let i = idxs.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [idxs[i], idxs[j]] = [idxs[j], idxs[i]];
+    }
+    for (let k = 0; k < 3 && k < total; k++) waveItemDropIndices.add(idxs[k]);
+  }
   // right before the 2nd pass through the pattern list starts, send any still-idle
   // 1st-pass enemies into their dive attack rather than leaving them parked
   if (waveIsDoubled && waveRowIndex === waveTotalPatterns / 2) {
@@ -1973,7 +1993,7 @@ const WAVE_PATTERN_LISTS = [
 
 function getWavePatternList(enemySlotIndex) {
   const base = WAVE_PATTERN_LISTS[enemySlotIndex];
-  return [...base]; // every wave's pattern list runs once (7 patterns/56 enemies)
+  return [...base]; // every wave's pattern list runs once (7 patterns/140 enemies)
 }
 
 function waveEnemyCount(w) {
@@ -1981,7 +2001,7 @@ function waveEnemyCount(w) {
   const kind = CYCLE_KIND[m - 1];
   if (kind !== 'ENEMY') return 0;
   const enemySlotIndex = CYCLE_KIND.slice(0, m - 1).filter(k => k === 'ENEMY').length;
-  return getWavePatternList(enemySlotIndex).length * 8;
+  return patternListEnemyCount(getWavePatternList(enemySlotIndex));
 }
 
 let asteroids = [];
@@ -2286,6 +2306,8 @@ function startWave() {
   waveActive = false;
   enemies = [];
   spawnQueue = [];
+  wavePatternQueue = [];
+  waveLoopList = [];
   starReverse = false;
   bossDefeated = false;
   asteroids = [];
@@ -2361,19 +2383,22 @@ function activateWave(kind, m) {
   } else {
     const enemySlotIndex = CYCLE_KIND.slice(0, m - 1).filter(k => k === 'ENEMY').length;
     const patternList = getWavePatternList(enemySlotIndex);
-    lastLayoutCount = patternList.length * 8;
+    lastLayoutCount = patternListEnemyCount(patternList);
     // patterns run sequentially: only the first is dispatched now, the rest
     // wait (via tryAdvanceWavePattern) until the current one finishes entering
     wavePatternQueue = [...patternList];
+    waveLoopList = [...patternList];
+    asteroidWaveTimer = 0;
     waveTotalPatterns = patternList.length;
     waveIsDoubled = false; // every wave runs its pattern list once now, no 2nd pass exists
     waveRowIndex = 0;
     activeEnterCount = 0;
     waveEnemyGlobalIndex = 0;
+    patternWasEntering = false; patternGapT = 0;
 
     // item drops: designate 3 random enemies (by spawn order) this wave to drop a
     // weapon item on death (RAPID no longer drops in normal waves — see the Asteroid Belt bonus)
-    const totalEnemies = patternList.length * 8;
+    const totalEnemies = patternListEnemyCount(patternList);
     waveItemDropIndices = new Set();
     waveRapidDropIndex = -1;
     const indices = Array.from({ length: totalEnemies }, (_, i) => i);
@@ -2493,7 +2518,7 @@ function updateSpawns(dt) {
       spawnQueue.splice(i, 1);
     }
   }
-  tryAdvanceWavePattern();
+  tryAdvanceWavePattern(dt);
 }
 
 function pickDivers() {
@@ -2758,7 +2783,7 @@ function updateEnemies(dt) {
     }
     const dt = (slowedByShockwave || slowedByPhantom) ? fullDt * (slowedByShockwave ? (1 / 4) : 0.5) : fullDt;
     if (e.state === 'enter') {
-      e.t += (dt * 2) / e.duration; // moves into formation at 2x speed
+      e.t += (dt * (e.type === 'GIANTBOSS' ? 2 : 1.875)) / e.duration; // moves into formation at 1.875x speed (boss 2x)
       if (e.t >= 1) {
         if (e.type === 'GIANTBOSS') {
           e.state = 'bossmove';
@@ -2833,6 +2858,17 @@ function updateEnemies(dt) {
         const p = bezier(e.p0, e.p1, e.p2, e.p3, e.t);
         e.x = p.x; e.y = p.y;
       }
+    } else if (e.state === 'wallturret') {
+      e.y += WALL_SCROLL * dt;
+      const apo = WALL_TURRET_SIDE / (2 * Math.sqrt(3));
+      e.x = wallEdgeX(e.side, e.y) + (e.side === 0 ? apo : -apo);
+      if (e.y > H + 20 || !wallsWanted()) { enemies.splice(i, 1); continue; }
+      e.fireTimer -= dt;
+      if (e.fireTimer <= 0) {
+        e.fireTimer += 1.5;
+        if (e.y > 0 && player.alive && !player.warping) fireEnemyBullet(e);
+      }
+      continue;
     } else if (e.state === 'shard') {
       e.x += e.vx * dt;
       e.y += e.vy * dt;
@@ -3086,6 +3122,106 @@ function goToTitle() {
 }
 
 // ---------- update ----------
+// ---- corridor walls (enemy waves only): both side walls scroll down fast; every 3s the
+// whole corridor slides left/right by 20px at random; the ship can only move inside ----
+const WALL_BASE = 34, WALL_STEP = 20, WALL_MAX_SHIFT = 100, WALL_SCROLL = 130;
+let wallK = 0, wallShiftTarget = 0, wallShiftTimer = 3, wallCps = [];
+function wallStepsForWave() {
+  const wm = ((wave - 1) % CYCLE_LEN) + 1; // wall stages: pos 2 → 25/50px, pos 6 → 50/75px, pos 10 → 75/100px
+  return wm === 6 ? [50, 75] : wm === 10 ? [75, 100] : [25, 50];
+}
+function wallsWanted() {
+  if (!waveActive) return false;
+  const wm = ((wave - 1) % CYCLE_LEN) + 1;
+  return CYCLE_KIND[wm - 1] === 'ENEMY' && (wm === 2 || wm === 6 || wm === 10); // wall stages: cycle positions 2, 6, 10 only
+}
+// the wall is a polyline: each change point scrolls down and the edge jumps by 20px there
+// (horizontal step, so every bend is a right angle)
+function wallShiftAt(y) {
+  for (let i = 0; i < wallCps.length; i++) if (y < wallCps[i].y) return wallCps[i].above;
+  return wallCps.length ? wallCps[wallCps.length - 1].below : 0;
+}
+function wallBounds(yTop, yBot) {
+  if (yTop === undefined) { yTop = 0; yBot = H; }
+  const mid = (yTop + yBot) / 2;
+  const s0 = wallShiftAt(yTop), s1 = wallShiftAt(mid), s2 = wallShiftAt(yBot);
+  const k = wallK;
+  return { l: Math.max(0, WALL_BASE * k + Math.max(s0, s1, s2) * k), r: Math.min(W, W - WALL_BASE * k + Math.min(s0, s1, s2) * k) };
+}
+function updateWalls(dt) {
+  const want = wallsWanted();
+  if (want) {
+    wallShiftTimer -= dt;
+    if (wallShiftTimer <= 0) {
+      wallShiftTimer += 3;
+      const old = wallShiftTarget;
+      // random step of 25/50px, left or right, that keeps both walls on screen
+      const cands = [];
+      for (const st of wallStepsForWave()) for (const d of [-1, 1]) if (Math.abs(old + d * st) <= WALL_MAX_SHIFT) cands.push(old + d * st);
+      wallShiftTarget = cands.length ? choice(cands) : old;
+      if (wallShiftTarget !== old) wallCps.unshift({ y: 0, above: wallShiftTarget, below: old });
+    }
+  } else { wallShiftTimer = 3; wallShiftTarget = 0; wallCps = []; }
+  wallK = clamp(wallK + (want ? dt / 0.8 : -dt / 0.8), 0, 1);
+  wallCps.forEach(c => { c.y += WALL_SCROLL * dt; });
+  while (wallCps.length && wallCps[wallCps.length - 1].y > H + 60) wallCps.pop();
+  // wall turrets (砲台): one per wall, the right one half a screen out of phase with the left one
+  if (want && wallK >= 1 && asteroidWaveTimer < 40) {
+    for (const side of [0, 1]) {
+      if (enemies.some(e => e.type === 'TURRET' && e.side === side)) continue;
+      if (side === 1 && !wallRightStarted) {
+        const L = enemies.find(e => e.type === 'TURRET' && e.side === 0);
+        if (!L || L.y < H / 2) continue;
+        wallRightStarted = true;
+      }
+      enemies.push(makeWallTurret(side));
+    }
+  } else if (!want) wallRightStarted = false;
+}
+let wallRightStarted = false;
+const WALL_TURRET_GAP = 420, WALL_TURRET_SIDE = 15;
+function wallEdgeX(side, y) {
+  const sh = wallShiftAt(y) * wallK;
+  return side === 0 ? WALL_BASE * wallK + sh : W - WALL_BASE * wallK + sh;
+}
+function makeWallTurret(side) {
+  const hp = 5;
+  const def = { hp, score: 10, color: '#ff2e63', r: WALL_TURRET_SIDE / Math.sqrt(3), sides: 3, speedMul: 1.0 };
+  const apothem = WALL_TURRET_SIDE / (2 * Math.sqrt(3));
+  const y = -10;
+  return { type: 'TURRET', side, def, hp, maxHp: hp, slot: null, state: 'wallturret',
+    x: wallEdgeX(side, y) + (side === 0 ? apothem : -apothem), y, angle: 0,
+    fireTimer: 1.5, dropsItem: false, dropsRapid: false };
+}
+function drawWalls() {
+  if (wallK <= 0.001) return;
+  const k = wallK;
+  const pts = [[wallShiftAt(0), 0]];
+  for (let i = 0; i < wallCps.length; i++) {
+    const c = wallCps[i];
+    if (c.y <= 0 || c.y >= H) continue;
+    pts.push([c.above, c.y], [c.below, c.y]);
+  }
+  pts.push([wallShiftAt(H), H]);
+  ctx.save();
+  ctx.fillStyle = 'rgba(52,224,255,0.2)'; // 80% transparent
+  ctx.strokeStyle = '#a0a0a0'; ctx.lineWidth = 1;
+  for (const side of [0, 1]) {
+    const x = (p) => side === 0 ? WALL_BASE * k + p[0] * k : W - WALL_BASE * k + p[0] * k;
+    ctx.beginPath();
+    ctx.moveTo(side === 0 ? -2 : W + 2, 0);
+    pts.forEach(p => ctx.lineTo(x(p), p[1]));
+    ctx.lineTo(side === 0 ? -2 : W + 2, H);
+    ctx.closePath();
+    ctx.fillStyle = '#000'; ctx.fill(); // hides the background stars outside the walls
+    ctx.fillStyle = 'rgba(160,160,160,0.1)'; ctx.fill();
+    ctx.beginPath();
+    pts.forEach((p, i) => i ? ctx.lineTo(x(p), p[1]) : ctx.moveTo(x(p), p[1]));
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function updatePlayer(dt) {
   if (player.warping) {
     player.warpTrail.push({ x: player.x, y: player.y });
@@ -3108,11 +3244,14 @@ function updatePlayer(dt) {
   if (keys['ArrowRight'] || keys['KeyD']) player.targetX += 380 * dt;
   if (keys['ArrowUp'] || keys['KeyW']) player.targetY -= 380 * dt;
   if (keys['ArrowDown'] || keys['KeyS']) player.targetY += 380 * dt;
-  player.targetX = clamp(player.targetX, player.r + 4, W - player.r - 4);
+  const wb = wallBounds(player.y - player.r, player.y + player.r);
+  player.targetX = clamp(player.targetX, wb.l + player.r + 4, wb.r - player.r - 4);
   player.targetY = clamp(player.targetY, player.r + 4, H - player.r - 4);
   const prevX = player.x, prevY = player.y;
   player.x += (player.targetX - player.x) * Math.min(1, dt * 14);
   player.y += (player.targetY - player.y) * Math.min(1, dt * 14);
+  // walls pushing in ease the ship aside instead of snapping it
+  player.x += (clamp(player.x, wb.l + player.r + 4, wb.r - player.r - 4) - player.x) * Math.min(1, dt * 16);
   // tilt slightly in the direction of horizontal movement
   const dx = player.x - prevX;
   const vx = dt > 0 ? dx / dt : 0;
@@ -3917,6 +4056,11 @@ function updateBullets(dt) {
       b.spawnDelay -= dt;
       continue; // held back, not yet fired
     }
+    if (wallK > 0.5) {
+      // the corridor walls stop the ship's bullets
+      const wbb = wallBounds(b.y, b.y);
+      if (b.x < wbb.l || b.x > wbb.r) { playerBullets.splice(i, 1); continue; }
+    }
     if (b.laser && b.laserTickTimer !== undefined) {
       // main LASER beam ticks damage repeatedly (every 0.1s) to anything still
       // overlapping it, rather than a single hit per target as it passes through.
@@ -4365,6 +4509,8 @@ function updateBullets(dt) {
 function handleEnemyDeath(e) {
   if (e.type === 'GIANTBOSS') {
     score += scoreMultiplier * wave * 10000;
+  } else if (e.type === 'TURRET') {
+    score += scoreMultiplier * 5000; // wall turret: flat 5000
   } else {
     score += scoreMultiplier * e.def.score * wave * 10;
   }
@@ -5463,7 +5609,7 @@ function checkWaveClear() {
     ? bossDefeated
     : (isAsteroidKind(kind) || isCrystalKind(kind))
       ? asteroidWaveTimer >= 62 // 60s belt + 2s extra so the Bonus banner (triggered at 1s remaining, shown 3s) finishes before the actual clear/warp
-      : (enemies.length === 0 && spawnQueue.length === 0);
+      : asteroidWaveTimer >= 40; // enemy waves: fixed 40s — leftover enemies are wiped and the ship warps out
   if (cleared) {
     // clean transition: clear anything left over regardless of wave kind
     if ((isAsteroidKind(kind) || isCrystalKind(kind)) && !beltDamageBonusApplied) {
@@ -5481,7 +5627,7 @@ function checkWaveClear() {
     sideBeamMarkers = [];
     waveClearTimer += 1/60;
     const burstPhaseDuration = 5.0, nextStagePhaseDuration = 5.0;
-    const clearDelay = kind === 'BOSS' ? (burstPhaseDuration + nextStagePhaseDuration) : 1.2; // let the boss explosion + "next stage" beat play out fully
+    const clearDelay = kind === 'BOSS' ? (burstPhaseDuration + nextStagePhaseDuration) : (kind === 'ENEMY' ? 0.3 : 1.2); // let the boss explosion + "next stage" beat play out fully
     if (kind === 'BOSS') {
       // every 0.5s from the moment the boss is destroyed until the wave actually
       // clears, award a random (1-100)×100 score bonus
@@ -6007,6 +6153,7 @@ function updateAsteroidWave(dt) {
   const m = ((wave - 1) % CYCLE_LEN) + 1;
   const kind = CYCLE_KIND[m - 1];
   const isCry = isCrystalKind(kind);
+  if (kind === 'ENEMY') { asteroidWaveTimer += dt; return; } // time-limited (30s), but no HUD timer/damage display
   if (!isAsteroidKind(kind) && !isCry) return;
   asteroidWaveTimer += dt;
   asteroidSpawnTimer -= dt;
@@ -6491,6 +6638,18 @@ function lerpColor(hexA, hexB, t) {
 function drawEnemy(e) {
   const x = e.x, y = e.y, r = e.def.r;
   ctx.lineWidth = 1;
+  if (e.type === 'TURRET') {
+    // equilateral triangle, one side flat against the wall, apex pointing into the corridor
+    const dir = e.side === 0 ? 1 : -1;
+    const half = WALL_TURRET_SIDE / 2, hgt = WALL_TURRET_SIDE * Math.sqrt(3) / 2;
+    const bx = x - dir * hgt / 3;
+    ctx.beginPath();
+    ctx.moveTo(bx, y - half); ctx.lineTo(bx, y + half); ctx.lineTo(bx + dir * hgt, y);
+    ctx.closePath();
+    ctx.strokeStyle = e.def.color; // wireframe, no fill
+    ctx.stroke();
+    return;
+  }
   if (e.type === 'GIANTBOSS' && e.trail && e.trail.length > 0) {
     e.trail.forEach((p, idx) => {
       const alpha = ((idx + 1) / (e.trail.length + 1)) * 0.6;
@@ -7429,6 +7588,12 @@ function drawHUD() {
     }
   } else {
     bonusSnapshot = null; // reset once we're outside a belt wave
+    if (waveActive && CYCLE_KIND[cycleM - 1] === 'ENEMY') {
+      // enemy-formation stage: 40s countdown only (no damage readout)
+      const remaining = Math.max(0, Math.ceil(40 - asteroidWaveTimer));
+      ctx.textAlign = 'center';
+      ctx.fillText('TIME ' + remaining, W / 2, 28);
+    }
   }
 
   // item status: right side, as name + level block bar (font 2px smaller than the rest of the HUD)
@@ -7505,6 +7670,7 @@ function frameBody(now) {
     updateWaveAnnounce(dt);
     updatePendingWaveStart(dt);
     updateAsteroidWave(dt);
+    updateWalls(dt);
     updateBossWave(dt);
     updateAsteroids(dt);
     updateDyingAsteroids(dt);
@@ -7526,6 +7692,7 @@ function frameBody(now) {
     updateKuru2EdgeFragments(dt);
   }
 
+  drawWalls();
   enemies.forEach(drawEnemy);
   drawAsteroids();
   drawDyingAsteroids();
