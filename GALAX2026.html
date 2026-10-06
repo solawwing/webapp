@@ -371,7 +371,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-10-07 01:00';
+const LAST_UPDATED = '2026-10-07 02:30';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1933,11 +1933,48 @@ function makeBossEnemy() {
 function isBossVulnerable(e) {
   // the main boss body stays fully invulnerable until every mini-boss at its vertices
   // has been individually destroyed
+  if (e.revived) return true; // revived boss: always targetable, its mini-bosses are indestructible
   return !e.miniBossHp || e.miniBossHp.every(hp => hp <= 0);
 }
 
 let starReverse = false;
 let bossDefeated = false;
+let bossReviveUsed = false, bossRevive = null, bossItemRainTimer = 0;
+function updateBossRevive(dt) {
+  if (!bossRevive || !waveActive) return;
+  const r = bossRevive;
+  r.timer -= dt;
+  r.burstT -= dt;
+  if (r.burstT <= 0) { // keep the wreckage bursting while the boss pulls itself back together
+    spawnDeathParticles(r.x + rand(-60, 60), r.y + rand(-60, 60), lastBossColor, 12, 260);
+    r.burstT = 0.12;
+  }
+  if (r.timer > 0) return;
+  bossRevive = null;
+  const b = makeBossEnemy();
+  const bt = BOSS_TYPES[r.key];
+  b.bossKey = r.key;
+  b.def = { hp: 800, score: 100, color: bt.color, r: 120, baseR: 120, sides: bt.sides };
+  b.x = r.x; b.y = r.y;
+  b.p0 = { x: r.x, y: r.y }; b.p1 = { x: r.x, y: r.y }; b.p2 = { x: (r.x + W / 2) / 2, y: (r.y + H * 0.2) / 2 };
+  b.duration = 3.2; // half the previous revive speed
+  b.revived = true;
+  b.reviveT = 0;
+  // mini-bosses are indestructible (HP never drops); only the main boss can be hit
+  // each hit on one of them is passed straight to the boss instead (the mini-boss itself never loses HP)
+  b.miniBossHp = new Array(bt.sides * 2).fill(1e9);
+  for (let mk = 0; mk < b.miniBossHp.length; mk++) {
+    Object.defineProperty(b.miniBossHp, mk, { enumerable: true, configurable: true,
+      get() { return 1e9; },
+      set(v) { const d = 1e9 - v; if (d > 0 && b.hp > 0) b.hp -= d; } });
+  }
+  // no single hit may take more than 5 HP off the revived boss, whatever weapon dealt it
+  b._hp = 800; b.maxHp = 800; delete b.hp;
+  Object.defineProperty(b, 'hp', { enumerable: true, configurable: true,
+    get() { return this._hp; },
+    set(v) { const d = this._hp - v; this._hp = d > 5 ? this._hp - 5 : v; } });
+  enemies.push(b);
+}
 let bossPoolHp = 0, bossPoolMaxHp = 800, bossMinionTimer = 0;
 function spawnBossWaveMinion() {
   // boss wave: individual enemies (random tier A-E) spawn straight from the top of the
@@ -1963,12 +2000,12 @@ function spawnBossWaveMinion() {
 let bossExplosionBurstTimer = 0;
 let bossPostDeathBonusTimer = 0;
 function inBossNextStagePhase() {
-  // the 10s window after the boss's death-burst sequence finishes, before the actual
+  // the 3s window after the boss's death-burst sequence finishes, before the actual
   // wave transition: starfield jumps to 5x speed and "GOOD JOB! / NEXT STAGE" shows centered
   if (!bossDefeated) return false;
   const cycleM = ((wave - 1) % CYCLE_LEN) + 1;
   if (CYCLE_KIND[cycleM - 1] !== 'BOSS') return false;
-  return waveClearTimer >= 5.0 && waveClearTimer < 10.0;
+  return waveClearTimer >= 5.0 && waveClearTimer < 8.0;
 }
 let lastBossColor = '#ff2e6b';
 
@@ -2310,6 +2347,7 @@ function startWave() {
   waveLoopList = [];
   starReverse = false;
   bossDefeated = false;
+  bossReviveUsed = false; bossRevive = null;
   asteroids = [];
   dyingAsteroids = [];
   dyingEnemyGhosts = [];
@@ -2612,7 +2650,7 @@ function fireBossBarrage(e) {
   const offset = e.barrageAngle || 0;
   for (let k = 0; k < n; k++) {
     const a = offset + (k / n) * Math.PI * 2;
-    enemyBullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, r: 4 });
+    enemyBullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, r: 4, white: true });
   }
   if (spiralKeys.includes(e.bossKey)) {
     // spiral types: continuous barrage, rotate slightly each volley for a spinning coverage effect
@@ -2626,7 +2664,7 @@ function fireBossBarrage(e) {
     const pos = bossVertexWorldPos(e, vk);
     for (let mk = 0; mk < miniN; mk++) {
       const a = offset + (mk / miniN) * Math.PI * 2;
-      enemyBullets.push({ x: pos.x, y: pos.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, r: 4 });
+      enemyBullets.push({ x: pos.x, y: pos.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, r: 4, white: true });
     }
   }
 }
@@ -2758,10 +2796,11 @@ function updateEnemies(dt) {
 
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i];
+    if (e.revived && e.hp <= 0) { handleEnemyDeath(e); enemies.splice(i, 1); continue; } // killed through damage routed from its mini-bosses
     if (e.type === 'GIANTBOSS' && e.def.baseR) {
       // shrinks as it takes damage, down to a minimum of 25% of its original size
-      const frac = Math.max(0.25, e.hp / e.maxHp);
-      e.def.r = e.def.baseR * frac;
+      e.def.r = e.def.baseR; // no longer shrinks as it takes damage
+      if (e.revived && e.reviveT < 2) { e.reviveT += fullDt; e.def.r *= Math.max(0.1, Math.min(1, e.reviveT / 2)); }
       updateMiniBossDrift(e, fullDt);
     }
     const ox = e.x, oy = e.y;
@@ -3949,7 +3988,7 @@ function updatePlayer(dt) {
       // also destroys any enemy bullets it's piercing through
       for (let i = enemyBullets.length - 1; i >= 0; i--) {
         const eb = enemyBullets[i];
-        if (unleashTouchesAnyBeam(beams, eb.x, eb.y, eb.r + halfW)) {
+        if (!eb.white && unleashTouchesAnyBeam(beams, eb.x, eb.y, eb.r + halfW)) {
           enemyBullets.splice(i, 1);
         }
       }
@@ -4517,9 +4556,26 @@ function handleEnemyDeath(e) {
   if (e.slot) e.slot.filled = false;
   killCount += 1;
   if (e.countsForPattern) { activeEnterCount--; e.countsForPattern = false; }
-  if (e.type === 'GIANTBOSS') {
+  if (e.type === 'GIANTBOSS' && !e.revived && !bossReviveUsed) {
+    // first defeat: the boss blows up, then revives out of the explosion (see updateBossRevive)
+    bossReviveUsed = true;
     spawnBossExplosion(e.x, e.y, e.def.color);
     spawnDeathGhost(e.x, e.y, e.def.r, e.angle || 0, e.def.color, e.def.sides);
+    lastBossColor = e.def.color;
+    bossRevive = { x: e.x, y: e.y, key: e.bossKey, timer: 2.0, burstT: 0 };
+  } else if (e.type === 'GIANTBOSS') {
+    spawnBossExplosion(e.x, e.y, e.def.color);
+    spawnDeathGhost(e.x, e.y, e.def.r, e.angle || 0, e.def.color, e.def.sides);
+    if (e.revived && e.miniBossHp) {
+      // the indestructible mini-bosses go down together with the revived boss
+      for (let vk = 0; vk < e.miniBossHp.length; vk++) {
+        const mp = bossVertexWorldPos(e, vk), mr = (e.def.r / 3) * 0.7;
+        spawnDeathParticles(mp.x, mp.y, e.def.color, 24, 360);
+        spawnDeathGhost(mp.x, mp.y, mr, 0, e.def.color, 4);
+        spawnBossExplosion(mp.x, mp.y, e.def.color); // every mini-boss goes up in its own boss-size blast
+        e.miniBossHp[vk] = 0;
+      }
+    }
     lastBossColor = e.def.color;
     globalSpeedBonus += 0.2;
     bossDefeated = true;
@@ -4587,7 +4643,7 @@ function handleOptionCollisions() {
     for (let i = enemyBullets.length - 1; i >= 0; i--) {
       const b = enemyBullets[i];
       const rr = (optR + b.r) * (optR + b.r);
-      if (dist2(opt.x, opt.y, b.x, b.y) < rr) {
+      if (!b.white && dist2(opt.x, opt.y, b.x, b.y) < rr) {
         enemyBullets.splice(i, 1);
       }
     }
@@ -4611,7 +4667,7 @@ function handleOptionCollisions() {
     for (let i = enemyBullets.length - 1; i >= 0; i--) {
       const b = enemyBullets[i];
       const rr = (lineR + b.r) * (lineR + b.r);
-      if (lineSegs.some(seg => distSqToSegment(b.x, b.y, seg.x1, seg.y1, seg.x2, seg.y2) < rr)) {
+      if (!b.white && lineSegs.some(seg => distSqToSegment(b.x, b.y, seg.x1, seg.y1, seg.x2, seg.y2) < rr)) {
         enemyBullets.splice(i, 1);
       }
     }
@@ -4716,7 +4772,7 @@ function handleOrbitalRingCollisions() {
     for (let i = enemyBullets.length - 1; i >= 0; i--) {
       const b = enemyBullets[i];
       const rr = (ringR + b.r) * (ringR + b.r);
-      if (dist2(ring.x, ring.y, b.x, b.y) < rr) {
+      if (!b.white && dist2(ring.x, ring.y, b.x, b.y) < rr) {
         enemyBullets.splice(i, 1);
       }
     }
@@ -5626,7 +5682,7 @@ function checkWaveClear() {
     dyingEnemyGhosts = [];
     sideBeamMarkers = [];
     waveClearTimer += 1/60;
-    const burstPhaseDuration = 5.0, nextStagePhaseDuration = 5.0;
+    const burstPhaseDuration = 5.0, nextStagePhaseDuration = 3.0;
     const clearDelay = kind === 'BOSS' ? (burstPhaseDuration + nextStagePhaseDuration) : (kind === 'ENEMY' ? 0.3 : 1.2); // let the boss explosion + "next stage" beat play out fully
     if (kind === 'BOSS') {
       // every 0.5s from the moment the boss is destroyed until the wave actually
@@ -5640,13 +5696,19 @@ function checkWaveClear() {
     if (kind === 'BOSS' && waveClearTimer < burstPhaseDuration) {
       bossExplosionBurstTimer -= 1/60;
       if (bossExplosionBurstTimer <= 0) {
-        const px = rand(0, W), py = rand(0, H * 0.7);
-        spawnDeathParticles(px, py, lastBossColor, 20, 300);
-        if (waveClearTimer < 2.0) spawnItem(px, 0); // items only drop during the first 2s of the burst phase; items drop in from the top of the screen, above the burst's x position
-        bossExplosionBurstTimer = rand(0.3, 0.6);
+        // maximum-scale finale: dense, wide blasts all over the screen
+        const px = rand(0, W), py = rand(0, H * 0.8);
+        spawnDeathParticles(px, py, lastBossColor, 40, 460);
+        if (Math.random() < 0.5) spawnBossExplosion(px, py, lastBossColor);
+        bossExplosionBurstTimer = rand(0.04, 0.12);
+      }
+      // after the blasts die down, items rain in from the top of the screen
+      if (waveClearTimer >= 2.5) {
+        bossItemRainTimer -= 1/60;
+        if (bossItemRainTimer <= 0) { spawnItem(rand(20, W - 20), 0); bossItemRainTimer = 0.18; }
       }
     }
-    if (waveClearTimer > clearDelay) {
+    if (waveClearTimer > clearDelay && (kind !== 'BOSS' || items.length === 0)) { // boss stage: warp only once every item has been collected or has fallen away
       wave += 1;
       startWave();
       if (player.alive) {
@@ -6702,6 +6764,7 @@ function drawEnemy(e) {
       ctx.restore();
       // HP bar, kept upright (not spun with the shape OR the boss body itself),
       // positioned just below the mini-boss
+      if (!e.revived) { // the revived boss's mini-bosses are indestructible, so no HP bar
       ctx.save();
       ctx.rotate(-(e.angle || 0));
       const barW = miniR * 1.1, barH = 3, barY = miniR + 5;
@@ -6709,9 +6772,10 @@ function drawEnemy(e) {
       ctx.strokeStyle = 'rgba(255,255,255,0.5)';
       ctx.lineWidth = 1;
       ctx.strokeRect(-barW / 2, barY, barW, barH);
-      ctx.fillStyle = '#ff2e2e';
+      ctx.fillStyle = '#ff2fd4';
       ctx.fillRect(-barW / 2, barY, barW * hpFrac, barH);
       ctx.restore();
+      }
       ctx.restore();
     }
   } else {
@@ -7312,11 +7376,11 @@ function drawBullets() {
     if (b.trail) {
       b.trail.forEach((p, idx) => {
         const alpha = ((idx + 1) / (b.trail.length + 1)) * 0.4;
-        ctx.strokeStyle = `rgba(255,107,107,${alpha})`;
+        ctx.strokeStyle = b.white ? `rgba(255,255,255,${alpha})` : `rgba(255,107,107,${alpha})`;
         ctx.strokeRect(p.x - 2, p.y - 2, 4, 4);
       });
     }
-    ctx.strokeStyle = '#ff6b6b';
+    ctx.strokeStyle = b.white ? '#ffffff' : '#ff6b6b';
     ctx.strokeRect(b.x - 2, b.y - 2, 4, 4);
   });
 }
@@ -7670,6 +7734,7 @@ function frameBody(now) {
     updateAsteroidWave(dt);
     updateWalls(dt);
     updateBossWave(dt);
+    updateBossRevive(dt);
     updateAsteroids(dt);
     updateDyingAsteroids(dt);
     updateDyingEnemyGhosts(dt);
