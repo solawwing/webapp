@@ -375,7 +375,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-10-07 22:15';
+const LAST_UPDATED = '2026-10-08 09:10';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1440,12 +1440,13 @@ function fireWeapon() {
   } else if (player.weapon === 'YAW') {
     // 8-way burst of line bolts (each line perpendicular to its travel direction); line length grows with level (Lv1=40px .. Lv7=220px).
     // Pierces everything, hitting each target once per flight.
-    const yawLen = lvl * 20, spd = 220;
+    const yawLen = 10, spd = 220;
     for (let k = 0; k < 8; k++) {
       const a = k * Math.PI / 4;
       playerBullets.push({
-        x: player.x, y: player.y, vx: Math.sin(a) * spd, vy: -Math.cos(a) * spd, r: 3,
-        power: 4 + (player.rapidLevel || 0), yaw: true, yawLen, yawPx: Math.cos(a), yawPy: Math.sin(a), hitSet: new Set(), noTrail: true,
+        x: player.x + Math.sin(a) * 30, y: player.y - Math.cos(a) * 30, vx: Math.sin(a) * spd, vy: -Math.cos(a) * spd, r: 3, // spawns 30px out from the ship
+       
+        power: lvl + (player.rapidLevel || 0), yaw: true, yawLen, yawPx: Math.sin(a), yawPy: -Math.cos(a), hitSet: new Set(), noTrail: true,
       });
     }
   } else if (player.weapon === 'INFINITY') {
@@ -2918,7 +2919,7 @@ function updateEnemies(dt) {
       if (e.baseY - WALL_TURRET_RANGE > H + 20 || !wallsWanted()) { enemies.splice(i, 1); continue; }
       e.fireTimer -= dt;
       if (e.fireTimer <= 0) {
-        e.fireTimer += 2.0;
+        e.fireTimer = rand(3, 5);
         if (e.y > 0 && e.y < H && e.x > 0 && e.x < W && player.alive && !player.warping) fireEnemyBullet(e); // never fires from off-screen
       }
       continue;
@@ -3033,8 +3034,8 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["1 arrow.", "2 arrows.", "3 arrows.", "4 arrows.", "5 arrows.", "6 arrows.", "7 arrows, wide spread."] },
   SPARK: { intro: "A rare fireworks-themed pickup: twin sparks rise gently then burst into scattering fragments. Alternates every 40s between a calmer normal mode (8, 10, or 12-way bursts) and a wild spread mode (64, 128, or 256-way). Leveling up shifts the balance toward more spread time, almost entirely spread at max level.",
     levels: ["35s normal / 5s spread.", "30s normal / 10s spread.", "25s normal / 15s spread.", "20s normal / 20s spread.", "15s normal / 25s spread.", "10s normal / 30s spread.", "5s normal / 35s spread, mostly a spread barrage."] },
-  YAW: { intro: "Fires a burst of line bolts in all 8 directions at once. Every line stays perpendicular to its travel direction, stopping at the first thing it hits. Leveling up stretches each line longer. YAW uniquely levels to 7 for huge sweeping lines.",
-    levels: ["20px lines.", "40px lines.", "60px lines.", "80px lines.", "100px lines.", "120px lines.", "140px lines, wide sweeping barrage."] },
+  YAW: { intro: "Fires a burst of line bolts in all 8 directions at once. Every line is elongated along its travel direction and bounces off corridor walls, stopping at the first thing it hits. Leveling up shortens the firing interval. YAW uniquely levels to 7 for huge sweeping lines.",
+    levels: ["Fires every 0.8s.", "Fires every 0.7s.", "Fires every 0.6s.", "Fires every 0.5s.", "Fires every 0.4s.", "Fires every 0.3s.", "Fires every 0.2s, rapid barrage."] },
   UNLEASH: { intro: "Charges through three 200px rings centered on the ship: the first two shrink down to half-size before handing off to the next one, while the third shrinks all the way down to nothing — then it unleashes a 50px-wide, piercing high-power beam straight ahead for 2 seconds before looping back into another 3-ring charge. The beam also destroys any enemy bullets passing through it. Leveling up fans the beam out into more simultaneous beams, spread wider around dead-ahead. UNLEASH uniquely levels to 7, for a wide piercing barrage.",
     levels: ["1 beam.", "2 beams, ±4°.", "3 beams, ±8°.", "4 beams, ±12°.", "5 beams, ±16°.", "6 beams, ±20°.", "7 beams, ±24°, full barrage."] },
 };
@@ -3254,7 +3255,7 @@ function makeWallTurret(side) {
   const y = -10;
   return { type: 'TURRET', side, def, hp, maxHp: hp, slot: null, state: 'wallturret',
     x: wallEdgeX(side, y) + (side === 0 ? apothem : -apothem), y, baseY: y, oy: 0, oyTarget: 0, moveTimer: 0, angle: 0,
-    fireTimer: 2.0, dropsItem: false, dropsRapid: false };
+    fireTimer: rand(3, 5), dropsItem: false, dropsRapid: false };
 }
 function drawWalls() {
   if (wallK <= 0.001) return;
@@ -4104,7 +4105,7 @@ function updatePlayer(dt) {
     if (player.weaponFireCooldown > 0) player.weaponFireCooldown -= dt;
     if (player.alive && player.weaponFireCooldown <= 0) {
       fireWeapon();
-      player.weaponFireCooldown = WEAPON_FIRE_COOLDOWNS[player.weapon] || 0.3;
+      player.weaponFireCooldown = player.weapon === 'YAW' ? Math.max(0.1, 0.8 - 0.1 * ((player.weaponLevel || 1) - 1)) : (WEAPON_FIRE_COOLDOWNS[player.weapon] || 0.3); // YAW: 0.8s at Lv1, 0.1s faster per level
       const rapidCount = player.rapidLevel === 1 ? 2 : player.rapidLevel === 2 ? 3 : player.rapidLevel === 3 ? 5 : 1;
       player.burstRemaining = rapidCount - 1;
       player.burstTimer = 0.25; // brief delay before the rapid burst kicks in
@@ -4542,6 +4543,25 @@ function updateBullets(dt) {
       // no longer despawns mid-flight at maxTravel — it keeps flying (and growing)
       // until it leaves the screen like any other bullet
     }
+    if (b.yaw && wallK >= 0.99 && (b.yawBounces || 0) < 8) {
+      // YAW bolts mirror-reflect off the corridor walls: crossing a vertical wall face flips
+      // vx; running into a horizontal step (the wall's bend) flips vy. Line stays perpendicular.
+      const lx = wallEdgeX(0, b.y), rx = wallEdgeX(1, b.y);
+      const pxo = b.x - b.vx * dt, pyo = b.y - b.vy * dt;
+      let bounced = false;
+      if (b.x < lx) {
+        if (pxo >= lx) { b.vx = -b.vx; b.x = 2 * lx - b.x; } else { b.vy = -b.vy; b.y = pyo; }
+        bounced = true;
+      } else if (b.x > rx) {
+        if (pxo <= rx) { b.vx = -b.vx; b.x = 2 * rx - b.x; } else { b.vy = -b.vy; b.y = pyo; }
+        bounced = true;
+      }
+      if (bounced) {
+        b.yawBounces = (b.yawBounces || 0) + 1;
+        const sp = Math.hypot(b.vx, b.vy) || 1;
+        b.yawPx = b.vx / sp; b.yawPy = b.vy / sp;
+      }
+    }
     if (b.spark && !b.burst && b.y <= b.burstY) {
       burstSpark(b);
       playerBullets.splice(i, 1);
@@ -4609,11 +4629,11 @@ function handleEnemyDeath(e) {
     spawnDeathParticles(e.x, e.y, e.def.color, 18);
     spawnDeathGhost(e.x, e.y, e.def.r, e.angle || 0, e.def.color);
   }
-  // kill-count reward: every (weapon level × 100) enemies destroyed spawns an item,
+  // kill-count reward: every (weapon level × 50) enemies destroyed spawns an item,
   // independent of the per-wave drop cap
   if (e.type !== 'GIANTBOSS') {
     killsSinceItem++;
-    if (killsSinceItem >= (player.weaponLevel || 1) * 100) { killsSinceItem = 0; spawnItem(e.x, e.y); }
+    if (killsSinceItem >= (player.weaponLevel || 1) * 50) { killsSinceItem = 0; spawnItem(rand(40, W - 40), -20); }
   }
   if (e.dropsRapid) spawnRapidItem(e.x + 20, e.y);
 }
@@ -7748,7 +7768,7 @@ function drawHUD() {
   ctx.textAlign = 'right';
   const multiplierY = player.rapidLevel > 0 ? 58 : 40;
   ctx.fillText('x' + scoreMultiplier.toFixed(1), W - 12, multiplierY);
-  ctx.font = '300 12px "Montserrat", sans-serif';
+  // (damage + next-item count share the multiplier's font/size)
 
   // single-hit damage readout: just the number, right below the multiplier, fades out after a hit
   if (damagePopupTimer > 0) {
@@ -7757,6 +7777,8 @@ function drawHUD() {
     ctx.fillText(String(lastHitDamage), W - 12, multiplierY + 16);
     ctx.fillStyle = '#7CFFF0';
   }
+  // kills remaining until the next kill-count item drop, below the damage readout
+  ctx.fillText(String(Math.max(0, (player.weaponLevel || 1) * 50 - killsSinceItem)), W - 12, multiplierY + 32);
   ctx.textAlign = 'left';
 
   // LIVES: triangle icons only, right-aligned (slightly smaller, matching the item display)
