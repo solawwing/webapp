@@ -167,7 +167,7 @@
         <polygon points="22,24.5 20,8.5 24,8.5" fill="none" stroke="#eeff00" stroke-width="1"/>
         <polygon points="12,12.5 16,12.5 14,6.5" fill="none" stroke="#eeff00" stroke-width="1"/>
       </svg>
-      <svg width="28" height="31" viewBox="0 0 28 31"><polygon points="14,30 6,12.5 22,12.5" fill="none" stroke="#39ff14" stroke-width="1"/>
+      <svg id="tierDIcon" width="28" height="31" viewBox="0 0 28 31" style="pointer-events:auto; cursor:pointer;"><polygon points="14,30 6,12.5 22,12.5" fill="none" stroke="#39ff14" stroke-width="1"/>
         <polygon points="9,12.5 13,12.5 11,6.5" fill="none" stroke="#39ff14" stroke-width="1"/>
         <polygon points="15,12.5 19,12.5 17,6.5" fill="none" stroke="#39ff14" stroke-width="1"/>
       </svg>
@@ -371,7 +371,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-10-07 02:30';
+const LAST_UPDATED = '2026-10-07 12:55';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -482,7 +482,7 @@ function resetPlayer() {
   player.trailHistory = [{ x: W / 2, y: H - 90 }]; // fresh path history for a brand-new game
   player.lives = 3; player.alive = true; player.invT = 2.0; player.fireCd = 0;
   player.weapon = debugStartWeapon || 'NORMAL';
-  player.weaponLevel = debugStartWeapon ? (debugStartMaxLevel ? weaponMaxLevel(debugStartWeapon) : (debugStartAtBoss || debugSkipEnemyWaves) ? 3 : 1) : 0;
+  player.weaponLevel = debugStartWeapon ? (debugStartMaxLevel ? weaponMaxLevel(debugStartWeapon) : (debugStartAtBoss || debugSkipEnemyWaves || debugWallBossOnly) ? 3 : 1) : 0;
   player.rapidLevel = 0; player.burstRemaining = 0; player.burstTimer = 0;
   player.vulcanBurstRemaining = 0; player.vulcanBurstTimer = 0; player.vulcanShotInterval = 0.1; player.vulcanXOffset = 0;
   player.laserSubCooldown = 0;
@@ -2333,6 +2333,10 @@ let waveStartDelayTimer = 0;
 let waveActive = false;
 
 function startWave() {
+  if (debugWallBossOnly) {
+    // only the wall stages (cycle positions 2, 6, 10) and the boss (12) are played
+    while (![2, 6, 10, 12].includes(((wave - 1) % CYCLE_LEN) + 1)) wave += 1;
+  }
   if (debugSkipEnemyWaves) {
     // fast-forward past any ENEMY-type cycle positions so only ASTEROID/CRYSTAL/
     // BOSS encounters ever play
@@ -2904,8 +2908,8 @@ function updateEnemies(dt) {
       if (e.y > H + 20 || !wallsWanted()) { enemies.splice(i, 1); continue; }
       e.fireTimer -= dt;
       if (e.fireTimer <= 0) {
-        e.fireTimer += 1.5;
-        if (e.y > 0 && player.alive && !player.warping) fireEnemyBullet(e);
+        e.fireTimer += 2.0;
+        if (e.y > 0 && e.y < H && e.x > 0 && e.x < W && player.alive && !player.warping) fireEnemyBullet(e); // never fires from off-screen
       }
       continue;
     } else if (e.state === 'shard') {
@@ -2956,6 +2960,7 @@ let showingEquip = false;
 let debugStartWeapon = null;
 let debugStartAtBoss = false; // set via tapping the tier-A icon on the title screen
 let debugSkipEnemyWaves = false; // set via tapping the tier-C icon on the title screen — only ASTEROID/CRYSTAL/BOSS cycle positions play, ENEMY positions are silently skipped
+let debugWallBossOnly = false; // set via double-tapping the tier-D (green) icon on the title screen — only cycle positions 2, 6, 10 (wall stages) and the BOSS play, weapon starts at Lv3
 let debugStartMaxLevel = false; // set via tapping the tier-E icon on the title screen
 const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'KURU2', 'LASER', 'MISSILE', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'UNLEASH', 'VULCAN', 'WHIPS', 'XCROSS', 'ZAPPER']; // no NORMAL — alphabetical order
 function showEquipSelect() {
@@ -3204,13 +3209,19 @@ function updateWalls(dt) {
   wallK = clamp(wallK + (want ? dt / 0.8 : -dt / 0.8), 0, 1);
   wallCps.forEach(c => { c.y += WALL_SCROLL * dt; });
   while (wallCps.length && wallCps[wallCps.length - 1].y > H + 60) wallCps.pop();
-  // wall turrets (砲台): one per wall, the right one half a screen out of phase with the left one
+  // wall turrets (砲台): two per wall (spawn every half screen of travel); the right wall's
+  // turrets run a quarter-screen out of phase with the left wall's so they never line up
   if (want && wallK >= 1 && asteroidWaveTimer < 40) {
+    // wave 2: one per half screen; wave 6 spawns 1.5x as often, wave 10 2x as often
+    const wmT = ((wave - 1) % CYCLE_LEN) + 1;
+    const spacing = (H / 2) / (wmT === 10 ? 2 : wmT === 6 ? 1.5 : 1);
     for (const side of [0, 1]) {
-      if (enemies.some(e => e.type === 'TURRET' && e.side === side)) continue;
+      let topY = Infinity;
+      for (const e of enemies) if (e.type === 'TURRET' && e.side === side && e.y < topY) topY = e.y;
+      if (topY < spacing) continue; // previous one hasn't moved far enough yet
       if (side === 1 && !wallRightStarted) {
         const L = enemies.find(e => e.type === 'TURRET' && e.side === 0);
-        if (!L || L.y < H / 2) continue;
+        if (!L || L.y < spacing / 2) continue;
         wallRightStarted = true;
       }
       enemies.push(makeWallTurret(side));
@@ -3230,7 +3241,7 @@ function makeWallTurret(side) {
   const y = -10;
   return { type: 'TURRET', side, def, hp, maxHp: hp, slot: null, state: 'wallturret',
     x: wallEdgeX(side, y) + (side === 0 ? apothem : -apothem), y, angle: 0,
-    fireTimer: 1.5, dropsItem: false, dropsRapid: false };
+    fireTimer: 2.0, dropsItem: false, dropsRapid: false };
 }
 function drawWalls() {
   if (wallK <= 0.001) return;
@@ -7876,6 +7887,23 @@ if (tierEIcon) {
       showEquipSelect();
     }
     tierELastTap = now;
+  });
+}
+
+// double-tapping the tier-D (green) icon on the title screen flags the next game start to
+// play only the wall stages (cycle positions 2, 6, 10) and the boss, with the weapon at Lv3
+const tierDIcon = document.getElementById('tierDIcon');
+if (tierDIcon) {
+  let tierDLastTap = 0;
+  tierDIcon.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const now = Date.now();
+    if (now - tierDLastTap < 300) {
+      debugWallBossOnly = true;
+      showEquipSelect();
+    }
+    tierDLastTap = now;
   });
 }
 
