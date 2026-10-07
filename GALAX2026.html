@@ -268,6 +268,10 @@
         <div class="item-header"><span class="item-icon">X</span><span class="item-name">XCROSS</span></div>
         <div class="item-desc">On hit, shoots an X-shaped shockwave.</div>
       </div>
+      <div class="item-entry" data-weapon="YAW">
+        <div class="item-header"><span class="item-icon">Y</span><span class="item-name">YAW</span></div>
+        <div class="item-desc">Line shots fly out in all 8 directions.</div>
+      </div>
       <div class="item-entry" data-weapon="ZAPPER">
         <div class="item-header"><span class="item-icon">Z</span><span class="item-name">ZAPPER</span></div>
         <div class="item-desc">Drones dash in, zap, then return.</div>
@@ -371,7 +375,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-10-07 12:55';
+const LAST_UPDATED = '2026-10-07 22:15';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -441,7 +445,7 @@ function reportDamage(d) { if (d > 0) { lastHitDamage = Math.round(d * 10) / 10;
 function unleashPulseTime() { return Math.max(0.5, 1.3 - (player.rapidLevel || 0) * 0.1); }
 function weaponMaxLevel(type) {
   // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL/ZAPPER/XCROSS/KURU2/ARROW/QIX/EARTH/WHIPS/INFINITY/FUNNEL uniquely level up to 7, every other weapon caps at 5
-  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS' || type === 'INFINITY' || type === 'FUNNEL' || type === 'UNLEASH') ? 7 : 5;
+  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS' || type === 'INFINITY' || type === 'FUNNEL' || type === 'UNLEASH' || type === 'YAW') ? 7 : 5;
 }
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function formatScore(n) { return Math.round(n).toLocaleString('en-US'); }
@@ -505,8 +509,8 @@ function resetPlayer() {
 }
 
 // ---------- items ----------
-const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL', 'UNLEASH'];
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff7a1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff', UNLEASH: '#ff2fd4' };
+const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL', 'UNLEASH', 'YAW'];
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff7a1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff', UNLEASH: '#ff2fd4', YAW: '#7dff00' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -778,7 +782,7 @@ function updateItems(dt) {
     }
   }
 }
-const ITEM_GLYPHS = { LIFE: '+', DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E', WHIPS: 'W', INFINITY: 'I', FUNNEL: 'F', UNLEASH: 'U' };
+const ITEM_GLYPHS = { LIFE: '+', DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E', WHIPS: 'W', INFINITY: 'I', FUNNEL: 'F', UNLEASH: 'U', YAW: 'Y' };
 function drawItems() {
   ctx.lineWidth = 1;
   items.forEach(it => {
@@ -1185,7 +1189,7 @@ const SPARK_COOLDOWNS = [0, 0.3, 0.3, 0.3, 0.3, 0.3]; // fixed 0.3s regardless o
 // "wait until the screen is clear of your own bullets" gate for these weapons
 const WEAPON_FIRE_COOLDOWNS = {
   NORMAL: 0.3, DOUBLE: 0.3, MISSILE: 1.0, HOMING: 0.8, LASER: 1.0,
-  GRAVITY: 0.8, BUBBLE: 0.5, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4, QIX: 0.4, INFINITY: 1.0,
+  GRAVITY: 0.8, BUBBLE: 0.5, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4, QIX: 0.4, INFINITY: 1.0, YAW: 0.4,
 };
 const LASER_SPECS = [null,
   { length: 200, pierce: 5, speed: 300 },
@@ -1231,6 +1235,7 @@ function fireInfinityLine(trail) {
   playerBullets.push({ x: sx, y: sy, vx, vy, r: 2, power: 2 + (player.rapidLevel || 0), infinityBullet: true, noTrail: true });
   infinityRings.push({ x: sx, y: sy, t: 0, duration: 1.2, maxR: 100 });
 }
+function yawSeg(b) { const h = b.yawLen / 2; return { x1: b.x - b.yawPx * h, y1: b.y - b.yawPy * h, x2: b.x + b.yawPx * h, y2: b.y + b.yawPy * h }; }
 function fireWeapon() {
   const bx = player.x, by = player.y - player.r;
   const lvl = player.weaponLevel;
@@ -1432,6 +1437,17 @@ function fireWeapon() {
       x: bx, y: by, vx: 0, vy: -350, r: qixLength / 6, power: 5,
       qix: true, qixPhase: rand(0, Math.PI * 2), qixDir: rand(0, 1) < 0.5 ? 1 : -1, qixPivot: rand(0.15, 0.85), qixHitSets: [new Set(), new Set(), new Set(), new Set(), new Set()], qixHistory: [], qixLength,
     });
+  } else if (player.weapon === 'YAW') {
+    // 8-way burst of line bolts (each line perpendicular to its travel direction); line length grows with level (Lv1=40px .. Lv7=220px).
+    // Pierces everything, hitting each target once per flight.
+    const yawLen = lvl * 20, spd = 220;
+    for (let k = 0; k < 8; k++) {
+      const a = k * Math.PI / 4;
+      playerBullets.push({
+        x: player.x, y: player.y, vx: Math.sin(a) * spd, vy: -Math.cos(a) * spd, r: 3,
+        power: 4 + (player.rapidLevel || 0), yaw: true, yawLen, yawPx: Math.cos(a), yawPy: Math.sin(a), hitSet: new Set(), noTrail: true,
+      });
+    }
   } else if (player.weapon === 'INFINITY') {
     // INFINITY never fires any bullets — its rotating triangle's vertex lasers
     // (handled in updatePlayer) are its only source of damage
@@ -1880,13 +1896,6 @@ function tryAdvanceWavePattern(dt) {
     // time-limited enemy wave: loop the formation list until the 40s mark
     if (waveLoopList.length === 0 || asteroidWaveTimer >= 40) return;
     wavePatternQueue = [...waveLoopList];
-    const base = waveEnemyGlobalIndex, total = patternListEnemyCount(waveLoopList);
-    const idxs = Array.from({ length: total }, (_, i) => base + i);
-    for (let i = idxs.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [idxs[i], idxs[j]] = [idxs[j], idxs[i]];
-    }
-    for (let k = 0; k < 3 && k < total; k++) waveItemDropIndices.add(idxs[k]);
   }
   // right before the 2nd pass through the pattern list starts, send any still-idle
   // 1st-pass enemies into their dive attack rather than leaving them parked
@@ -1939,7 +1948,8 @@ function isBossVulnerable(e) {
 
 let starReverse = false;
 let bossDefeated = false;
-let bossReviveUsed = false, bossRevive = null, bossItemRainTimer = 0;
+let bossReviveUsed = false, bossRevive = null, bossItemRainTimer = 0, bossItemsDropped = 0, waveItemCount = 0, killsSinceItem = 0;
+function tryWaveItem(x, y) { if (waveItemCount >= 2) return; waveItemCount++; spawnItem(x, y); }
 function updateBossRevive(dt) {
   if (!bossRevive || !waveActive) return;
   const r = bossRevive;
@@ -2378,6 +2388,7 @@ function startWave() {
 
 function activateWave(kind, m) {
   waveActive = true;
+  waveItemCount = 0; bossItemsDropped = 0;
   if (kind === 'BOSS') {
     starReverse = true;
     specialStars = [];
@@ -2438,19 +2449,10 @@ function activateWave(kind, m) {
     waveEnemyGlobalIndex = 0;
     patternWasEntering = false; patternGapT = 0;
 
-    // item drops: designate 3 random enemies (by spawn order) this wave to drop a
+    // item drops: designate 2 random enemies (by spawn order) this wave to drop a
     // weapon item on death (RAPID no longer drops in normal waves — see the Asteroid Belt bonus)
-    const totalEnemies = patternListEnemyCount(patternList);
-    waveItemDropIndices = new Set();
+    waveItemDropIndices = new Set(); // formation enemies no longer carry item drops
     waveRapidDropIndex = -1;
-    const indices = Array.from({ length: totalEnemies }, (_, i) => i);
-    for (let i = indices.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]];
-    }
-    if (totalEnemies > 0) waveItemDropIndices.add(indices[0]);
-    if (totalEnemies > 1) waveItemDropIndices.add(indices[1]);
-    if (totalEnemies > 2) waveItemDropIndices.add(indices[2]);
 
     tryAdvanceWavePattern();
   }
@@ -2765,6 +2767,8 @@ function checkMiniBossHits(e) {
       if (b.laser) {
         const closest = closestPointOnLaser(b, pos.x, pos.y);
         hit = dist2(pos.x, pos.y, closest.x, closest.y) < (miniR + br) * (miniR + br);
+      } else if (b.yaw) {
+        hit = distSqToSegment(pos.x, pos.y, yawSeg(b).x1, yawSeg(b).y1, yawSeg(b).x2, yawSeg(b).y2) < (miniR + br) * (miniR + br);
       } else {
         hit = dist2(pos.x, pos.y, b.x, b.y) < (miniR + br) * (miniR + br);
       }
@@ -2902,10 +2906,16 @@ function updateEnemies(dt) {
         e.x = p.x; e.y = p.y;
       }
     } else if (e.state === 'wallturret') {
-      e.y += WALL_SCROLL * dt;
+      e.baseY += WALL_SCROLL * dt; // rides the wall down...
+      // ...while sliding up and down along it: every 0.6-1.4s pick a new random offset within +/-WALL_TURRET_RANGE
+      e.moveTimer -= dt;
+      if (e.moveTimer <= 0) { e.oyTarget = rand(-WALL_TURRET_RANGE, WALL_TURRET_RANGE); e.moveTimer = rand(0.6, 1.4); }
+      const oyStep = WALL_TURRET_SLIDE * dt;
+      e.oy += clamp(e.oyTarget - e.oy, -oyStep, oyStep);
+      e.y = Math.max(-10, e.baseY + e.oy);
       const apo = WALL_TURRET_SIDE / (2 * Math.sqrt(3));
       e.x = wallEdgeX(e.side, e.y) + (e.side === 0 ? apo : -apo);
-      if (e.y > H + 20 || !wallsWanted()) { enemies.splice(i, 1); continue; }
+      if (e.baseY - WALL_TURRET_RANGE > H + 20 || !wallsWanted()) { enemies.splice(i, 1); continue; }
       e.fireTimer -= dt;
       if (e.fireTimer <= 0) {
         e.fireTimer += 2.0;
@@ -2962,7 +2972,7 @@ let debugStartAtBoss = false; // set via tapping the tier-A icon on the title sc
 let debugSkipEnemyWaves = false; // set via tapping the tier-C icon on the title screen — only ASTEROID/CRYSTAL/BOSS cycle positions play, ENEMY positions are silently skipped
 let debugWallBossOnly = false; // set via double-tapping the tier-D (green) icon on the title screen — only cycle positions 2, 6, 10 (wall stages) and the BOSS play, weapon starts at Lv3
 let debugStartMaxLevel = false; // set via tapping the tier-E icon on the title screen
-const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'KURU2', 'LASER', 'MISSILE', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'UNLEASH', 'VULCAN', 'WHIPS', 'XCROSS', 'ZAPPER']; // no NORMAL — alphabetical order
+const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'KURU2', 'LASER', 'MISSILE', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'UNLEASH', 'VULCAN', 'WHIPS', 'XCROSS', 'YAW', 'ZAPPER']; // no NORMAL — alphabetical order
 function showEquipSelect() {
   showingEquip = true;
   titleScreen.classList.add('hidden');
@@ -3023,6 +3033,8 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["1 arrow.", "2 arrows.", "3 arrows.", "4 arrows.", "5 arrows.", "6 arrows.", "7 arrows, wide spread."] },
   SPARK: { intro: "A rare fireworks-themed pickup: twin sparks rise gently then burst into scattering fragments. Alternates every 40s between a calmer normal mode (8, 10, or 12-way bursts) and a wild spread mode (64, 128, or 256-way). Leveling up shifts the balance toward more spread time, almost entirely spread at max level.",
     levels: ["35s normal / 5s spread.", "30s normal / 10s spread.", "25s normal / 15s spread.", "20s normal / 20s spread.", "15s normal / 25s spread.", "10s normal / 30s spread.", "5s normal / 35s spread, mostly a spread barrage."] },
+  YAW: { intro: "Fires a burst of line bolts in all 8 directions at once. Every line stays perpendicular to its travel direction, stopping at the first thing it hits. Leveling up stretches each line longer. YAW uniquely levels to 7 for huge sweeping lines.",
+    levels: ["20px lines.", "40px lines.", "60px lines.", "80px lines.", "100px lines.", "120px lines.", "140px lines, wide sweeping barrage."] },
   UNLEASH: { intro: "Charges through three 200px rings centered on the ship: the first two shrink down to half-size before handing off to the next one, while the third shrinks all the way down to nothing — then it unleashes a 50px-wide, piercing high-power beam straight ahead for 2 seconds before looping back into another 3-ring charge. The beam also destroys any enemy bullets passing through it. Leveling up fans the beam out into more simultaneous beams, spread wider around dead-ahead. UNLEASH uniquely levels to 7, for a wide piercing barrage.",
     levels: ["1 beam.", "2 beams, ±4°.", "3 beams, ±8°.", "4 beams, ±12°.", "5 beams, ±16°.", "6 beams, ±20°.", "7 beams, ±24°, full barrage."] },
 };
@@ -3064,7 +3076,7 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 2000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['FUNNEL', 'XCROSS', 'ZAPPER', 'WHIPS', 'QIX', 'UNLEASH'];
+const EQUIP_UPDATED = ['FUNNEL', 'XCROSS', 'ZAPPER', 'WHIPS', 'QIX', 'UNLEASH', 'YAW'];
 const EQUIP_UPDATE_TAG = ['DOUBLE', 'EARTH', 'LASER']; // shows "UPDATE" instead of "NEW"
 const EQUIP_RENEW_TAG = ['INFINITY']; // shows "RENEW" instead of "NEW"/"UPDATE"
 EQUIP_CHOICES.forEach(type => {
@@ -3125,6 +3137,7 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 
 function beginGame() {
+  killsSinceItem = 0;
   state = STATE.PLAYING;
   overlay.style.display = 'none';
   titleShowingItems = false;
@@ -3217,11 +3230,11 @@ function updateWalls(dt) {
     const spacing = (H / 2) / (wmT === 10 ? 2 : wmT === 6 ? 1.5 : 1);
     for (const side of [0, 1]) {
       let topY = Infinity;
-      for (const e of enemies) if (e.type === 'TURRET' && e.side === side && e.y < topY) topY = e.y;
+      for (const e of enemies) if (e.type === 'TURRET' && e.side === side && e.baseY < topY) topY = e.baseY;
       if (topY < spacing) continue; // previous one hasn't moved far enough yet
       if (side === 1 && !wallRightStarted) {
         const L = enemies.find(e => e.type === 'TURRET' && e.side === 0);
-        if (!L || L.y < spacing / 2) continue;
+        if (!L || L.baseY < spacing / 2) continue;
         wallRightStarted = true;
       }
       enemies.push(makeWallTurret(side));
@@ -3229,7 +3242,7 @@ function updateWalls(dt) {
   } else if (!want) wallRightStarted = false;
 }
 let wallRightStarted = false;
-const WALL_TURRET_GAP = 420, WALL_TURRET_SIDE = 15;
+const WALL_TURRET_GAP = 420, WALL_TURRET_SIDE = 15, WALL_TURRET_RANGE = 100, WALL_TURRET_SLIDE = 90; // slide range (px) / speed (px/s) along the wall
 function wallEdgeX(side, y) {
   const sh = wallShiftAt(y) * wallK;
   return side === 0 ? WALL_BASE * wallK + sh : W - WALL_BASE * wallK + sh;
@@ -3240,7 +3253,7 @@ function makeWallTurret(side) {
   const apothem = WALL_TURRET_SIDE / (2 * Math.sqrt(3));
   const y = -10;
   return { type: 'TURRET', side, def, hp, maxHp: hp, slot: null, state: 'wallturret',
-    x: wallEdgeX(side, y) + (side === 0 ? apothem : -apothem), y, angle: 0,
+    x: wallEdgeX(side, y) + (side === 0 ? apothem : -apothem), y, baseY: y, oy: 0, oyTarget: 0, moveTimer: 0, angle: 0,
     fireTimer: 2.0, dropsItem: false, dropsRapid: false };
 }
 function drawWalls() {
@@ -4596,7 +4609,12 @@ function handleEnemyDeath(e) {
     spawnDeathParticles(e.x, e.y, e.def.color, 18);
     spawnDeathGhost(e.x, e.y, e.def.r, e.angle || 0, e.def.color);
   }
-  if (e.dropsItem) spawnItem(e.x, e.y);
+  // kill-count reward: every (weapon level × 100) enemies destroyed spawns an item,
+  // independent of the per-wave drop cap
+  if (e.type !== 'GIANTBOSS') {
+    killsSinceItem++;
+    if (killsSinceItem >= (player.weaponLevel || 1) * 100) { killsSinceItem = 0; spawnItem(e.x, e.y); }
+  }
   if (e.dropsRapid) spawnRapidItem(e.x + 20, e.y);
 }
 
@@ -5182,6 +5200,29 @@ function handleCollisions() {
       }
       continue;
     }
+    if (b.yaw) {
+      const sg = yawSeg(b);
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        if (e.type === 'GIANTBOSS' && e.miniBossHp) continue; // mini-bosses handled in the shared mini-boss pass
+        if (b.hitSet.has(e)) continue;
+        if (distSqToSegment(e.x, e.y, sg.x1, sg.y1, sg.x2, sg.y2) < (e.def.r + b.r) * (e.def.r + b.r)) {
+          if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
+          b.hitSet.add(e);
+          e.hp -= reportDamage(e.type === 'GIANTBOSS' ? capBossDmg(b.power) : b.power);
+          score += scoreMultiplier * 10;
+          if (e.hp <= 0) {
+            handleEnemyDeath(e);
+            enemies.splice(i, 1);
+          } else if (e.type !== 'GIANTBOSS') {
+            spawnDeathParticles(e.x, e.y, e.def.color, 3);
+          }
+          playerBullets.splice(j, 1); // no piercing: the bolt is spent on its first hit
+          break;
+        }
+      }
+      continue;
+    }
     if (b.qix) {
       // pierces through everything, each of the 6 segments (main rod + 5
       // afterimages) tracking its OWN hit history — so a target can be hit once by
@@ -5716,7 +5757,7 @@ function checkWaveClear() {
       // after the blasts die down, items rain in from the top of the screen
       if (waveClearTimer >= 2.5) {
         bossItemRainTimer -= 1/60;
-        if (bossItemRainTimer <= 0) { spawnItem(rand(20, W - 20), 0); bossItemRainTimer = 0.18; }
+        if (bossItemRainTimer <= 0 && bossItemsDropped < 3) { spawnItem(rand(20, W - 20), 0); bossItemsDropped++; bossItemRainTimer = 0.5; }
       }
     }
     if (waveClearTimer > clearDelay && (kind !== 'BOSS' || items.length === 0)) { // boss stage: warp only once every item has been collected or has fallen away
@@ -6239,11 +6280,7 @@ function updateAsteroidWave(dt) {
     spawnAsteroid(asteroidSizeMul * 3, asteroidSpeedMul * 0.5);
     asteroidBigSpawned = true;
   }
-  asteroidItemTimer -= dt;
-  if (asteroidItemTimer <= 0 && asteroidWaveTimer < 55) {
-    spawnItem(rand(60, W - 60), -20);
-    asteroidItemTimer = 10;
-  }
+  // (periodic belt item drops removed)
   if (isCry || isAsteroidKind(kind)) {
     // Crystal AND Asteroid Belt also spawn individual enemies every 2s, straight
     // from the top, already in their dive/attack state (no formation entry) —
@@ -6443,11 +6480,11 @@ function registerAsteroidDamage(amount, target) {
   }
   if (!asteroidRapidGiven && asteroidTotalDamage >= 5000) {
     asteroidRapidGiven = true;
-    spawnRapidItem(W / 2, -20);
+    spawnRapidItem(rand(W * 0.25, W * 0.75), rand(H * 0.3, H * 0.5)); // appears around screen center, random spot
   }
   if (!asteroidBonusGiven && asteroidTotalDamage >= 10000) {
     asteroidBonusGiven = true;
-    spawnLifeItem(W / 2, -20); // falls from the top like any other item; catching it is what actually grants the life
+    spawnLifeItem(rand(W * 0.25, W * 0.75), rand(H * 0.3, H * 0.5)); // appears around screen center, random spot; catching it is what actually grants the life
   }
 }
 
@@ -6484,6 +6521,21 @@ function handleAsteroidCollisions() {
           score += scoreMultiplier * wave * 20;
           registerAsteroidDamage(1, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 3);
+        }
+      }
+      continue;
+    }
+    if (b.yaw) {
+      for (let i = 0; i < asteroids.length; i++) {
+        const a = asteroids[i];
+        if (b.hitSet.has(a)) continue;
+        if (distSqToSegment(a.x, a.y, yawSeg(b).x1, yawSeg(b).y1, yawSeg(b).x2, yawSeg(b).y2) < (a.r + b.r) * (a.r + b.r)) {
+          b.hitSet.add(a);
+          score += scoreMultiplier * wave * 20;
+          registerAsteroidDamage(b.power || 1, a);
+          spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 3);
+          playerBullets.splice(j, 1);
+          break;
         }
       }
       continue;
@@ -6970,6 +7022,25 @@ function drawBullets() {
       ctx.lineTo(halfBase, halfHeight);
       ctx.stroke();
       ctx.restore();
+      return;
+    }
+    if (b.yaw) {
+      ctx.strokeStyle = '#7dff00';
+      ctx.lineWidth = 1;
+      const sg = yawSeg(b);
+      for (let k = 4; k >= 1; k--) { // faint afterimages trailing behind
+        const ox = -b.vx * 0.03 * k, oy = -b.vy * 0.03 * k;
+        ctx.globalAlpha = 0.28 * (1 - (k - 1) / 4);
+        ctx.beginPath();
+        ctx.moveTo(sg.x1 + ox, sg.y1 + oy);
+        ctx.lineTo(sg.x2 + ox, sg.y2 + oy);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.moveTo(sg.x1, sg.y1);
+      ctx.lineTo(sg.x2, sg.y2);
+      ctx.stroke();
       return;
     }
     if (b.qix) {
