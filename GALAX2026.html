@@ -379,7 +379,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-10-10 19:00';
+const LAST_UPDATED = '2026-10-10 19:25';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -712,7 +712,7 @@ function pickItemType() {
   const lvl = player.weaponLevel;
   const maxLevel = weaponMaxLevel(player.weapon);
   const weights = ITEM_TYPES.map(t => {
-    if (t === player.weapon && lvl > 0) {
+    if (t === player.weapon) {
       if (lvl >= maxLevel) return 0;
       return 40 - 5 * lvl; // Lv1=35, Lv2=30, Lv3=25, Lv4=20, Lv5=15, Lv6=10, Lv7=5
     }
@@ -1476,7 +1476,7 @@ function fireWeapon() {
     });
   } else if (player.weapon === 'NORMAL' && lvl >= 1) {
     // white 1x5px shot, power = level; splits into two on every hit (see splitNormalOnHit)
-    playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 2, power: lvl, nsplit: true, hitSet: new Set() });
+    playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 2, power: lvl + 1, nsplit: true, hitSet: new Set() });
   } else if (player.weapon === 'YARELY') {
     // 8-way burst of line bolts (a 100px line that trails behind its leading tip, which starts 30px out from the ship).
     const yawLen = 200 + 100 * lvl, spd = 800; // Lv1 = 300px, +100px per level (Lv7 = 900px)
@@ -3065,8 +3065,8 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["5 jumps, 1 reset.", "10 jumps, 1 reset.", "15 jumps, 1 reset.", "20 jumps, 1 reset.", "25 jumps, 1 reset.", "30 jumps, 1 reset.", "35 jumps, 1 reset."] },
   REFECT: { intro: "Cyan bolt flies 50px forward, then bends ±20-50° every 50px (30 bends), leaving a 15-segment trail. On hit it splits into two bolts turning 60-80° each way. Each level adds a bolt. Levels to 7.",
     levels: ["1 bolt.", "2 bolts.", "3 bolts.", "4 bolts.", "5 bolts.", "6 bolts.", "7 bolts, dense zig-zagging coverage."] },
-  NORMAL: { intro: "White 80px line shot (power = level) every 0.5s. On any hit it splits into two shots fanning ±10° off its heading, which split again on their next hit. RAPID bursts apply. Levels to 7.",
-    levels: ["Power 1.", "Power 2.", "Power 3.", "Power 4.", "Power 5.", "Power 6.", "Power 7."] },
+  NORMAL: { intro: "White 80px line shot (power = level + 1) every 0.5s. On any hit it splits into two shots fanning ±10° off its heading, which split again on their next hit. RAPID bursts apply. Levels to 7.",
+    levels: ["Power 2.", "Power 3.", "Power 4.", "Power 5.", "Power 6.", "Power 7.", "Power 8."] },
   ORBITAL: { intro: "Wireframe rings share a tumbling elliptical orbit around the ship; each fires a fine forward laser that forks in two on its first pierce. Each level adds two rings. Levels to 7.",
     levels: ["2 rings.", "4 rings.", "6 rings.", "8 rings.", "10 rings.", "12 rings.", "14 rings, full coverage."] },
   ZAPPER: { intro: "Rotating squares beside the ship dash at the nearest free target, cling and zap every 0.1s until it dies, then return; each picks a different target. Each level adds a pair. Levels to 7.",
@@ -3122,9 +3122,7 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 2000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['FUNNEL', 'XCROSS', 'ZAPPER', 'WHIPS', 'QIX', 'UNLEASH', 'YARELY', 'NORMAL'];
-const EQUIP_UPDATE_TAG = ['DOUBLE', 'EARTH', 'LASER']; // shows "UPDATE" instead of "NEW"
-const EQUIP_RENEW_TAG = ['INFINITY']; // shows "RENEW" instead of "NEW"/"UPDATE"
+const EQUIP_UPDATED = ['NORMAL', 'UNLEASH', 'YARELY', 'INFINITY']; // shows "NEW"
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -3136,10 +3134,10 @@ EQUIP_CHOICES.forEach(type => {
   name.textContent = type;
   item.appendChild(icon);
   item.appendChild(name);
-  if (EQUIP_UPDATED.includes(type) || EQUIP_UPDATE_TAG.includes(type) || EQUIP_RENEW_TAG.includes(type)) {
+  if (EQUIP_UPDATED.includes(type)) {
     const tag = document.createElement('span');
     tag.className = 'equip-update-tag';
-    tag.textContent = EQUIP_RENEW_TAG.includes(type) ? 'RENEW' : EQUIP_UPDATE_TAG.includes(type) ? 'UPDATE' : 'NEW';
+    tag.textContent = 'NEW';
     item.appendChild(tag);
   }
   item.addEventListener('click', () => { debugStartWeapon = type; beginGame(); });
@@ -4691,9 +4689,9 @@ function handleEnemyDeath(e) {
     spawnDeathParticles(e.x, e.y, e.def.color, 18);
     spawnDeathGhost(e.x, e.y, e.def.r, e.angle || 0, e.def.color);
   }
-  // enemy stages: killing a formation's last-to-enter enemy has a 5% chance to drop an item,
+  // enemy stages: killing a formation's last-to-enter enemy has a 10% chance to drop an item,
   // which falls from the very top at a random x
-  if (e.lastInFormation && e.type !== 'GIANTBOSS' && CYCLE_KIND[((wave - 1) % CYCLE_LEN)] === 'ENEMY' && Math.random() < 0.05) spawnItem(rand(40, W - 40), -20);
+  if (e.lastInFormation && e.type !== 'GIANTBOSS' && CYCLE_KIND[((wave - 1) % CYCLE_LEN)] === 'ENEMY' && Math.random() < 0.10) spawnItem(rand(40, W - 40), -20);
   if (e.dropsRapid) spawnRapidItem(e.x + 20, e.y);
 }
 
@@ -5791,11 +5789,13 @@ function checkWaveClear() {
   if (!waveActive) return; // wave hasn't been activated yet (still in announce/delay)
   const m = ((wave - 1) % CYCLE_LEN) + 1;
   const kind = CYCLE_KIND[m - 1];
-  const cleared = kind === 'BOSS'
-    ? bossDefeated
-    : (isAsteroidKind(kind) || isCrystalKind(kind))
-      ? asteroidWaveTimer >= 62 // 60s belt + 2s extra so the Bonus banner (triggered at 1s remaining, shown 3s) finishes before the actual clear/warp
-      : asteroidWaveTimer >= 40; // enemy waves: fixed 40s — leftover enemies are wiped and the ship warps out
+  // TIME up (40s enemy waves; 60s + 2s belts): no new enemies appear any more, and the
+  // stage only clears/warps once every enemy still on screen has been destroyed
+  const timeUp = kind !== 'BOSS' && ((isAsteroidKind(kind) || isCrystalKind(kind))
+    ? asteroidWaveTimer >= 62 // 60s belt + 2s extra so the Bonus banner (triggered at 1s remaining, shown 3s) finishes before the actual clear/warp
+    : asteroidWaveTimer >= 40);
+  if (timeUp) spawnQueue = [];
+  const cleared = kind === 'BOSS' ? bossDefeated : (timeUp && enemies.length === 0);
   if (cleared) {
     // clean transition: clear anything left over regardless of wave kind
     if ((isAsteroidKind(kind) || isCrystalKind(kind)) && !beltDamageBonusApplied) {
