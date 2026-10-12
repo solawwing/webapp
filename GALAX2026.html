@@ -133,7 +133,7 @@
 <div id="overlay">
   <div id="titleScreen">
     <div class="title" id="titleText" style="font-size:clamp(8px,3.5vw,18px); cursor:pointer; pointer-events:auto;">GALAX2026</div>
-    <div style="font-size:14px; opacity:0.6; letter-spacing:2px; margin-top:2px; text-shadow:none;">version 3.98</div>
+    <div style="font-size:14px; opacity:0.6; letter-spacing:2px; margin-top:2px; text-shadow:none;">version 4.0</div>
     <svg width="360" height="26" viewBox="0 0 360 26" style="display:block; margin:0 auto 0;">
       <defs>
         <linearGradient id="titleArcFade" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -216,6 +216,10 @@
         <div class="item-header"><span class="item-icon">I</span><span class="item-name">INFINITY</span></div>
         <div class="item-desc">Squares spawn nearby, shoot toward the closest foe.</div>
       </div>
+      <div class="item-entry" data-weapon="JAVELIN">
+        <div class="item-header"><span class="item-icon">J</span><span class="item-name">JAVELIN</span></div>
+        <div class="item-desc">Locks and slows what it pierces, then blue spears drop to finish them.</div>
+      </div>
       <div class="item-entry" data-weapon="KURU2">
         <div class="item-header"><span class="item-icon">K</span><span class="item-name">KURU2</span></div>
         <div class="item-desc">Spinning triangles; kills burst outward.</div>
@@ -270,7 +274,7 @@
       </div>
       <div class="item-entry" data-weapon="NORMAL">
         <div class="item-header"><span class="item-icon">N</span><span class="item-name">NORMAL</span></div>
-        <div class="item-desc">White shots that split in two (±10°) on every hit.</div>
+        <div class="item-desc">White shots that split on every hit.</div>
       </div>
       <div class="item-entry" data-weapon="YARELY">
         <div class="item-header"><span class="item-icon">Y</span><span class="item-name">YARELY</span></div>
@@ -379,7 +383,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-10-10 19:25';
+const LAST_UPDATED = '2026-10-12 20:05';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -440,7 +444,15 @@ function qbezier(p0, p1, p2, t) {
 function dist2(ax, ay, bx, by) { const dx = ax-bx, dy = ay-by; return dx*dx + dy*dy; }
 function rand(a, b) { return a + Math.random() * (b - a); }
 const BOSS_HIT_CAP = 5; // mini-bosses and the main boss can never lose more than this much HP from a single hit
-function capBossDmg(d) { return Math.min(d, BOSS_HIT_CAP); }
+function capBossDmg(d) { return BOSS_HIT_CAP; } // every hit on a mini-boss / the boss deals a flat 5, whatever the weapon's power
+// a bullet that hits a mini-boss or the boss is spent (no piercing); beams fade out, others vanish
+function spendOnBoss(b, j) {
+  if (b._spent) return;
+  b._spent = true;
+  if (b.laserCurve) b.dying = true;
+  else if (b.laser) { b.dying = true; b.dyingT = 0; }
+  else playerBullets.splice(j, 1);
+}
 let lastHitDamage = 0, damagePopupTimer = 0; // single-hit damage readout shown top-right in the HUD
 function reportDamage(d) { if (d > 0) { lastHitDamage = Math.round(d * 10) / 10; damagePopupTimer = 1.0; } return d; }
 // UNLEASH: each charge ring's 1.3s base shrink time is cut by 0.1s per RAPID
@@ -449,7 +461,7 @@ function reportDamage(d) { if (d > 0) { lastHitDamage = Math.round(d * 10) / 10;
 function unleashPulseTime() { return Math.max(0.5, 1.3 - (player.rapidLevel || 0) * 0.1); }
 function weaponMaxLevel(type) {
   // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL/ZAPPER/XCROSS/KURU2/ARROW/QIX/EARTH/WHIPS/INFINITY/FUNNEL uniquely level up to 7, every other weapon caps at 5
-  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS' || type === 'INFINITY' || type === 'FUNNEL' || type === 'UNLEASH' || type === 'YARELY' || type === 'NORMAL') ? 7 : 5;
+  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS' || type === 'INFINITY' || type === 'FUNNEL' || type === 'UNLEASH' || type === 'YARELY' || type === 'NORMAL' || type === 'JAVELIN') ? 7 : 5;
 }
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function formatScore(n) { return Math.round(n).toLocaleString('en-US'); }
@@ -513,8 +525,8 @@ function resetPlayer() {
 }
 
 // ---------- items ----------
-const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL', 'UNLEASH', 'YARELY', 'NORMAL'];
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff7a1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff', UNLEASH: '#ff2fd4', YARELY: '#f4ff2e', NORMAL: '#ffffff' };
+const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL', 'UNLEASH', 'YARELY', 'NORMAL', 'JAVELIN'];
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff7a1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff', UNLEASH: '#ff2fd4', YARELY: '#f4ff2e', NORMAL: '#ffffff', JAVELIN: '#9a9a9a' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -786,7 +798,7 @@ function updateItems(dt) {
     }
   }
 }
-const ITEM_GLYPHS = { LIFE: '+', DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E', WHIPS: 'W', INFINITY: 'I', FUNNEL: 'F', UNLEASH: 'U', YARELY: 'Y', NORMAL: 'N' };
+const ITEM_GLYPHS = { LIFE: '+', DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E', WHIPS: 'W', INFINITY: 'I', FUNNEL: 'F', UNLEASH: 'U', YARELY: 'Y', NORMAL: 'N', JAVELIN: 'J' };
 function drawItems() {
   ctx.lineWidth = 1;
   items.forEach(it => {
@@ -1193,7 +1205,7 @@ const SPARK_COOLDOWNS = [0, 0.3, 0.3, 0.3, 0.3, 0.3]; // fixed 0.3s regardless o
 // "wait until the screen is clear of your own bullets" gate for these weapons
 const WEAPON_FIRE_COOLDOWNS = {
   NORMAL: 0.3, DOUBLE: 0.5, MISSILE: 1.0, HOMING: 0.8, LASER: 1.0,
-  GRAVITY: 0.8, BUBBLE: 0.5, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4, QIX: 0.4, INFINITY: 1.0, YARELY: 0.4,
+  GRAVITY: 0.8, BUBBLE: 0.5, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4, QIX: 0.4, INFINITY: 1.0, YARELY: 0.4, JAVELIN: 0.6,
 };
 const LASER_SPECS = [null,
   { length: 200, pierce: 5, speed: 300 },
@@ -1262,16 +1274,63 @@ function yawTrim(b) {
   }
 }
 function splitNormalOnHit(b, target) {
-  // NORMAL: replaced by two shots fanning +/-10 degrees off its current heading;
+  // NORMAL: replaced by shots fanning out at +/-5..20 degrees (by level) off its current heading;
   // fragments remember what the parent already hit so they can't re-hit it
   if (playerBullets.length > 400) return;
   const spd = Math.hypot(b.vx, b.vy) || 540;
   const base = Math.atan2(b.vx, -b.vy);
   const hs = new Set(b.hitSet); if (target) hs.add(target);
-  [10, -10].forEach(deg => {
+  const pairs = Math.min(4, Math.ceil((b.nlvl || 1) / 2)); // Lv1-2: +/-5, Lv3-4: +/-5,10, Lv5-6: +/-5,10,15, Lv7: +/-5,10,15,20
+  const degs = [];
+  for (let k = 0; k < pairs; k++) degs.push(5 + 5 * k, -(5 + 5 * k));
+  degs.forEach(deg => {
     const a = base + deg * Math.PI / 180;
-    playerBullets.push({ x: b.x, y: b.y, vx: Math.sin(a) * spd, vy: -Math.cos(a) * spd, r: 2, power: b.power, nsplit: true, hitSet: new Set(hs) });
+    playerBullets.push({ x: b.x, y: b.y, vx: Math.sin(a) * spd, vy: -Math.cos(a) * spd, r: 2, power: b.power, nsplit: true, nlvl: b.nlvl, hitSet: new Set(hs) });
   });
+}
+function javelinRadius(t) {
+  if (t.isMiniBoss) return (t.bossRef.def.r / 3) * 0.7;
+  if (t.isAsteroidObj) return t.r;
+  return t.def.r;
+}
+function javelinHit(b, pos, r) {
+  // bar (gray 50px / blue 250px, centered on b, along its heading) vs a circle
+  const half = b.phase === 2 ? 125 : 25;
+  const sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp;
+  const t = Math.max(-half, Math.min(half, (pos.x - b.x) * ux + (pos.y - b.y) * uy));
+  const dx = pos.x - (b.x + ux * t), dy = pos.y - (b.y + uy * t), rr = (r + 1) * (r + 1);
+  return dx * dx + dy * dy < rr;
+}
+function javelinSlowTarget(b, t, pos) {
+  if (b.hitSet.has(t)) return;
+  if (!javelinHit(b, pos, javelinRadius(t))) return;
+  t.javelinSlow = true; b.hitSet.add(t); b.hits.push(t);
+  spawnDeathParticles(pos.x, pos.y, '#1f51ff', 2);
+}
+function javelinRelaunch(b, tp) {
+  b.trail = []; b.x = b.sx; b.y = -30;
+  const dx = tp.x - b.x, dy = tp.y - b.y, dl = Math.hypot(dx, dy) || 1;
+  b.vx = dx / dl * b.spd; b.vy = dy / dl * b.spd;
+}
+function javelinDestroy(t) {
+  // blue spear lands: enemy dies, asteroid/crystal takes its remaining stage HP, mini-boss vertices and the boss body take a capped (5) hit
+  if (t.isMiniBoss) {
+    const boss = t.bossRef, vk = t.vertexIndex, pos = bossVertexWorldPos(boss, vk);
+    boss.miniBossHp[vk] -= reportDamage(capBossDmg(5));
+    score += scoreMultiplier * 10;
+    if (boss.miniBossHp[vk] <= 0) { spawnDeathParticles(pos.x, pos.y, boss.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, (boss.def.r / 3) * 0.7, 0, boss.def.color, 4); }
+    else spawnDeathParticles(pos.x, pos.y, boss.def.color, 3);
+  } else if (t.isAsteroidObj) {
+    const need = t.armored ? Math.max(1, 128 - (t.armoredDamage || 0)) : Math.max(1, ([50, 40, 30][t.splitStage || 0] || 30) - (t.damageTaken || 0));
+    score += scoreMultiplier * wave * 20;
+    registerAsteroidDamage(need, t);
+    spawnDeathParticles(t.x, t.y, t.isCrystal ? '#7CFFF0' : '#bbbbbb', 10);
+  } else {
+    t.hp -= reportDamage(t.type === 'GIANTBOSS' ? capBossDmg(5) : t.hp);
+    score += scoreMultiplier * 10;
+    if (t.hp <= 0) { handleEnemyDeath(t); const idx = enemies.indexOf(t); if (idx !== -1) enemies.splice(idx, 1); }
+    else if (t.type !== 'GIANTBOSS') spawnDeathParticles(t.x, t.y, t.def.color, 3);
+  }
 }
 function fireWeapon() {
   const bx = player.x, by = player.y - player.r;
@@ -1474,9 +1533,17 @@ function fireWeapon() {
       x: bx, y: by, vx: 0, vy: -350, r: qixLength / 6, power: 5,
       qix: true, qixPhase: rand(0, Math.PI * 2), qixDir: rand(0, 1) < 0.5 ? 1 : -1, qixPivot: rand(0.15, 0.85), qixHitSets: [new Set(), new Set(), new Set(), new Set(), new Set()], qixHistory: [], qixLength,
     });
+  } else if (player.weapon === 'JAVELIN') {
+    // `level` gray 50x1px spears fanned out from the ship (angles by level); phase 1 pierces enemies (no damage, halves
+    // their speed); once off the top each turns blue and drops onto a slowed enemy (see updateBullets)
+    const JAV_ANGLES = [null, [0], [5, -5], [5, 0, -5], [10, 5, -5, -10], [10, 5, 0, -5, -10], [15, 10, 5, -5, -10, -15], [15, 10, 5, 0, -5, -10, -15]];
+    for (const deg of JAV_ANGLES[Math.max(1, Math.min(7, lvl))]) {
+      const ja = deg * Math.PI / 180;
+      playerBullets.push({ x: bx, y: by, vx: Math.sin(ja) * 900, vy: -Math.cos(ja) * 900, r: 1, power: 0, javelin: true, phase: 1, hits: [], hitSet: new Set() });
+    }
   } else if (player.weapon === 'NORMAL' && lvl >= 1) {
     // white 1x5px shot, power = level; splits into two on every hit (see splitNormalOnHit)
-    playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 2, power: lvl + 1, nsplit: true, hitSet: new Set() });
+    playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 2, power: lvl + 1, nsplit: true, nlvl: lvl, hitSet: new Set() });
   } else if (player.weapon === 'YARELY') {
     // 8-way burst of line bolts (a 100px line that trails behind its leading tip, which starts 30px out from the ship).
     const yawLen = 200 + 100 * lvl, spd = 800; // Lv1 = 300px, +100px per level (Lv7 = 900px)
@@ -2795,6 +2862,7 @@ function checkMiniBossHits(e) {
       if (b.xcross) continue; // XCROSS has its own dedicated mini-boss handling elsewhere
       if (b.kuru2) continue; // KURU2 has its own dedicated mini-boss handling elsewhere
       if (b.arrow) continue; // ARROW has its own dedicated mini-boss handling elsewhere
+      if (b.javelin) continue; // JAVELIN has its own mini-boss handling in handleCollisions
       if (b.earthLaser) continue; // EARTH has its own dedicated mini-boss handling elsewhere
       if (b.funnelLaser) continue; // FUNNEL has its own dedicated mini-boss handling elsewhere
       if (b.qix) continue; // QIX has its own dedicated mini-boss handling elsewhere
@@ -2816,7 +2884,7 @@ function checkMiniBossHits(e) {
         hit = dist2(pos.x, pos.y, b.x, b.y) < (miniR + br) * (miniR + br);
       }
       if (!hit) continue;
-      e.miniBossHp[vk] -= reportDamage(capBossDmg((b.refect || b.gravity) ? 5 : b.sparkFrag ? 3 : (b.power || 1)));
+      e.miniBossHp[vk] -= reportDamage(capBossDmg(5));
 
       score += scoreMultiplier * 10;
       if (e.miniBossHp[vk] <= 0) {
@@ -2830,7 +2898,7 @@ function checkMiniBossHits(e) {
       if (b.nsplit) { splitNormalOnHit(b, marker); playerBullets.splice(j, 1); continue; }
       if (b.refect) { splitRefectOnHit(b); if (b.hitSet) b.hitSet.add(marker); playerBullets.splice(j, 1); continue; }
       if (b.yaw) b.tickCooldowns.set(marker, 0.05); else if (b.hitSet) b.hitSet.add(marker);
-      if (!b.laser && !b.thunder && !b.laserCurve && !b.yaw) playerBullets.splice(j, 1);
+      if (!b.thunder) spendOnBoss(b, j);
     }
   }
 }
@@ -2872,7 +2940,8 @@ function updateEnemies(dt) {
       const f = phantomFlashes[pi];
       if (e.x >= f.x && e.x <= f.x + f.w && e.y >= f.y && e.y <= f.y + f.h) { slowedByPhantom = true; break; }
     }
-    const dt = (slowedByShockwave || slowedByPhantom) ? fullDt * (slowedByShockwave ? (1 / 4) : 0.5) : fullDt;
+    const dt = ((slowedByShockwave || slowedByPhantom) ? fullDt * (slowedByShockwave ? (1 / 4) : 0.5) : fullDt) * (e.javelinSlow ? 0.25 : 1); // JAVELIN-pierced enemies stay at quarter speed
+    e.gravSlowed = slowedByShockwave; // for the GRAVITY lock-on square
     if (e.state === 'enter') {
       e.t += (dt * (e.type === 'GIANTBOSS' ? 2 : 1.875)) / e.duration; // moves into formation at 1.875x speed (boss 2x)
       if (e.t >= 1) {
@@ -3016,7 +3085,7 @@ let debugStartAtBoss = false; // set via tapping the tier-A icon on the title sc
 let debugSkipEnemyWaves = false; // set via tapping the tier-C icon on the title screen — only ASTEROID/CRYSTAL/BOSS cycle positions play, ENEMY positions are silently skipped
 let debugWallBossOnly = false; // set via double-tapping the tier-D (green) icon on the title screen — only cycle positions 2, 6, 10 (wall stages) and the BOSS play, weapon starts at Lv3
 let debugStartMaxLevel = false; // set via tapping the tier-E icon on the title screen
-const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'KURU2', 'LASER', 'MISSILE', 'NORMAL', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'UNLEASH', 'VULCAN', 'WHIPS', 'XCROSS', 'YARELY', 'ZAPPER']; // no NORMAL — alphabetical order
+const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'JAVELIN', 'KURU2', 'LASER', 'MISSILE', 'NORMAL', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'UNLEASH', 'VULCAN', 'WHIPS', 'XCROSS', 'YARELY', 'ZAPPER']; // no NORMAL — alphabetical order
 function showEquipSelect() {
   showingEquip = true;
   titleScreen.classList.add('hidden');
@@ -3065,7 +3134,7 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["5 jumps, 1 reset.", "10 jumps, 1 reset.", "15 jumps, 1 reset.", "20 jumps, 1 reset.", "25 jumps, 1 reset.", "30 jumps, 1 reset.", "35 jumps, 1 reset."] },
   REFECT: { intro: "Cyan bolt flies 50px forward, then bends ±20-50° every 50px (30 bends), leaving a 15-segment trail. On hit it splits into two bolts turning 60-80° each way. Each level adds a bolt. Levels to 7.",
     levels: ["1 bolt.", "2 bolts.", "3 bolts.", "4 bolts.", "5 bolts.", "6 bolts.", "7 bolts, dense zig-zagging coverage."] },
-  NORMAL: { intro: "White 80px line shot (power = level + 1) every 0.5s. On any hit it splits into two shots fanning ±10° off its heading, which split again on their next hit. RAPID bursts apply. Levels to 7.",
+  NORMAL: { intro: "White 80px line shot (power = level + 1) every 0.5s. On any hit it splits into shots at ±5° (Lv3: +±10°, Lv5: +±15°, Lv7: +±20°), which split again on their next hit. RAPID bursts apply.",
     levels: ["Power 2.", "Power 3.", "Power 4.", "Power 5.", "Power 6.", "Power 7.", "Power 8."] },
   ORBITAL: { intro: "Wireframe rings share a tumbling elliptical orbit around the ship; each fires a fine forward laser that forks in two on its first pierce. Each level adds two rings. Levels to 7.",
     levels: ["2 rings.", "4 rings.", "6 rings.", "8 rings.", "10 rings.", "12 rings.", "14 rings, full coverage."] },
@@ -3073,6 +3142,8 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["1 pair.", "2 pairs.", "3 pairs.", "4 pairs.", "5 pairs.", "6 pairs.", "7 pairs, full swarm."] },
   XCROSS: { intro: "A small X-shaped bolt that, on hit, shoots both lines across all four diagonals, hitting anything along them. Each level extends the reach by 100px (to 700px). Levels to 7.",
     levels: ["100px reach.", "200px reach.", "300px reach.", "400px reach.", "500px reach.", "600px reach.", "700px reach, screen-spanning."] },
+  JAVELIN: { intro: "Gray 50x1px spears pierce targets without damage, cutting their speed to 1/4 and locking them in blue. Off-screen they turn blue (250px, 2x speed) and hit each locked target to destroy it.",
+    levels: ["1 spear, 0°.", "2 spears, ±5°.", "3 spears, 0/±5°.", "4 spears, ±5/10°.", "5 spears, 0/±5/10°.", "6 spears, ±5/10/15°.", "7 spears, 0/±5/10/15°."] },
   KURU2: { intro: "Spinning fluorescent-yellow triangles. Any kill sets off a spinning burst of smaller triangles in every direction at that spot. Each level lengthens the burst by 1s. Levels to 7.",
     levels: ["1s burst on kill.", "2s burst on kill.", "3s burst on kill.", "4s burst on kill.", "5s burst on kill.", "6s burst on kill.", "7s burst on kill."] },
   ARROW: { intro: "Open wireframe arrowheads that launch slow, then double speed mid-flight. Drawn 20% transparent. Each level adds an arrow in a wider fan. Levels to 7.",
@@ -3122,7 +3193,7 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 2000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['NORMAL', 'UNLEASH', 'YARELY', 'INFINITY']; // shows "NEW"
+const EQUIP_UPDATED = ['NORMAL', 'UNLEASH', 'YARELY', 'INFINITY', 'JAVELIN']; // shows "NEW"
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -4199,7 +4270,7 @@ function updateBullets(dt) {
     if (!b.bubble && !b.noTrail) {
       if (!b.trail) b.trail = [];
       b.trail.push({ x: b.x, y: b.y, rot: b.angle !== undefined ? b.angle : b.rot, traveled: b.traveled });
-      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.missile ? 10 : b.orbitalBolt ? 24 : b.earthShipLaser ? 8 : (b.earthLaser || b.funnelLaser) ? 32 : (b.double || b.nsplit) ? 32 : b.vulcanLine ? 5 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
+      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.missile ? 10 : b.orbitalBolt ? 24 : b.earthShipLaser ? 8 : (b.earthLaser || b.funnelLaser) ? 32 : (b.double || b.nsplit) ? 32 : b.javelin ? 48 : b.vulcanLine ? 5 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
       if (b.trail.length > maxTrail) b.trail.shift();
     }
     if (b.homing) {
@@ -4631,6 +4702,37 @@ function updateBullets(dt) {
       // gradually fades out over 0.3s instead of vanishing the instant it goes off-screen
       b.dyingT = (b.dyingT || 0) + dt;
       if (b.dyingT >= 0.3) { playerBullets.splice(i, 1); }
+      continue;
+    }
+    if (b.javelin) {
+      if (b.phase === 1 && (b.y < -30 || b.x < -20 || b.x > W + 20)) { // (angled spears may leave through a side edge)
+        // left the screen: every enemy this spear slowed gets its own blue spear dropped from directly above
+        const taken = e => playerBullets.some(o => o !== b && o.javelin && o.phase === 2 && o.target === e);
+        const targets = b.hits.filter(e => zapperTargetPos(e) && !taken(e));
+        if (targets.length) {
+          // each blue spear starts at the horizontal position where the gray one left the screen and flies a
+          // straight line (at 2x the gray speed) to where its target is at launch — angled if the target is off to the side
+          const ex = Math.max(0, Math.min(W, b.x)), ey = -30, BLUE_SPD = Math.hypot(b.vx, b.vy) * 2 || 1400;
+          const mk = (o, t) => {
+            const tp = zapperTargetPos(t);
+            let dx = tp.x - ex, dy = tp.y - ey; const dl = Math.hypot(dx, dy) || 1;
+            o.trail = []; o.phase = 2; o.target = t; o.sx = ex; o.spd = BLUE_SPD; o.x = ex; o.y = ey; o.vx = dx / dl * BLUE_SPD; o.vy = dy / dl * BLUE_SPD;
+          };
+          mk(b, targets[0]);
+          for (let k = 1; k < targets.length; k++) {
+            const nb = { x: 0, y: 0, vx: 0, vy: 0, r: 1, power: 0, javelin: true, phase: 2, hits: [], hitSet: new Set() };
+            mk(nb, targets[k]);
+            playerBullets.push(nb);
+          }
+        } else { playerBullets.splice(i, 1); }
+      } else if (b.phase === 2) {
+        if (b.y > H + 80 || b.y < -200 || b.x < -120 || b.x > W + 120) {
+          // straight flight, no homing — but a spear that misses its still-living target is re-launched
+          // from where it first started, aimed straight at the target's current spot, until it lands
+          const tp = b.target ? zapperTargetPos(b.target) : null;
+          if (tp) javelinRelaunch(b, tp); else playerBullets.splice(i, 1);
+        }
+      }
       continue;
     }
     if (!b.yaw && (b.y < -20 || b.y > H + 20 || b.x < -20 || b.x > W + 20)) {
@@ -5196,6 +5298,42 @@ function handleCollisions() {
     if (b.dying) continue; // erasing its trail, no longer active
     if (b.spark) continue; // no hit detection until it bursts
     if (b.chaining) continue; // thunder: handled entirely in updateBullets once chaining starts
+    if (b.javelin) {
+      // phase 1 (gray): pierce enemies / boss / mini-boss vertices without damage, permanently halving
+      // the speed of enemies and the boss (asteroids are handled in handleAsteroidCollisions) and marking
+      // everything touched as locked. phase 2 (blue): falling spear destroys its own target
+      if (b.phase === 2) {
+        const tp = b.target ? zapperTargetPos(b.target) : null;
+        if (tp && javelinHit(b, tp, javelinRadius(b.target))) {
+          const tgt = b.target;
+          javelinDestroy(tgt);
+          // a target that survived (mini-boss / boss) keeps getting spears: re-launch from the start point
+          const tp2 = zapperTargetPos(tgt);
+          if (tp2) javelinRelaunch(b, tp2); else playerBullets.splice(j, 1);
+        }
+        continue;
+      }
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        if (e.type === 'GIANTBOSS') {
+          if (e.miniBossHp) {
+            e.miniBossMarkers = e.miniBossMarkers || [];
+            for (let vk = 0; vk < e.miniBossHp.length; vk++) {
+              if (e.miniBossHp[vk] <= 0) continue;
+              if (!e.miniBossMarkers[vk]) e.miniBossMarkers[vk] = {};
+              const m = e.miniBossMarkers[vk];
+              const pos = bossVertexWorldPos(e, vk);
+              m.x = pos.x; m.y = pos.y; m.isMiniBoss = true; m.bossRef = e; m.vertexIndex = vk;
+              javelinSlowTarget(b, m, pos);
+            }
+          }
+          if (isBossVulnerable(e)) javelinSlowTarget(b, e, { x: e.x, y: e.y });
+          continue;
+        }
+        javelinSlowTarget(b, e, { x: e.x, y: e.y });
+      }
+      continue;
+    }
     if (b.earthLaser || b.funnelLaser) {
       // pierces through everything, ticking damage every 0.1s to whatever it's
       // currently overlapping rather than a single hit-once-per-target
@@ -5218,9 +5356,11 @@ function handleCollisions() {
               score += scoreMultiplier * 10;
               if (e.miniBossHp[vk] <= 0) { spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4); }
               else spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
+              spendOnBoss(b, j);
             }
           }
         }
+        if (b._spent) continue;
         if (b.tickCooldowns.has(e)) continue;
         const rr = (e.def.r + b.r) * (e.def.r + b.r);
         if (dist2(e.x, e.y, b.x, b.y) < rr) {
@@ -5234,6 +5374,7 @@ function handleCollisions() {
           } else if (e.type !== 'GIANTBOSS') {
             spawnDeathParticles(e.x, e.y, e.def.color, 3);
           }
+          if (e.type === 'GIANTBOSS') spendOnBoss(b, j);
         }
       }
       continue;
@@ -5254,6 +5395,7 @@ function handleCollisions() {
             if (dist2(pos.x, pos.y, b.x, b.y) < rr) {
               b.arrowOverlapNow = true;
               e.miniBossHp[vk] -= reportDamage(capBossDmg(1));
+              spendOnBoss(b, j);
 
               score += scoreMultiplier * 10;
               if (e.miniBossHp[vk] <= 0) { spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4); }
@@ -5265,7 +5407,8 @@ function handleCollisions() {
         if (dist2(e.x, e.y, b.x, b.y) < rr) {
           if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
           b.arrowOverlapNow = true;
-          e.hp -= reportDamage(1);
+          e.hp -= reportDamage(e.type === 'GIANTBOSS' ? capBossDmg(1) : 1);
+          if (e.type === 'GIANTBOSS') spendOnBoss(b, j);
           score += scoreMultiplier * 10;
           if (e.hp <= 0) {
             handleEnemyDeath(e);
@@ -5286,6 +5429,7 @@ function handleCollisions() {
           if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
           b.tickCooldowns.set(e, 0.05);
           e.hp -= reportDamage(e.type === 'GIANTBOSS' ? capBossDmg(b.power) : b.power);
+          if (e.type === 'GIANTBOSS') spendOnBoss(b, j);
           score += scoreMultiplier * 10;
           if (e.hp <= 0) {
             handleEnemyDeath(e);
@@ -5330,6 +5474,7 @@ function handleCollisions() {
               if (distSqToSegment(pos.x, pos.y, seg.x1, seg.y1, seg.x2, seg.y2) < miniR * miniR) {
                 b.qixHitSets[si].add(marker);
                 e.miniBossHp[vk] -= reportDamage(capBossDmg(si === 0 ? (b.power || 5) : 2));
+                spendOnBoss(b, j);
 
                 score += scoreMultiplier * 10;
                 if (e.miniBossHp[vk] <= 0) { spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4); }
@@ -5345,6 +5490,7 @@ function handleCollisions() {
             if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
             b.qixHitSets[si].add(e);
             e.hp -= reportDamage(e.type === 'GIANTBOSS' ? capBossDmg(si === 0 ? (b.power || 5) : 2) : (si === 0 ? (b.power || 5) : 2));
+            if (e.type === 'GIANTBOSS') spendOnBoss(b, j);
             score += scoreMultiplier * 10;
             if (e.hp <= 0) {
               handleEnemyDeath(e);
@@ -5455,7 +5601,7 @@ function handleCollisions() {
               } else {
                 spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
               }
-              if (splitOrbitalBoltOnHit(b)) { playerBullets.splice(j, 1); removed = true; }
+              splitOrbitalBoltOnHit(b); spendOnBoss(b, j); removed = true;
             }
           }
         }
@@ -5472,7 +5618,8 @@ function handleCollisions() {
           } else if (e.type !== 'GIANTBOSS') {
             spawnDeathParticles(e.x, e.y, e.def.color, 3);
           }
-          if (splitOrbitalBoltOnHit(b)) { playerBullets.splice(j, 1); removed = true; }
+          if (e.type === 'GIANTBOSS') { splitOrbitalBoltOnHit(b); spendOnBoss(b, j); removed = true; }
+          else if (splitOrbitalBoltOnHit(b)) { playerBullets.splice(j, 1); removed = true; }
         }
       }
       continue;
@@ -5541,6 +5688,7 @@ function handleCollisions() {
             } else if (e.type !== 'GIANTBOSS') {
               spawnDeathParticles(e.x, e.y, e.def.color, 3);
             }
+            if (e.type === 'GIANTBOSS') { spendOnBoss(b, j); break; }
           }
         }
       }
@@ -5563,6 +5711,7 @@ function handleCollisions() {
           }
           if (b.subLaser) subLaserBendOnHit(b);
           b.pierceLeft -= 1;
+          if (e.type === 'GIANTBOSS') b.pierceLeft = 0;
           if (b.pierceLeft <= 0) break;
         }
       }
@@ -5605,7 +5754,7 @@ function handleCollisions() {
         if (dist2(e.x, e.y, b.x, b.y) < rr) {
           if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
           b.hitSet.add(e);
-          e.hp -= reportDamage((e.type === 'GIANTBOSS' ? 5 : (b.power || 3)));
+          e.hp -= reportDamage((e.type === 'GIANTBOSS' ? capBossDmg(5) : (b.power || 3)));
           score += scoreMultiplier * 10; // +10 for dealing damage
           if (e.hp <= 0) {
             handleEnemyDeath(e);
@@ -5630,7 +5779,7 @@ function handleCollisions() {
           if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
           const wasTarget = e === b.target;
           b.hitSet.add(e);
-          e.hp -= reportDamage(5); // uniform damage regardless of locked target vs incidental pierce hit
+          e.hp -= reportDamage(capBossDmg(5)); // uniform damage regardless of locked target vs incidental pierce hit
           score += scoreMultiplier * 10; // +10 for dealing damage
           if (e.hp <= 0) {
             handleEnemyDeath(e);
@@ -5728,7 +5877,7 @@ function handleCollisions() {
           const ex = e.x, ey = e.y;
           const isBoss = e.type === 'GIANTBOSS';
           if (!(isBoss && !isBossVulnerable(e))) {
-            e.hp -= reportDamage((b.gravity && isBoss) ? 5 : (b.sparkFrag && isBoss) ? 3 : (isBoss ? capBossDmg(b.power || 1) : (b.power || 1)));
+            e.hp -= reportDamage((isBoss ? capBossDmg(b.power || 1) : (b.power || 1)));
             score += scoreMultiplier * 10; // +10 for dealing damage
           }
           if (e.hp <= 0) {
@@ -5928,7 +6077,8 @@ function drawPlayer() {
     // instantly) — drawn as a quadratic-curve spline through its zigzag points
     // instead of straight segments, for a smooth bend rather than sharp corners
     ctx.strokeStyle = '#ff10f0';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1; // 1px
+    ctx.globalAlpha = 0.8; // 20% transparent
     player.whipTethers.forEach(w => {
       if (!w.target || !w.segments || w.segments.length < 2) return;
       const segs = w.segments;
@@ -5946,6 +6096,7 @@ function drawPlayer() {
       const pos = zapperTargetPos(w.target);
       if (pos) ctx.strokeRect(pos.x - 15, pos.y - 15, 30, 30);
     });
+    ctx.globalAlpha = 1;
   } else if (player.weapon === 'FUNNEL' && player.funnels) {
     // FUNNEL's own drones: small kite/diamond shapes (a shrunk copy of the ship's
     // own body), rotated to face whichever direction they're currently traveling,
@@ -6387,7 +6538,8 @@ function updateAsteroids(fullDt) {
       const scx = s.x + s.jitterX, scy = s.y + s.jitterY;
       if (Math.hypot(a.x - scx, a.y - scy) <= ringR + (a.r || 10)) { slowedByShockwave = true; break; }
     }
-    const dt = slowedByShockwave ? fullDt * (1 / 4) : fullDt;
+    const dt = (slowedByShockwave ? fullDt * (1 / 4) : fullDt) * (a.javelinSlow ? 0.25 : 1);
+    a.gravSlowed = slowedByShockwave; // for the GRAVITY lock-on square
     a.x += (a.vx || 0) * dt;
     a.y += a.vy * dt;
     a.angle += a.spin * dt;
@@ -6580,6 +6732,10 @@ function handleAsteroidCollisions() {
     if (b.dying) continue; // erasing its trail, no longer active
     if (b.spark) continue; // no hit detection until it bursts
     if (b.chaining) continue; // thunder: handled entirely in updateBullets once chaining starts
+    if (b.javelin) {
+      if (b.phase === 1) for (let i = 0; i < asteroids.length; i++) javelinSlowTarget(b, asteroids[i], { x: asteroids[i].x, y: asteroids[i].y });
+      continue;
+    }
     if (b.earthLaser || b.funnelLaser) {
       for (let i = 0; i < asteroids.length; i++) {
         const a = asteroids[i];
@@ -7092,6 +7248,34 @@ function drawBullets() {
       ctx.restore();
       return;
     }
+    if (b.javelin) {
+      const jc = b.phase === 2 ? '31,81,255' : '154,154,154'; // gray going up, fluorescent blue coming down (20% transparent)
+      const jang = Math.atan2(b.vy, b.vx) + Math.PI / 2;
+      const jh = b.phase === 2 ? 125 : 25; // half length: gray 50px, blue 250px
+      if (b.trail && b.trail.length > 1) {
+        // long, smooth afterimage: one gradient line from the oldest recorded position (transparent) up to the
+        // rear end of the bar (about half opaque), running along the path the spear actually flew
+        const sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp;
+        const t0 = b.trail[0];
+        const x0 = t0.x - ux * jh, y0 = t0.y - uy * jh, x1 = b.x - ux * jh, y1 = b.y - uy * jh;
+        const g = ctx.createLinearGradient(x0, y0, x1, y1);
+        g.addColorStop(0, `rgba(${jc},0)`);
+        g.addColorStop(1, `rgba(${jc},0.55)`);
+        ctx.strokeStyle = g;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+      }
+      ctx.fillStyle = `rgb(${jc})`;
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(Math.atan2(b.vy, b.vx) + Math.PI / 2);
+      ctx.fillRect(-0.5, -jh, 1, jh * 2);
+      ctx.restore();
+      return;
+    }
     if (b.nsplit) {
       // same look as an EARTH pod's laser: 80px line along the heading with a fading trail of copies
       const ang = Math.atan2(b.vy, b.vx) + Math.PI / 2;
@@ -7576,6 +7760,30 @@ function drawBullets() {
       ctx.lineWidth = 1;
     }
   });
+  ctx.globalAlpha = 1;
+  // JAVELIN lock-on: rotating fluorescent-blue square around every target it has slowed (like ZAPPER's lock)
+  const lockAng = (performance.now() / 1000) * 2;
+  const drawLock = (x, y, r, col) => {
+    const size = Math.max(50, r * 2 + 16);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(lockAng);
+    ctx.strokeStyle = col || '#1f51ff';
+    ctx.globalAlpha = 0.8;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(-size / 2, -size / 2, size, size);
+    ctx.restore();
+  };
+  enemies.forEach(e => {
+    if (e.javelinSlow) { const pos = zapperTargetPos(e); if (pos) drawLock(pos.x, pos.y, e.def.r); }
+    if (e.type === 'GIANTBOSS' && e.miniBossMarkers) e.miniBossMarkers.forEach(m => {
+      if (m && m.javelinSlow) { const pos = zapperTargetPos(m); if (pos) drawLock(pos.x, pos.y, javelinRadius(m)); }
+    });
+  });
+  asteroids.forEach(a => { if (a.javelinSlow) drawLock(a.x, a.y, a.r); });
+  // GRAVITY: anything slowed by a shockwave ring gets the same rotating lock square (GRAVITY blue)
+  enemies.forEach(e => { if (e.gravSlowed && !e.javelinSlow) drawLock(e.x, e.y, e.def.r, '#1f6bff'); });
+  asteroids.forEach(a => { if (a.gravSlowed && !a.javelinSlow) drawLock(a.x, a.y, a.r, '#1f6bff'); });
   ctx.globalAlpha = 1;
   ctx.lineWidth = 1;
   enemyBullets.forEach(b => {
