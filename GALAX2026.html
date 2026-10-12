@@ -383,7 +383,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-10-12 22:25';
+const LAST_UPDATED = '2026-10-12 23:30';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1204,7 +1204,7 @@ const SPARK_COOLDOWNS = [0, 0.3, 0.3, 0.3, 0.3, 0.3]; // fixed 0.3s regardless o
 // per-weapon fire cooldown (seconds between shots), replacing the old one-size-fits-all
 // "wait until the screen is clear of your own bullets" gate for these weapons
 const WEAPON_FIRE_COOLDOWNS = {
-  NORMAL: 0.3, DOUBLE: 0.5, MISSILE: 1.0, HOMING: 0.8, LASER: 1.0,
+  NORMAL: 0.2, DOUBLE: 0.5, MISSILE: 1.0, HOMING: 0.8, LASER: 1.0,
   GRAVITY: 0.8, BUBBLE: 0.5, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4, QIX: 0.4, INFINITY: 1.0, YARELY: 0.4, JAVELIN: 0.4,
 };
 const LASER_SPECS = [null,
@@ -1285,7 +1285,7 @@ function splitNormalOnHit(b, target) {
   for (let k = 0; k < pairs; k++) degs.push(5 + 5 * k, -(5 + 5 * k));
   degs.forEach(deg => {
     const a = base + deg * Math.PI / 180;
-    playerBullets.push({ x: b.x, y: b.y, vx: Math.sin(a) * spd, vy: -Math.cos(a) * spd, r: 2, power: b.power, nsplit: true, nlvl: b.nlvl, hitSet: new Set(hs) });
+    playerBullets.push({ x: b.x, y: b.y, vx: Math.sin(a) * spd, vy: -Math.cos(a) * spd, r: 2, power: b.power, nsplit: true, nlvl: b.nlvl, nhalf: Math.max(1, (b.nhalf || 40) / 2), hitSet: new Set(hs) }); // each split halves the length
   });
 }
 function javelinRadius(t) {
@@ -3134,7 +3134,7 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["5 jumps, 1 reset.", "10 jumps, 1 reset.", "15 jumps, 1 reset.", "20 jumps, 1 reset.", "25 jumps, 1 reset.", "30 jumps, 1 reset.", "35 jumps, 1 reset."] },
   REFECT: { intro: "Cyan bolt flies 50px forward, then bends ±20-50° every 50px (30 bends), leaving a 15-segment trail. On hit it splits into two bolts turning 60-80° each way. Each level adds a bolt. Levels to 7.",
     levels: ["1 bolt.", "2 bolts.", "3 bolts.", "4 bolts.", "5 bolts.", "6 bolts.", "7 bolts, dense zig-zagging coverage."] },
-  NORMAL: { intro: "White 80px line shot (power = level + 1) every 0.5s. On any hit it splits into shots at ±5° (Lv3: +±10°, Lv5: +±15°, Lv7: +±20°), which split again on their next hit. RAPID bursts apply.",
+  NORMAL: { intro: "White 80px shot (power = level+1) every 0.2s. On any hit it splits into half-length shots at ±5° (Lv3: +±10°, Lv5: +±15°, Lv7: +±20°), which split again, halving each time. RAPID bursts apply.",
     levels: ["Power 2.", "Power 3.", "Power 4.", "Power 5.", "Power 6.", "Power 7.", "Power 8."] },
   ORBITAL: { intro: "Wireframe rings share a tumbling elliptical orbit around the ship; each fires a fine forward laser that forks in two on its first pierce. Each level adds two rings. Levels to 7.",
     levels: ["2 rings.", "4 rings.", "6 rings.", "8 rings.", "10 rings.", "12 rings.", "14 rings, full coverage."] },
@@ -4222,7 +4222,7 @@ function updatePlayer(dt) {
     if (player.weaponFireCooldown > 0) player.weaponFireCooldown -= dt;
     if (player.alive && player.weaponFireCooldown <= 0) {
       fireWeapon();
-      player.weaponFireCooldown = (player.weapon === 'NORMAL' && player.weaponLevel >= 1) ? 0.5 : player.weapon === 'YARELY' ? 1.0 - 0.05 * (player.weaponLevel || 1) : (WEAPON_FIRE_COOLDOWNS[player.weapon] || 0.3); // YARELY: 1.0s - 0.05s x level
+      player.weaponFireCooldown = player.weapon === 'NORMAL' ? 0.2 : player.weapon === 'YARELY' ? 1.0 - 0.05 * (player.weaponLevel || 1) : (WEAPON_FIRE_COOLDOWNS[player.weapon] || 0.3); // YARELY: 1.0s - 0.05s x level
       const rapidCount = player.weapon === 'YARELY' ? 1 : (player.rapidLevel === 1 ? 2 : player.rapidLevel === 2 ? 3 : player.rapidLevel === 3 ? 5 : 1); // YARELY never burst-fires
       player.burstRemaining = rapidCount - 1;
       player.burstTimer = 0.25; // brief delay before the rapid burst kicks in
@@ -7281,6 +7281,7 @@ function drawBullets() {
     if (b.nsplit) {
       // same look as an EARTH pod's laser: 80px line along the heading with a fading trail of copies
       const ang = Math.atan2(b.vy, b.vx) + Math.PI / 2;
+      const nh = b.nhalf || 40; // half length: 80px at first, halved by every split
       if (b.trail && b.trail.length > 1) {
         for (let k = 0; k < b.trail.length; k++) {
           const p = b.trail[k];
@@ -7291,8 +7292,8 @@ function drawBullets() {
           ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
           ctx.lineWidth = 1;
           ctx.beginPath();
-          ctx.moveTo(0, 40);
-          ctx.lineTo(0, -40);
+          ctx.moveTo(0, nh);
+          ctx.lineTo(0, -nh);
           ctx.stroke();
           ctx.restore();
         }
@@ -7303,8 +7304,8 @@ function drawBullets() {
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(0, 40);
-      ctx.lineTo(0, -40);
+      ctx.moveTo(0, nh);
+      ctx.lineTo(0, -nh);
       ctx.stroke();
       ctx.restore();
       return;
