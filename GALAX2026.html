@@ -383,7 +383,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-10-13 21:40';
+const LAST_UPDATED = '2026-10-14 00:15';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1280,9 +1280,9 @@ function splitNormalOnHit(b, target) {
   const spd = Math.hypot(b.vx, b.vy) || 540;
   const base = Math.atan2(b.vx, -b.vy);
   const hs = new Set(b.hitSet); if (target) hs.add(target);
-  const pairs = Math.min(4, Math.ceil((b.nlvl || 1) / 2)); // Lv1-2: +/-5, Lv3-4: +/-5,10, Lv5-6: +/-5,10,15, Lv7: +/-5,10,15,20
+  const NSPLIT_ANGLES = [null, [5], [5, 45], [5, 45, 90], [5, 10, 45], [5, 10, 45, 90], [5, 10, 15, 45], [5, 10, 15, 45, 90]];
   const degs = [];
-  for (let k = 0; k < pairs; k++) degs.push(5 + 5 * k, -(5 + 5 * k));
+  for (const d of NSPLIT_ANGLES[Math.max(1, Math.min(7, b.nlvl || 1))]) degs.push(d, -d); // each angle as a +/- pair
   degs.forEach(deg => {
     const a = base + deg * Math.PI / 180;
     playerBullets.push({ x: b.x, y: b.y, vx: Math.sin(a) * spd, vy: -Math.cos(a) * spd, r: 2, power: b.power, nsplit: true, nlvl: b.nlvl, nhalf: Math.max(1, (b.nhalf || 40) / 2), hitSet: new Set(hs) }); // each split halves the length
@@ -1543,7 +1543,7 @@ function fireWeapon() {
     }
   } else if (player.weapon === 'NORMAL' && lvl >= 1) {
     // white 1x5px shot, power = level; splits into two on every hit (see splitNormalOnHit)
-    playerBullets.push({ x: bx, y: by, vx: 0, vy: -1080, r: 2, power: lvl + 1, nsplit: true, nlvl: lvl, hitSet: new Set() });
+    playerBullets.push({ x: bx, y: by, vx: 0, vy: -650, r: 2, power: lvl + 1, nsplit: true, nlvl: lvl, hitSet: new Set() });
   } else if (player.weapon === 'YARELY') {
     // 8-way burst of line bolts (a 100px line that trails behind its leading tip, which starts 30px out from the ship).
     const yawLen = 200 + 100 * lvl, spd = 800; // Lv1 = 300px, +100px per level (Lv7 = 900px)
@@ -3134,8 +3134,8 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["5 jumps, 1 reset.", "10 jumps, 1 reset.", "15 jumps, 1 reset.", "20 jumps, 1 reset.", "25 jumps, 1 reset.", "30 jumps, 1 reset.", "35 jumps, 1 reset."] },
   REFECT: { intro: "Cyan bolt flies 50px forward, then bends ±20-50° every 50px (30 bends), leaving a 15-segment trail. On hit it splits into two bolts turning 60-80° each way. Each level adds a bolt. Levels to 7.",
     levels: ["1 bolt.", "2 bolts.", "3 bolts.", "4 bolts.", "5 bolts.", "6 bolts.", "7 bolts, dense zig-zagging coverage."] },
-  NORMAL: { intro: "White 80px shot (power = level+1) every 0.2s. On any hit it splits into half-length shots at ±5° (Lv3: +±10°, Lv5: +±15°, Lv7: +±20°), which split again, halving each time. RAPID bursts apply.",
-    levels: ["Power 2.", "Power 3.", "Power 4.", "Power 5.", "Power 6.", "Power 7.", "Power 8."] },
+  NORMAL: { intro: "White 80px shot (power = level+1) every 0.2s. On any hit it splits into half-length shots (±5°; wider angles up to ±90° with level), splitting again. RAPID bursts apply.",
+    levels: ["Power 2, ±5°.", "Power 3, ±5/45°.", "Power 4, ±5/45/90°.", "Power 5, ±5/10/45°.", "Power 6, ±5/10/45/90°.", "Power 7, ±5/10/15/45°.", "Power 8, ±5/10/15/45/90°."] },
   ORBITAL: { intro: "Wireframe rings share a tumbling elliptical orbit around the ship; each fires a fine forward laser that forks in two on its first pierce. Each level adds two rings. Levels to 7.",
     levels: ["2 rings.", "4 rings.", "6 rings.", "8 rings.", "10 rings.", "12 rings.", "14 rings, full coverage."] },
   ZAPPER: { intro: "Rotating squares beside the ship dash at the nearest free target, cling and zap every 0.1s until it dies, then return; each picks a different target. Each level adds a pair. Levels to 7.",
@@ -6720,7 +6720,7 @@ function registerAsteroidDamage(amount, target) {
   }
   if (!asteroidBonusGiven && asteroidTotalDamage >= 10000) {
     asteroidBonusGiven = true;
-    spawnLifeItem(rand(W * 0.25, W * 0.75), rand(H * 0.3, H * 0.5)); // appears around screen center, random spot; catching it is what actually grants the life
+    spawnLifeItem(rand(40, W - 40), -20); // drops in from the top of the screen like the other items; catching it is what actually grants the life
   }
 }
 
