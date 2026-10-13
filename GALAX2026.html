@@ -383,7 +383,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-10-12 23:30';
+const LAST_UPDATED = '2026-10-13 21:40';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1543,7 +1543,7 @@ function fireWeapon() {
     }
   } else if (player.weapon === 'NORMAL' && lvl >= 1) {
     // white 1x5px shot, power = level; splits into two on every hit (see splitNormalOnHit)
-    playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 2, power: lvl + 1, nsplit: true, nlvl: lvl, hitSet: new Set() });
+    playerBullets.push({ x: bx, y: by, vx: 0, vy: -1080, r: 2, power: lvl + 1, nsplit: true, nlvl: lvl, hitSet: new Set() });
   } else if (player.weapon === 'YARELY') {
     // 8-way burst of line bolts (a 100px line that trails behind its leading tip, which starts 30px out from the ship).
     const yawLen = 200 + 100 * lvl, spd = 800; // Lv1 = 300px, +100px per level (Lv7 = 900px)
