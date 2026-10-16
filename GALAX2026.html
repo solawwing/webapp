@@ -133,7 +133,7 @@
 <div id="overlay">
   <div id="titleScreen">
     <div class="title" id="titleText" style="font-size:clamp(8px,3.5vw,18px); cursor:pointer; pointer-events:auto;">GALAX2026</div>
-    <div style="font-size:14px; opacity:0.6; letter-spacing:2px; margin-top:2px; text-shadow:none;">version 4.0</div>
+    <div style="font-size:14px; opacity:0.6; letter-spacing:2px; margin-top:2px; text-shadow:none;">version 5.0</div>
     <svg width="360" height="26" viewBox="0 0 360 26" style="display:block; margin:0 auto 0;">
       <defs>
         <linearGradient id="titleArcFade" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -250,7 +250,7 @@
       </div>
       <div class="item-entry" data-weapon="SPARK">
         <div class="item-header"><span class="item-icon">S</span><span class="item-name">SPARK <span style="font-size:6px;">(SUMIDAGAWA HANABI FES.)</span></span></div>
-        <div class="item-desc">Fireworks alternating normal/spread.</div>
+        <div class="item-desc">Piercing zigzag sparks burst into colorful fragments.</div>
       </div>
       <div class="item-entry" data-weapon="THUNDER">
         <div class="item-header"><span class="item-icon">T</span><span class="item-name">THUNDER</span></div>
@@ -283,6 +283,10 @@
       <div class="item-entry" data-weapon="ZAPPER">
         <div class="item-header"><span class="item-icon">Z</span><span class="item-name">ZAPPER</span></div>
         <div class="item-desc">Drones dash in, zap, then return.</div>
+      </div>
+      <div class="item-entry" data-weapon="9SHOT">
+        <div class="item-header"><span class="item-icon">9</span><span class="item-name">9SHOT</span></div>
+        <div class="item-desc">Laser that chases foe after foe, up to 9 times.</div>
       </div>
       <hr style="width:100%; border:none; border-top:1px solid #39FF14; margin:8px 0;">
       <div class="item-entry">
@@ -383,7 +387,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-10-14 00:15';
+const LAST_UPDATED = '2026-10-16 22:35';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -443,16 +447,7 @@ function qbezier(p0, p1, p2, t) {
 }
 function dist2(ax, ay, bx, by) { const dx = ax-bx, dy = ay-by; return dx*dx + dy*dy; }
 function rand(a, b) { return a + Math.random() * (b - a); }
-const BOSS_HIT_CAP = 5; // mini-bosses and the main boss can never lose more than this much HP from a single hit
-function capBossDmg(d) { return BOSS_HIT_CAP; } // every hit on a mini-boss / the boss deals a flat 5, whatever the weapon's power
-// a bullet that hits a mini-boss or the boss is spent (no piercing); beams fade out, others vanish
-function spendOnBoss(b, j) {
-  if (b._spent) return;
-  b._spent = true;
-  if (b.laserCurve) b.dying = true;
-  else if (b.laser) { b.dying = true; b.dyingT = 0; }
-  else playerBullets.splice(j, 1);
-}
+function capBossDmg(d) { return d; } // no cap: mini-bosses and the boss take whatever damage the weapon deals
 let lastHitDamage = 0, damagePopupTimer = 0; // single-hit damage readout shown top-right in the HUD
 function reportDamage(d) { if (d > 0) { lastHitDamage = Math.round(d * 10) / 10; damagePopupTimer = 1.0; } return d; }
 // UNLEASH: each charge ring's 1.3s base shrink time is cut by 0.1s per RAPID
@@ -461,7 +456,7 @@ function reportDamage(d) { if (d > 0) { lastHitDamage = Math.round(d * 10) / 10;
 function unleashPulseTime() { return Math.max(0.5, 1.3 - (player.rapidLevel || 0) * 0.1); }
 function weaponMaxLevel(type) {
   // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL/ZAPPER/XCROSS/KURU2/ARROW/QIX/EARTH/WHIPS/INFINITY/FUNNEL uniquely level up to 7, every other weapon caps at 5
-  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS' || type === 'INFINITY' || type === 'FUNNEL' || type === 'UNLEASH' || type === 'YARELY' || type === 'NORMAL' || type === 'JAVELIN') ? 7 : 5;
+  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS' || type === 'INFINITY' || type === 'FUNNEL' || type === 'UNLEASH' || type === 'YARELY' || type === 'NORMAL' || type === 'JAVELIN' || type === '9SHOT') ? 7 : 5;
 }
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function formatScore(n) { return Math.round(n).toLocaleString('en-US'); }
@@ -525,8 +520,8 @@ function resetPlayer() {
 }
 
 // ---------- items ----------
-const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL', 'UNLEASH', 'YARELY', 'NORMAL', 'JAVELIN'];
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff7a1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff', UNLEASH: '#ff2fd4', YARELY: '#f4ff2e', NORMAL: '#ffffff', JAVELIN: '#9a9a9a' };
+const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL', 'UNLEASH', 'YARELY', 'NORMAL', 'JAVELIN', '9SHOT'];
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff7a1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff', UNLEASH: '#ff2fd4', YARELY: '#f4ff2e', NORMAL: '#ffffff', JAVELIN: '#9a9a9a', '9SHOT': '#ff3b3b' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -798,7 +793,7 @@ function updateItems(dt) {
     }
   }
 }
-const ITEM_GLYPHS = { LIFE: '+', DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E', WHIPS: 'W', INFINITY: 'I', FUNNEL: 'F', UNLEASH: 'U', YARELY: 'Y', NORMAL: 'N', JAVELIN: 'J' };
+const ITEM_GLYPHS = { LIFE: '+', DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E', WHIPS: 'W', INFINITY: 'I', FUNNEL: 'F', UNLEASH: 'U', YARELY: 'Y', NORMAL: 'N', JAVELIN: 'J', '9SHOT': '9' };
 function drawItems() {
   ctx.lineWidth = 1;
   items.forEach(it => {
@@ -1200,12 +1195,12 @@ const HOMING_COUNTS = [0, 1, 2, 3, 4, 5];
 const BUBBLE_COUNTS = [0, 3, 6, 9, 12, 15, 18, 21]; // linear, +3 per level
 const VULCAN_COUNTS = [0, 2, 4, 6, 8, 10, 12, 14]; // +2 shots per level, up to Lv7
 const PHANTOM_COOLDOWNS = [0, 1.0, 0.8, 0.6, 0.4, 0.2, 0.15, 0.1]; // -0.2s/level up to Lv5, then finer steps
-const SPARK_COOLDOWNS = [0, 0.3, 0.3, 0.3, 0.3, 0.3]; // fixed 0.3s regardless of level
+const SPARK_COOLDOWNS = [0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]; // fixed 0.5s regardless of level
 // per-weapon fire cooldown (seconds between shots), replacing the old one-size-fits-all
 // "wait until the screen is clear of your own bullets" gate for these weapons
 const WEAPON_FIRE_COOLDOWNS = {
-  NORMAL: 0.2, DOUBLE: 0.5, MISSILE: 1.0, HOMING: 0.8, LASER: 1.0,
-  GRAVITY: 0.8, BUBBLE: 0.5, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4, QIX: 0.4, INFINITY: 1.0, YARELY: 0.4, JAVELIN: 0.4,
+  NORMAL: 0.2, DOUBLE: 0.5, MISSILE: 1.0, HOMING: 0.6, LASER: 1.0,
+  GRAVITY: 0.8, BUBBLE: 0.3, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4, QIX: 0.4, INFINITY: 1.0, YARELY: 0.4, JAVELIN: 0.4, '9SHOT': 0.8,
 };
 const LASER_SPECS = [null,
   { length: 200, pierce: 5, speed: 300 },
@@ -1287,6 +1282,59 @@ function splitNormalOnHit(b, target) {
     const a = base + deg * Math.PI / 180;
     playerBullets.push({ x: b.x, y: b.y, vx: Math.sin(a) * spd, vy: -Math.cos(a) * spd, r: 2, power: b.power, nsplit: true, nlvl: b.nlvl, nhalf: Math.max(1, (b.nhalf || 40) / 2), hitSet: new Set(hs) }); // each split halves the length
   });
+}
+// 9SHOT helpers: nearest still-valid on-screen target (enemy, asteroid, mini-boss vertex, vulnerable boss) not in `exclude`
+function nineShotPick(x, y, exclude) {
+  let best = null, bestD = Infinity, bestPos = null;
+  const consider = (key, pos) => {
+    if (exclude.has(key) || pos.x < -20 || pos.x > W + 20 || pos.y < -20 || pos.y > H + 20) return;
+    const d = dist2(x, y, pos.x, pos.y);
+    if (d < bestD) { bestD = d; best = key; bestPos = pos; }
+  };
+  enemies.forEach(e => {
+    if (e.type === 'GIANTBOSS') {
+      if (e.miniBossHp) {
+        e.miniBossMarkers = e.miniBossMarkers || [];
+        for (let vk = 0; vk < e.miniBossHp.length; vk++) {
+          if (e.miniBossHp[vk] <= 0) continue;
+          if (!e.miniBossMarkers[vk]) e.miniBossMarkers[vk] = {};
+          const m = e.miniBossMarkers[vk];
+          m.isMiniBoss = true; m.bossRef = e; m.vertexIndex = vk;
+          consider(m, bossVertexWorldPos(e, vk));
+        }
+      }
+      if (isBossVulnerable(e)) consider(e, { x: e.x, y: e.y });
+      return;
+    }
+    consider(e, { x: e.x, y: e.y });
+  });
+  asteroids.forEach(a => consider(a, { x: a.x, y: a.y }));
+  return best ? { key: best, pos: bestPos } : null;
+}
+function nineShotPickFor(b) {
+  // pick a foe this bolt hasn't hit AND no other 9SHOT bolt is currently aiming at; only if none is free, share one
+  const ex = new Set(b.hitSet);
+  playerBullets.forEach(o => { if (o !== b && o.nineShot && !o.dying && o.target) ex.add(o.target); });
+  return nineShotPick(b.x, b.y, ex) || nineShotPick(b.x, b.y, b.hitSet);
+}
+function nineShotDamage(t, dmg) {
+  // one hit of 9SHOT on any kind of target
+  if (t.isMiniBoss) {
+    const boss = t.bossRef, vk = t.vertexIndex, pos = bossVertexWorldPos(boss, vk);
+    boss.miniBossHp[vk] -= reportDamage(capBossDmg(dmg));
+    score += scoreMultiplier * 10;
+    if (boss.miniBossHp[vk] <= 0) { spawnDeathParticles(pos.x, pos.y, boss.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, (boss.def.r / 3) * 0.7, 0, boss.def.color, 4); }
+    else spawnDeathParticles(pos.x, pos.y, boss.def.color, 3);
+  } else if (t.isAsteroidObj) {
+    score += scoreMultiplier * wave * 20;
+    registerAsteroidDamage(dmg, t);
+    spawnDeathParticles(t.x, t.y, t.isCrystal ? '#7CFFF0' : '#bbbbbb', 3);
+  } else {
+    t.hp -= reportDamage(t.type === 'GIANTBOSS' ? capBossDmg(dmg) : dmg);
+    score += scoreMultiplier * 10;
+    if (t.hp <= 0) { handleEnemyDeath(t); const idx = enemies.indexOf(t); if (idx !== -1) enemies.splice(idx, 1); }
+    else if (t.type !== 'GIANTBOSS') spawnDeathParticles(t.x, t.y, t.def.color, 3);
+  }
 }
 function javelinRadius(t) {
   if (t.isMiniBoss) return (t.bossRef.def.r / 3) * 0.7;
@@ -1385,7 +1433,7 @@ function fireWeapon() {
       // spawns 20px from ship center in the firing direction, then flies straight for
       // 200px before it starts homing in on its target
       const hx = player.x + Math.sin(rad) * 20, hy = player.y - Math.cos(rad) * 20;
-      playerBullets.push({ x: hx, y: hy, vx: Math.sin(rad) * 100, vy: -Math.cos(rad) * 100, r: 3, homing: true, target, power: 5, homingLevel: lvl, speed: 100, maxSpeed: 500, homingAge: 0, straightDist: 200, homingTraveled: 0 });
+      playerBullets.push({ x: hx, y: hy, vx: Math.sin(rad) * 50, vy: -Math.cos(rad) * 50, r: 3, homing: true, target, power: 5, homingLevel: lvl, speed: 50, maxSpeed: 250, homingAge: 0, straightDist: 200, homingTraveled: 0 });
     });
   } else if (player.weapon === 'LASER') {
     // a long, clean, straight beam that pierces every enemy in its path with no
@@ -1417,7 +1465,7 @@ function fireWeapon() {
     playerBullets.push({ x: bx, y: by, vx: 0, vy: -450, r: 3, power: 2, gravity: true, gravityRadius: lvl * 50, spawnT: performance.now() });
   } else if (player.weapon === 'BUBBLE') {
     const n = BUBBLE_COUNTS[lvl];
-    const spd = 200; // slow-moving
+    const spd = 300; // slow-moving (1.5x of the original 200)
     const maxTravelByAlpha = { 0.2: 200, 0.3: 200, 0.4: 200, 0.5: 300, 0.6: 300, 0.7: 300, 0.8: 400, 0.9: 500, 1.0: Infinity };
     const bubbleDamageByAlpha = { 0.2: 2.0, 0.3: 2.0, 0.4: 2.0, 0.5: 4.0, 0.6: 4.0, 0.7: 4.0, 0.8: 6.0, 0.9: 8.0, 1.0: 10.0 };
     const coneAngle = 120 - (lvl - 1) * 10; // narrows by 10 degrees per level, Lv1=120 down to Lv7=60
@@ -1428,7 +1476,7 @@ function fireWeapon() {
       const alpha = weightedChoice([0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], [9, 8, 7, 6, 5, 4, 3, 2, 1]);
       playerBullets.push({
         x: bx, y: by, vx: Math.sin(rad) * spd, vy: -Math.cos(rad) * spd,
-        r: 1, power: bubbleDamageByAlpha[alpha], bubble: true, bubbleRadius: 50, traveled: 0,
+        r: 1, power: bubbleDamageByAlpha[alpha], bubble: true, bubbleRadius: 50, traveled: 0, hitSet: new Set(), pierceLeft: 3, // pierces up to 3 targets, gone on the 3rd
         alpha, maxTravel: maxTravelByAlpha[alpha],
       });
     }
@@ -1533,13 +1581,26 @@ function fireWeapon() {
       x: bx, y: by, vx: 0, vy: -350, r: qixLength / 6, power: 5,
       qix: true, qixPhase: rand(0, Math.PI * 2), qixDir: rand(0, 1) < 0.5 ? 1 : -1, qixPivot: rand(0.15, 0.85), qixHitSets: [new Set(), new Set(), new Set(), new Set(), new Set()], qixHistory: [], qixLength,
     });
+  } else if (player.weapon === '9SHOT') {
+    // `level` laser bolts, each locking a different nearest foe, then chaining from foe to foe (see updateBullets)
+    const bx = player.x, by = player.y - player.r - 15; // muzzle 15px further forward
+    const claimed = new Set();
+    const n = Math.max(1, Math.min(7, lvl));
+    for (let k = 0; k < n; k++) {
+      const found = nineShotPick(bx, by, claimed);
+      if (found) claimed.add(found.key);
+      const ang = (k - (n - 1) / 2) * 6 * Math.PI / 180; // fanned a little when launched
+      playerBullets.push({ x: bx, y: by, vx: Math.sin(ang) * 3000, vy: -Math.cos(ang) * 3000, r: 3, power: 1, nineShot: true,
+        target: found ? found.key : null, hitSet: new Set(), hits: 0, pts: [{ x: bx, y: by }], dyingT: 0 });
+    }
   } else if (player.weapon === 'JAVELIN') {
     // `level` gray 50x1px spears fanned out from the ship (angles by level); phase 1 pierces enemies (no damage, halves
     // their speed); once off the top each turns blue and drops onto a slowed enemy (see updateBullets)
     const JAV_ANGLES = [null, [0], [5, -5], [5, 0, -5], [10, 5, -5, -10], [10, 5, 0, -5, -10], [15, 10, 5, -5, -10, -15], [15, 10, 5, 0, -5, -10, -15]];
+    // spawn centre = 5px ahead of the muzzle + half the 150px bar (75px), along its heading, so the bar's tail starts 5px in front of the ship
     for (const deg of JAV_ANGLES[Math.max(1, Math.min(7, lvl))]) {
       const ja = deg * Math.PI / 180;
-      playerBullets.push({ x: bx, y: by, vx: Math.sin(ja) * 900, vy: -Math.cos(ja) * 900, r: 1, power: 0, javelin: true, phase: 1, hits: [], hitSet: new Set() });
+      playerBullets.push({ x: bx + Math.sin(ja) * 80, y: by - Math.cos(ja) * 80, vx: Math.sin(ja) * 900, vy: -Math.cos(ja) * 900, r: 1, power: 0, javelin: true, phase: 1, hits: [], hitSet: new Set() });
     }
   } else if (player.weapon === 'NORMAL' && lvl >= 1) {
     // white 1x5px shot, power = level; splits into two on every hit (see splitNormalOnHit)
@@ -1743,24 +1804,28 @@ function currentSparkBurstCount() {
 function fireSparkShot() {
   // built-in 2-shot: every trigger fires 2 sparks at once, sharing one burst height/point
   // so their fragments radiate outward together from a single center
-  const burstCount = currentSparkBurstCount();
+  const sLvl = Math.max(1, Math.min(7, player.weaponLevel || 1));
+  const burstCount = sLvl * 8; // Lv1 8 ... Lv7 56 fragments per burst
   const burstY = rand(0, H / 2);
   for (let s = 0; s < 2; s++) {
     const bx = player.x, by = player.y - player.r;
-    playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, spark: true, burst: false, burstY, burstCount });
+    playerBullets.push({ x: bx, y: by, vx: 0, vy: -540, r: 3, spark: true, burst: false, burstY, burstCount, sparkLvl: sLvl });
   }
 }
+const SPARK_PALETTE = [[250, 255, 0], [255, 110, 0], [255, 20, 50], [255, 16, 240], [180, 30, 255]]; // fluorescent yellow, orange, red, pink, purple
+const SPARK_COLOR_COUNT = [0, 1, 1, 2, 2, 3, 3, 5]; // colours in play at each level
 function burstSpark(b) {
   // random angles for each fragment, each with its own random speed and scatter
   // distance for a forceful, uneven explosion rather than a uniform ring
-  const maxScatter = Math.min(W, H) / 2;
+  const maxScatter = (b.sparkLvl || 1) * 100; // explosion radius = level x 100px
+  const spdScale = Math.max(1, maxScatter / 300); // big bursts fly proportionally faster so they don't crawl
   for (let k = 0; k < b.burstCount; k++) {
     const angle = rand(0, Math.PI * 2);
-    const spd = rand(40, 200);
+    const spd = rand(40, 200) * spdScale;
     const scatterRadius = rand(maxScatter * 0.3, maxScatter);
     playerBullets.push({
       x: b.x, y: b.y, vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd, r: 1.5, power: 2, sparkFrag: true, noTrail: true,
-      rot: rand(0, Math.PI * 2), rotSpeed: 0,
+      rot: rand(0, Math.PI * 2), rotSpeed: rand(4, 10) * (Math.random() < 0.5 ? -1 : 1), rgb: SPARK_PALETTE[Math.floor(Math.random() * SPARK_COLOR_COUNT[b.sparkLvl || 1])],
       traveled: 0, scatterRadius, sparkFilled: Math.random() < 0.5,
     });
   }
@@ -2023,7 +2088,7 @@ const BOSS_TYPES = {
   Z: { color: '#a0a0a0', sides: 10 },
 };
 function makeBossEnemy() {
-  const bossHp = 400;
+  const bossHp = Math.max(1, player.weaponLevel || 0) * 100; // first boss: equipped weapon level (at spawn) x 100 HP
   const key = choice(['S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']);
   const bossType = BOSS_TYPES[key];
   const t = { hp: bossHp, score: 100, color: bossType.color, r: 120, baseR: 120, sides: bossType.sides };
@@ -2049,7 +2114,9 @@ function makeBossEnemy() {
 function isBossVulnerable(e) {
   // the main boss body stays fully invulnerable until every mini-boss at its vertices
   // has been individually destroyed
-  if (e.revived) return true; // revived boss: always targetable, its mini-bosses are indestructible
+  // revived boss: takes no damage from the moment it appears until it has reached full size AND made its first attack;
+  // after that it is always vulnerable (its mini-bosses are intangible)
+  if (e.revived) return e.reviveT >= 2 && !!e.hasFiredFirstShot;
   return !e.miniBossHp || e.miniBossHp.every(hp => hp <= 0);
 }
 
@@ -2071,25 +2138,18 @@ function updateBossRevive(dt) {
   const b = makeBossEnemy();
   const bt = BOSS_TYPES[r.key];
   b.bossKey = r.key;
-  b.def = { hp: 800, score: 100, color: bt.color, r: 120, baseR: 120, sides: bt.sides };
+  const reviveHp = Math.max(1, player.weaponLevel || 0) * 200; // revived boss: equipped weapon level (at revival) x 200 HP
+  b.def = { hp: reviveHp, score: 100, color: bt.color, r: 180, baseR: 180, sides: bt.sides }; // radius 180 (first boss: 120)
   b.x = r.x; b.y = r.y;
   b.p0 = { x: r.x, y: r.y }; b.p1 = { x: r.x, y: r.y }; b.p2 = { x: (r.x + W / 2) / 2, y: (r.y + H * 0.2) / 2 };
   b.duration = 3.2; // half the previous revive speed
   b.revived = true;
   b.reviveT = 0;
-  // mini-bosses are indestructible (HP never drops); only the main boss can be hit
-  // each hit on one of them is passed straight to the boss instead (the mini-boss itself never loses HP)
-  b.miniBossHp = new Array(bt.sides * 2).fill(1e9);
-  for (let mk = 0; mk < b.miniBossHp.length; mk++) {
-    Object.defineProperty(b.miniBossHp, mk, { enumerable: true, configurable: true,
-      get() { return 1e9; },
-      set(v) { const d = 1e9 - v; if (d > 0 && b.hp > 0) b.hp -= d; } });
-  }
-  // no single hit may take more than 5 HP off the revived boss, whatever weapon dealt it
-  b._hp = 800; b.maxHp = 800; delete b.hp;
-  Object.defineProperty(b, 'hp', { enumerable: true, configurable: true,
-    get() { return this._hp; },
-    set(v) { const d = this._hp - v; this._hp = d > 5 ? this._hp - 5 : v; } });
+  // mini-bosses have NO hit detection at all: every bullet passes straight through them, they take no damage and pass
+  // none to the boss. HP 0 makes every collision / targeting path skip them; revived-aware spots (draw, fire, drift)
+  // still treat them as present.
+  b.miniBossHp = new Array(bt.sides * 2).fill(0);
+  b.hp = reviveHp; b.maxHp = reviveHp;
   enemies.push(b);
 }
 let bossPoolHp = 0, bossPoolMaxHp = 800, bossMinionTimer = 0;
@@ -2774,7 +2834,7 @@ function fireBossBarrage(e) {
   const miniN = Math.max(1, Math.round(n / 8));
   const miniCount = e.miniBossHp ? e.miniBossHp.length : e.def.sides;
   for (let vk = 0; vk < miniCount; vk++) {
-    if (e.miniBossHp && e.miniBossHp[vk] <= 0) continue; // destroyed mini-bosses don't fire
+    if (e.miniBossHp && e.miniBossHp[vk] <= 0 && !e.revived) continue; // destroyed mini-bosses don't fire (the revived boss's are intangible but still fire)
     const pos = bossVertexWorldPos(e, vk);
     for (let mk = 0; mk < miniN; mk++) {
       const a = offset + (mk / miniN) * Math.PI * 2;
@@ -2810,7 +2870,7 @@ function updateMiniBossDrift(e, dt) {
   const MOVE_DUR = 1.0, HOLD_DUR = 3.0, MAX_OFFSET = 50;
   for (let vk = 0; vk < slots; vk++) {
     if (vk % 2 === 1) continue; // edge-midpoint mini-boss: stationary, no drift
-    if (e.miniBossHp[vk] <= 0) continue;
+    if (e.miniBossHp[vk] <= 0 && !e.revived) continue;
     const phase = e.miniBossDriftPhase[vk];
     if (phase === 'idle') {
       e.miniBossDriftTimer[vk] -= dt;
@@ -2857,12 +2917,14 @@ function checkMiniBossHits(e) {
       const b = playerBullets[j];
       if (b.spawnDelay > 0) continue;
       if (b.missile) continue; // MISSILE has its own dedicated mini-boss stick/attach mechanic elsewhere
+      if (b.spark) continue; // SPARK bursts on contact (sparkContact in handleCollisions)
       if (b.thunder) continue; // THUNDER has its own dedicated mini-boss chain-jump handling elsewhere
       if (b.orbitalBolt) continue; // ORBITAL has its own dedicated mini-boss handling elsewhere
       if (b.xcross) continue; // XCROSS has its own dedicated mini-boss handling elsewhere
       if (b.kuru2) continue; // KURU2 has its own dedicated mini-boss handling elsewhere
       if (b.arrow) continue; // ARROW has its own dedicated mini-boss handling elsewhere
       if (b.javelin) continue; // JAVELIN has its own mini-boss handling in handleCollisions
+      if (b.nineShot) continue; // 9SHOT does its own hit handling in updateBullets
       if (b.earthLaser) continue; // EARTH has its own dedicated mini-boss handling elsewhere
       if (b.funnelLaser) continue; // FUNNEL has its own dedicated mini-boss handling elsewhere
       if (b.qix) continue; // QIX has its own dedicated mini-boss handling elsewhere
@@ -2884,7 +2946,7 @@ function checkMiniBossHits(e) {
         hit = dist2(pos.x, pos.y, b.x, b.y) < (miniR + br) * (miniR + br);
       }
       if (!hit) continue;
-      e.miniBossHp[vk] -= reportDamage(capBossDmg(5));
+      e.miniBossHp[vk] -= reportDamage(capBossDmg((b.refect || b.gravity) ? 5 : b.sparkFrag ? 3 : (b.power || 1)));
 
       score += scoreMultiplier * 10;
       if (e.miniBossHp[vk] <= 0) {
@@ -2898,7 +2960,8 @@ function checkMiniBossHits(e) {
       if (b.nsplit) { splitNormalOnHit(b, marker); playerBullets.splice(j, 1); continue; }
       if (b.refect) { splitRefectOnHit(b); if (b.hitSet) b.hitSet.add(marker); playerBullets.splice(j, 1); continue; }
       if (b.yaw) b.tickCooldowns.set(marker, 0.05); else if (b.hitSet) b.hitSet.add(marker);
-      if (!b.thunder) spendOnBoss(b, j);
+      if (b.bubble) { b.pierceLeft -= 1; if (b.pierceLeft > 0) continue; } // BUBBLE pierces up to 3 targets
+      if (!b.laser && !b.thunder && !b.laserCurve && !b.yaw) playerBullets.splice(j, 1);
     }
   }
 }
@@ -2994,7 +3057,7 @@ function updateEnemies(dt) {
       if (e.fireTimer <= 0) {
         fireBossBarrage(e);
         e.hasFiredFirstShot = true;
-        e.fireTimer = rand(0.4, 2.0);
+        e.fireTimer = e.revived ? rand(0.2, 2.0) : rand(0.4, 2.0); // the revived boss can attack as quickly as every 0.2s
       }
     } else if (e.state === 'formation') {
       e.x = e.slot.x + formationOffsetX;
@@ -3085,7 +3148,7 @@ let debugStartAtBoss = false; // set via tapping the tier-A icon on the title sc
 let debugSkipEnemyWaves = false; // set via tapping the tier-C icon on the title screen — only ASTEROID/CRYSTAL/BOSS cycle positions play, ENEMY positions are silently skipped
 let debugWallBossOnly = false; // set via double-tapping the tier-D (green) icon on the title screen — only cycle positions 2, 6, 10 (wall stages) and the BOSS play, weapon starts at Lv3
 let debugStartMaxLevel = false; // set via tapping the tier-E icon on the title screen
-const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'JAVELIN', 'KURU2', 'LASER', 'MISSILE', 'NORMAL', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'UNLEASH', 'VULCAN', 'WHIPS', 'XCROSS', 'YARELY', 'ZAPPER']; // no NORMAL — alphabetical order
+const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'JAVELIN', 'KURU2', 'LASER', 'MISSILE', 'NORMAL', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'UNLEASH', 'VULCAN', 'WHIPS', 'XCROSS', 'YARELY', 'ZAPPER', '9SHOT']; // no NORMAL — alphabetical order
 function showEquipSelect() {
   showingEquip = true;
   titleScreen.classList.add('hidden');
@@ -3142,14 +3205,16 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["1 pair.", "2 pairs.", "3 pairs.", "4 pairs.", "5 pairs.", "6 pairs.", "7 pairs, full swarm."] },
   XCROSS: { intro: "A small X-shaped bolt that, on hit, shoots both lines across all four diagonals, hitting anything along them. Each level extends the reach by 100px (to 700px). Levels to 7.",
     levels: ["100px reach.", "200px reach.", "300px reach.", "400px reach.", "500px reach.", "600px reach.", "700px reach, screen-spanning."] },
+  '9SHOT': { intro: "Laser bolts fly straight at the nearest foe, then the next nearest, never hitting one twice, up to 9 targets. Each level launches one more bolt, each locking a different foe.",
+    levels: ["1 bolt.", "2 bolts.", "3 bolts.", "4 bolts.", "5 bolts.", "6 bolts.", "7 bolts, up to 63 hits."] },
   JAVELIN: { intro: "Gray 150x1px spears pierce targets without damage, cutting their speed to 1/4 and locking them in blue. Off-screen they turn blue (500px, fast) and hit each locked target to destroy it.",
     levels: ["1 spear, 0°.", "2 spears, ±5°.", "3 spears, 0/±5°.", "4 spears, ±5/10°.", "5 spears, 0/±5/10°.", "6 spears, ±5/10/15°.", "7 spears, 0/±5/10/15°."] },
   KURU2: { intro: "Spinning fluorescent-yellow triangles. Any kill sets off a spinning burst of smaller triangles in every direction at that spot. Each level lengthens the burst by 1s. Levels to 7.",
     levels: ["1s burst on kill.", "2s burst on kill.", "3s burst on kill.", "4s burst on kill.", "5s burst on kill.", "6s burst on kill.", "7s burst on kill."] },
   ARROW: { intro: "Open wireframe arrowheads that launch slow, then double speed mid-flight. Drawn 20% transparent. Each level adds an arrow in a wider fan. Levels to 7.",
     levels: ["1 arrow.", "2 arrows.", "3 arrows.", "4 arrows.", "5 arrows.", "6 arrows.", "7 arrows, wide spread."] },
-  SPARK: { intro: "Rare pickup: twin sparks rise then burst into fragments. Alternates every 40s between normal (8-12 way) and spread (64-256 way) modes; leveling shifts the balance toward spread. Levels to 7.",
-    levels: ["35s normal / 5s spread.", "30s normal / 10s spread.", "25s normal / 15s spread.", "20s normal / 20s spread.", "15s normal / 25s spread.", "10s normal / 30s spread.", "5s normal / 35s spread, mostly a spread barrage."] },
+  SPARK: { intro: "Twin zigzag spark lines pierce up to 5 targets, bursting into fragments at each. Level adds 8 fragments (8-56), radius 100px (to 700) and colors (yellow, orange, red, pink, purple). Levels to 7.",
+    levels: ["8 fragments, yellow.", "16 fragments, yellow.", "24 fragments, +orange.", "32 fragments, +orange.", "40 fragments, +red.", "48 fragments, +red.", "56 fragments, +pink and purple."] },
   YARELY: { intro: "Fires 10 line bolts at once (0/30/60/120/150/180/210/240/300/330°) that stretch out, bounce off corridor walls and pierce, hitting every 0.05s. 300px +100/level; every 1.0s - 0.05s x level.",
     levels: ["300px line, every 0.95s.", "400px line, every 0.90s.", "500px line, every 0.85s.", "600px line, every 0.80s.", "700px line, every 0.75s.", "800px line, every 0.70s.", "900px line, every 0.65s."] },
   UNLEASH: { intro: "Charges through three shrinking 200px rings, then fires a 50px-wide piercing high-power beam for 2s that also destroys enemy bullets, and loops. Each level adds a beam, fanned wider. Levels to 7.",
@@ -3193,7 +3258,7 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 2000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['NORMAL', 'UNLEASH', 'YARELY', 'INFINITY', 'JAVELIN']; // shows "NEW"
+const EQUIP_UPDATED = ['NORMAL', 'UNLEASH', 'YARELY', 'INFINITY', 'JAVELIN', 'SPARK', '9SHOT']; // shows "NEW"
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -4237,6 +4302,44 @@ function updateBullets(dt) {
       b.spawnDelay -= dt;
       continue; // held back, not yet fired
     }
+    if (b.nineShot) {
+      // straight-line chaser: flies at its target, hits it once, then goes for the nearest foe it hasn't hit yet; up to 9 hits
+      if (b.dying) { b.dyingT += dt; if (b.dyingT >= 0.35) playerBullets.splice(i, 1); continue; }
+      // the heading is fixed once chosen: aimed at the target's position at that moment, never steered afterwards
+      const aim = (tx, ty) => { const ddx = tx - b.x, ddy = ty - b.y, dd = Math.hypot(ddx, ddy) || 1; b.vx = ddx / dd * 3000; b.vy = ddy / dd * 3000; };
+      if (!b.aimed) {
+        b.aimed = true;
+        const pp = b.target ? zapperTargetPos(b.target) : null; // target claimed at launch
+        const f = pp ? { key: b.target, pos: pp } : nineShotPickFor(b);
+        if (f) { b.target = f.key; aim(f.pos.x, f.pos.y); } else b.target = null; // no foe: keeps its spread angle
+      }
+      const ox = b.x, oy = b.y;
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      const tp = b.target ? zapperTargetPos(b.target) : null;
+      if (tp) {
+        // closest approach of this frame's segment to the (moving) target
+        const sx = b.x - ox, sy = b.y - oy, sl = sx * sx + sy * sy || 1;
+        const u = Math.max(0, Math.min(1, ((tp.x - ox) * sx + (tp.y - oy) * sy) / sl));
+        const cx = ox + sx * u, cy = oy + sy * u;
+        if (Math.hypot(tp.x - cx, tp.y - cy) <= javelinRadius(b.target) + b.r) {
+          b.x = cx; b.y = cy;
+          nineShotDamage(b.target, Math.round(1.5 + 0.5 * b.hits)); // damage = line width (rounded) at the moment of the hit
+          b.hitSet.add(b.target); b.hits++;
+          b.pts.push({ x: cx, y: cy });
+          if (b.pts.length > 12) b.pts.shift();
+          b.target = null;
+          if (b.hits >= 9) b.dying = true;
+          else {
+            const f = nineShotPickFor(b);
+            if (f) { b.target = f.key; aim(f.pos.x, f.pos.y); } else b.dying = true; // nothing left to chase
+          }
+        }
+      }
+      if (!b.dying && (b.y < -40 || b.y > H + 40 || b.x < -40 || b.x > W + 40)) {
+        if (b.hits === 0) playerBullets.splice(i, 1); else b.dying = true;
+      }
+      continue;
+    }
     if (wallK > 0.5 && !b.javelin) { // (JAVELIN spears, gray and blue, pass through the walls)
       // the corridor walls stop the ship's bullets
       const wbb = wallBounds(b.y, b.y);
@@ -4272,14 +4375,14 @@ function updateBullets(dt) {
     if (!b.bubble && !b.noTrail) {
       if (!b.trail) b.trail = [];
       b.trail.push({ x: b.x, y: b.y, rot: b.angle !== undefined ? b.angle : b.rot, traveled: b.traveled });
-      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.missile ? 10 : b.orbitalBolt ? 24 : b.earthShipLaser ? 8 : (b.earthLaser || b.funnelLaser) ? 32 : (b.double || b.nsplit) ? 32 : b.javelin ? 48 : b.vulcanLine ? 5 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
+      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.missile ? 10 : b.orbitalBolt ? 24 : b.earthShipLaser ? 8 : (b.spark && !b.burst) ? 30 : (b.earthLaser || b.funnelLaser) ? 32 : (b.double || b.nsplit) ? 32 : b.javelin ? 48 : b.vulcanLine ? 5 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
       if (b.trail.length > maxTrail) b.trail.shift();
     }
     if (b.homing) {
       // gradually accelerates from its spawn speed up to maxSpeed over ~0.6s
       if (b.maxSpeed) {
         b.homingAge = (b.homingAge || 0) + dt;
-        b.speed = Math.min(b.maxSpeed, 60 + (b.maxSpeed - 60) * Math.min(1, b.homingAge / 0.6));
+        b.speed = Math.min(b.maxSpeed, 30 + (b.maxSpeed - 30) * Math.min(1, b.homingAge / 0.6));
       }
       b.homingTraveled = (b.homingTraveled || 0) + Math.hypot(b.vx, b.vy) * dt;
       if (b.homingTraveled < (b.straightDist || 0)) {
@@ -4661,7 +4764,7 @@ function updateBullets(dt) {
     }
     if (b.bubble) {
       b.traveled += Math.hypot(b.vx, b.vy) * dt;
-      b.r = 1 + (b.traveled / 20) * 5; // starts at 1px, grows +5px in radius for every 20px traveled (uncapped)
+      b.r = (1 + (b.traveled / 20) * 5) / 2; // half of the old size: starts at 0.5px, grows +2.5px in radius for every 20px traveled (uncapped)
       // no longer despawns mid-flight at maxTravel — it keeps flying (and growing)
       // until it leaves the screen like any other bullet
     }
@@ -4695,10 +4798,15 @@ function updateBullets(dt) {
       }
       yawTrim(b);
     }
-    if (b.spark && !b.burst && b.y <= b.burstY) {
-      burstSpark(b);
-      playerBullets.splice(i, 1);
-      continue;
+    if (b.spark && !b.burst) {
+      // the fired spark itself now flies up in a small, quick zigzag (heading flips every 0.05s so the zigzag is 2px wide)
+      // all the way off the screen — it no longer bursts mid-screen
+      b.zT = (b.zT || 0) - dt;
+      if (b.zT <= 0) {
+        b.zT = 0.05; b.zSign = -(b.zSign || 1);
+        const za = b.zSign * Math.asin(2 / (540 * 0.05)); // each 0.05s leg moves 2px sideways => the zigzag is 2px wide
+        b.vx = Math.sin(za) * 540; b.vy = -Math.cos(za) * 540;
+      }
     }
     if (b.laser && b.dying) {
       // gradually fades out over 0.3s instead of vanishing the instant it goes off-screen
@@ -4713,8 +4821,8 @@ function updateBullets(dt) {
         const targets = b.hits.filter(e => zapperTargetPos(e) && !taken(e));
         if (targets.length) {
           // each blue spear starts at the horizontal position where the gray one left the screen and flies a
-          // straight line (at 2x the gray speed) to where its target is at launch — angled if the target is off to the side
-          const ex = Math.max(0, Math.min(W, b.x)), ey = -30 - 250, BLUE_SPD = 2100;
+          // straight line (at 1050, 1.17x the gray speed) to where its target is at launch — angled if the target is off to the side
+          const ex = Math.max(0, Math.min(W, b.x)), ey = -30 - 250, BLUE_SPD = 1050;
           const mk = (o, t) => {
             const tp = zapperTargetPos(t);
             let dx = tp.x - ex, dy = tp.y - ey; const dl = Math.hypot(dx, dy) || 1;
@@ -5298,7 +5406,33 @@ function handleCollisions() {
     const b = playerBullets[j];
     if (b.spawnDelay > 0) continue; // not fired yet
     if (b.dying) continue; // erasing its trail, no longer active
-    if (b.spark) continue; // no hit detection until it bursts
+    if (b.spark) {
+      // SPARK's zigzag line pierces: it bursts into fragments once at EACH target it touches (enemies, mini-bosses,
+      // the boss body) and keeps flying, up to 5 targets
+      b.sparkHit = b.sparkHit || new Set();
+      let stop = false;
+      const touch = (key) => { if (b.sparkHit.has(key)) return; b.sparkHit.add(key); burstSpark(b); if (b.sparkHit.size >= 5) stop = true; };
+      for (let i = 0; i < enemies.length && !stop; i++) {
+        const e = enemies[i];
+        if (e.type === 'GIANTBOSS') {
+          if (e.miniBossHp) {
+            e.miniBossMarkers = e.miniBossMarkers || [];
+            for (let vk = 0; vk < e.miniBossHp.length && !stop; vk++) {
+              if (e.miniBossHp[vk] <= 0) continue;
+              const pos = bossVertexWorldPos(e, vk), miniR = (e.def.r / 3) * 0.7;
+              if (dist2(pos.x, pos.y, b.x, b.y) < (miniR + b.r) * (miniR + b.r)) {
+                if (!e.miniBossMarkers[vk]) e.miniBossMarkers[vk] = {};
+                touch(e.miniBossMarkers[vk]);
+              }
+            }
+          }
+          if (!stop && isBossVulnerable(e) && dist2(e.x, e.y, b.x, b.y) < (e.def.r + b.r) * (e.def.r + b.r)) touch(e);
+        } else if (dist2(e.x, e.y, b.x, b.y) < (e.def.r + b.r) * (e.def.r + b.r)) touch(e);
+      }
+      if (stop) playerBullets.splice(j, 1);
+      continue;
+    }
+    if (b.nineShot) continue; // 9SHOT does its own hit handling in updateBullets
     if (b.chaining) continue; // thunder: handled entirely in updateBullets once chaining starts
     if (b.javelin) {
       // phase 1 (gray): pierce enemies / boss / mini-boss vertices without damage, permanently halving
@@ -5311,7 +5445,19 @@ function handleCollisions() {
           javelinDestroy(tgt);
           // a target that survived (mini-boss / boss) keeps getting spears: re-launch from the start point
           const tp2 = zapperTargetPos(tgt);
-          if (tp2) javelinRelaunch(b, tp2); else playerBullets.splice(j, 1);
+          if (tp2) javelinRelaunch(b, tp2);
+          else { b.hitSet.add(tgt); b.target = null; } // pierces: keeps flying straight on through, removed once off-screen
+        }
+        // piercing: every ordinary enemy / asteroid / crystal the falling bar overlaps is destroyed too (once each)
+        for (let i = enemies.length - 1; i >= 0; i--) {
+          const e = enemies[i];
+          if (e.type === 'GIANTBOSS' || b.hitSet.has(e)) continue;
+          if (javelinHit(b, { x: e.x, y: e.y }, javelinRadius(e))) { b.hitSet.add(e); javelinDestroy(e); }
+        }
+        for (let i = asteroids.length - 1; i >= 0; i--) {
+          const a = asteroids[i];
+          if (b.hitSet.has(a)) continue;
+          if (javelinHit(b, { x: a.x, y: a.y }, javelinRadius(a))) { b.hitSet.add(a); javelinDestroy(a); }
         }
         continue;
       }
@@ -5358,7 +5504,6 @@ function handleCollisions() {
               score += scoreMultiplier * 10;
               if (e.miniBossHp[vk] <= 0) { spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4); }
               else spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
-              spendOnBoss(b, j);
             }
           }
         }
@@ -5376,7 +5521,6 @@ function handleCollisions() {
           } else if (e.type !== 'GIANTBOSS') {
             spawnDeathParticles(e.x, e.y, e.def.color, 3);
           }
-          if (e.type === 'GIANTBOSS') spendOnBoss(b, j);
         }
       }
       continue;
@@ -5397,7 +5541,6 @@ function handleCollisions() {
             if (dist2(pos.x, pos.y, b.x, b.y) < rr) {
               b.arrowOverlapNow = true;
               e.miniBossHp[vk] -= reportDamage(capBossDmg(1));
-              spendOnBoss(b, j);
 
               score += scoreMultiplier * 10;
               if (e.miniBossHp[vk] <= 0) { spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4); }
@@ -5409,8 +5552,7 @@ function handleCollisions() {
         if (dist2(e.x, e.y, b.x, b.y) < rr) {
           if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
           b.arrowOverlapNow = true;
-          e.hp -= reportDamage(e.type === 'GIANTBOSS' ? capBossDmg(1) : 1);
-          if (e.type === 'GIANTBOSS') spendOnBoss(b, j);
+          e.hp -= reportDamage(1);
           score += scoreMultiplier * 10;
           if (e.hp <= 0) {
             handleEnemyDeath(e);
@@ -5431,7 +5573,6 @@ function handleCollisions() {
           if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
           b.tickCooldowns.set(e, 0.05);
           e.hp -= reportDamage(e.type === 'GIANTBOSS' ? capBossDmg(b.power) : b.power);
-          if (e.type === 'GIANTBOSS') spendOnBoss(b, j);
           score += scoreMultiplier * 10;
           if (e.hp <= 0) {
             handleEnemyDeath(e);
@@ -5476,8 +5617,7 @@ function handleCollisions() {
               if (distSqToSegment(pos.x, pos.y, seg.x1, seg.y1, seg.x2, seg.y2) < miniR * miniR) {
                 b.qixHitSets[si].add(marker);
                 e.miniBossHp[vk] -= reportDamage(capBossDmg(si === 0 ? (b.power || 5) : 2));
-                spendOnBoss(b, j);
-
+  
                 score += scoreMultiplier * 10;
                 if (e.miniBossHp[vk] <= 0) { spawnDeathParticles(pos.x, pos.y, e.def.color, 14, 220); spawnDeathGhost(pos.x, pos.y, miniR, 0, e.def.color, 4); }
                 else spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
@@ -5492,7 +5632,6 @@ function handleCollisions() {
             if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
             b.qixHitSets[si].add(e);
             e.hp -= reportDamage(e.type === 'GIANTBOSS' ? capBossDmg(si === 0 ? (b.power || 5) : 2) : (si === 0 ? (b.power || 5) : 2));
-            if (e.type === 'GIANTBOSS') spendOnBoss(b, j);
             score += scoreMultiplier * 10;
             if (e.hp <= 0) {
               handleEnemyDeath(e);
@@ -5603,7 +5742,7 @@ function handleCollisions() {
               } else {
                 spawnDeathParticles(pos.x, pos.y, e.def.color, 2);
               }
-              splitOrbitalBoltOnHit(b); spendOnBoss(b, j); removed = true;
+              if (splitOrbitalBoltOnHit(b)) { playerBullets.splice(j, 1); removed = true; }
             }
           }
         }
@@ -5620,8 +5759,7 @@ function handleCollisions() {
           } else if (e.type !== 'GIANTBOSS') {
             spawnDeathParticles(e.x, e.y, e.def.color, 3);
           }
-          if (e.type === 'GIANTBOSS') { splitOrbitalBoltOnHit(b); spendOnBoss(b, j); removed = true; }
-          else if (splitOrbitalBoltOnHit(b)) { playerBullets.splice(j, 1); removed = true; }
+          if (splitOrbitalBoltOnHit(b)) { playerBullets.splice(j, 1); removed = true; }
         }
       }
       continue;
@@ -5690,7 +5828,6 @@ function handleCollisions() {
             } else if (e.type !== 'GIANTBOSS') {
               spawnDeathParticles(e.x, e.y, e.def.color, 3);
             }
-            if (e.type === 'GIANTBOSS') { spendOnBoss(b, j); break; }
           }
         }
       }
@@ -5713,7 +5850,6 @@ function handleCollisions() {
           }
           if (b.subLaser) subLaserBendOnHit(b);
           b.pierceLeft -= 1;
-          if (e.type === 'GIANTBOSS') b.pierceLeft = 0;
           if (b.pierceLeft <= 0) break;
         }
       }
@@ -5871,15 +6007,16 @@ function handleCollisions() {
     } else {
       for (let i = enemies.length - 1; i >= 0; i--) {
         const e = enemies[i];
-        if (b.nsplit && b.hitSet.has(e)) continue;
+        if ((b.nsplit || b.bubble) && b.hitSet.has(e)) continue;
         const rr = (e.def.r + b.r) * (e.def.r + b.r);
         if (dist2(e.x, e.y, b.x, b.y) < rr) {
+          if (b.bubble) { b.hitSet.add(e); b.pierceLeft -= 1; if (b.pierceLeft <= 0) playerBullets.splice(j, 1); } else
           playerBullets.splice(j, 1);
           if (b.nsplit) splitNormalOnHit(b, e);
           const ex = e.x, ey = e.y;
           const isBoss = e.type === 'GIANTBOSS';
           if (!(isBoss && !isBossVulnerable(e))) {
-            e.hp -= reportDamage((isBoss ? capBossDmg(b.power || 1) : (b.power || 1)));
+            e.hp -= reportDamage(((b.gravity && isBoss) ? 5 : (b.sparkFrag && isBoss) ? 3 : (isBoss ? capBossDmg(b.power || 1) : (b.power || 1))));
             score += scoreMultiplier * 10; // +10 for dealing damage
           }
           if (e.hp <= 0) {
@@ -6057,15 +6194,17 @@ function drawPlayer() {
     // ZAPPER's drones: small rotating fluorescent-pink squares, hunting/attacking/
     // returning; grows to 25px while attacking (contact with its target), 10px otherwise
     ctx.strokeStyle = '#ff2fd4';
-    ctx.lineWidth = 1;
     player.zapperSquares.forEach(sq => {
       const size = sq.state === 'attacking' ? 50 : 10;
       ctx.save();
+      ctx.lineWidth = sq.state === 'attacking' ? 1 : 3; // idle drone square 3px; the 50px lock-on square around the target 1px
+      ctx.globalAlpha = 0.6; // 40% transparent
       ctx.translate(sq.x, sq.y);
       ctx.rotate(sq.angle || 0);
       ctx.strokeRect(-size / 2, -size / 2, size, size);
       ctx.restore();
     });
+    ctx.lineWidth = 1;
   } else if (player.weapon === 'EARTH' && player.earthPods) {
     // EARTH's pods: small green wireframe squares riding along the horizon arc
     ctx.strokeStyle = 'rgba(0,255,159,0.5)';
@@ -6084,16 +6223,29 @@ function drawPlayer() {
     player.whipTethers.forEach(w => {
       if (!w.target || !w.segments || w.segments.length < 2) return;
       const segs = w.segments;
-      ctx.beginPath();
-      ctx.moveTo(segs[0].x, segs[0].y);
+      // thickness follows screen height: 1px at the bottom edge growing to 3px at the top edge, so the smooth
+      // spline is stroked piece by piece, each piece with the width of its own height
+      const wlw = yy => 1 + 2 * Math.max(0, Math.min(1, 1 - yy / H));
+      let px0 = segs[0].x, py0 = segs[0].y;
       for (let i = 1; i < segs.length - 1; i++) {
         const midX = (segs[i].x + segs[i + 1].x) / 2;
         const midY = (segs[i].y + segs[i + 1].y) / 2;
+        ctx.lineWidth = wlw((py0 + segs[i].y + midY) / 3);
+        ctx.globalAlpha = 0.8 * (0.05 + 0.95 * (i / (segs.length - 1))); // fades toward the root (ship end)
+        ctx.beginPath();
+        ctx.moveTo(px0, py0);
         ctx.quadraticCurveTo(segs[i].x, segs[i].y, midX, midY);
+        ctx.stroke();
+        px0 = midX; py0 = midY;
       }
       const last = segs[segs.length - 1];
+      ctx.lineWidth = wlw((py0 + last.y) / 2);
+      ctx.globalAlpha = 0.8; // the tip piece is fully (80%) opaque
+      ctx.beginPath();
+      ctx.moveTo(px0, py0);
       ctx.lineTo(last.x, last.y);
       ctx.stroke();
+      ctx.lineWidth = 1;
       // marks the currently-targeted enemy with a 20px square
       const pos = zapperTargetPos(w.target);
       if (pos) ctx.strokeRect(pos.x - 15, pos.y - 15, 30, 30);
@@ -6126,6 +6278,7 @@ function drawPlayer() {
     // plus the two long side edges drawn as plain lines at a stronger alpha (no
     // center-bright gradient) — same look as PHANTOM's flash, in fluorescent pink
     const UNLEASH_HALFW = 25;
+    const unleashEdgeHalfW = yy => (1 + 2 * Math.max(0, Math.min(1, 1 - yy / H))) / 2; // half thickness of an edge line at height yy: 1px bottom -> 3px top
     if (player.unleashState === 'fire' && player.unleashBeams) {
       ctx.lineWidth = 1;
       player.unleashBeams.forEach(b => {
@@ -6141,14 +6294,21 @@ function drawPlayer() {
         ctx.lineTo(b.x1 - px * UNLEASH_HALFW, b.y1 - py * UNLEASH_HALFW);
         ctx.closePath();
         ctx.fill();
+        // the two side edges: tapered strips, 1px thick at the bottom edge of the screen growing to 3px at the top
         ctx.globalAlpha = 0.5;
-        ctx.strokeStyle = UNLEASH_COLOR;
-        ctx.beginPath();
-        ctx.moveTo(b.x1 + px * UNLEASH_HALFW, b.y1 + py * UNLEASH_HALFW);
-        ctx.lineTo(b.x2 + px * UNLEASH_HALFW, b.y2 + py * UNLEASH_HALFW);
-        ctx.moveTo(b.x1 - px * UNLEASH_HALFW, b.y1 - py * UNLEASH_HALFW);
-        ctx.lineTo(b.x2 - px * UNLEASH_HALFW, b.y2 - py * UNLEASH_HALFW);
-        ctx.stroke();
+        ctx.fillStyle = UNLEASH_COLOR;
+        [-1, 1].forEach(sd => {
+          const ex1 = b.x1 + px * UNLEASH_HALFW * sd, ey1 = b.y1 + py * UNLEASH_HALFW * sd;
+          const ex2 = b.x2 + px * UNLEASH_HALFW * sd, ey2 = b.y2 + py * UNLEASH_HALFW * sd;
+          const w1 = unleashEdgeHalfW(ey1), w2 = unleashEdgeHalfW(ey2);
+          ctx.beginPath();
+          ctx.moveTo(ex1 + px * w1, ey1 + py * w1);
+          ctx.lineTo(ex2 + px * w2, ey2 + py * w2);
+          ctx.lineTo(ex2 - px * w2, ey2 - py * w2);
+          ctx.lineTo(ex1 - px * w1, ey1 - py * w1);
+          ctx.closePath();
+          ctx.fill();
+        });
       });
       ctx.globalAlpha = 1;
     }
@@ -6194,6 +6354,7 @@ function drawPlayer() {
           const segAlpha = Math.max(0, Math.min(1, (dMid - frontDist) / UNLEASH_FADE_FEATHER)) * 0.5;
           if (segAlpha <= 0) continue;
           ctx.globalAlpha = segAlpha;
+          ctx.lineWidth = 2 * unleashEdgeHalfW(b.y1 + uy * dMid); // 1px at the bottom edge of the screen, 3px at the top
           ctx.beginPath();
           ctx.moveTo(b.x1 + ux * d0 + px * UNLEASH_HALFW, b.y1 + uy * d0 + py * UNLEASH_HALFW);
           ctx.lineTo(b.x1 + ux * d1 + px * UNLEASH_HALFW, b.y1 + uy * d1 + py * UNLEASH_HALFW);
@@ -6201,6 +6362,7 @@ function drawPlayer() {
           ctx.lineTo(b.x1 + ux * d1 - px * UNLEASH_HALFW, b.y1 + uy * d1 - py * UNLEASH_HALFW);
           ctx.stroke();
         }
+        ctx.lineWidth = 1;
       });
       ctx.globalAlpha = 1;
     }
@@ -6716,7 +6878,7 @@ function registerAsteroidDamage(amount, target) {
   }
   if (!asteroidRapidGiven && asteroidTotalDamage >= 5000) {
     asteroidRapidGiven = true;
-    spawnRapidItem(rand(W * 0.25, W * 0.75), rand(H * 0.3, H * 0.5)); // appears around screen center, random spot
+    spawnRapidItem(rand(40, W - 40), -20); // drops in from the very top of the screen at a random horizontal position
   }
   if (!asteroidBonusGiven && asteroidTotalDamage >= 10000) {
     asteroidBonusGiven = true;
@@ -6732,7 +6894,15 @@ function handleAsteroidCollisions() {
     const b = playerBullets[j];
     if (b.spawnDelay > 0) continue; // not fired yet
     if (b.dying) continue; // erasing its trail, no longer active
-    if (b.spark) continue; // no hit detection until it bursts
+    if (b.spark) {
+      // pierces asteroids / crystals too: one burst per rock, the bullet keeps flying
+      b.sparkHit = b.sparkHit || new Set();
+      for (const a of asteroids) {
+        if (!b.sparkHit.has(a) && dist2(a.x, a.y, b.x, b.y) < (a.r + b.r) * (a.r + b.r)) { b.sparkHit.add(a); burstSpark(b); if (b.sparkHit.size >= 5) { playerBullets.splice(j, 1); break; } }
+      }
+      continue;
+    }
+    if (b.nineShot) continue;
     if (b.chaining) continue; // thunder: handled entirely in updateBullets once chaining starts
     if (b.javelin) {
       if (b.phase === 1) for (let i = 0; i < asteroids.length; i++) javelinSlowTarget(b, asteroids[i], { x: asteroids[i].x, y: asteroids[i].y });
@@ -6945,9 +7115,10 @@ function handleAsteroidCollisions() {
     } else {
       for (let i = 0; i < asteroids.length; i++) {
         const a = asteroids[i];
-        if (b.nsplit && b.hitSet.has(a)) continue;
+        if ((b.nsplit || b.bubble) && b.hitSet.has(a)) continue;
         const rr = (a.r + b.r) * (a.r + b.r);
         if (dist2(a.x, a.y, b.x, b.y) < rr) {
+          if (b.bubble) { b.hitSet.add(a); b.pierceLeft -= 1; if (b.pierceLeft <= 0) playerBullets.splice(j, 1); } else
           playerBullets.splice(j, 1);
           if (b.nsplit) splitNormalOnHit(b, a);
           score += scoreMultiplier * wave * 20;
@@ -7049,7 +7220,7 @@ function drawEnemy(e) {
     // local (translated+rotated) coordinate frame
     const miniR = (r / 3) * 0.7;
     for (let vk = 0; vk < e.miniBossHp.length; vk++) {
-      if (e.miniBossHp && e.miniBossHp[vk] <= 0) continue; // destroyed, no longer drawn
+      if (e.miniBossHp && e.miniBossHp[vk] <= 0 && !e.revived) continue; // destroyed, no longer drawn (revived boss: intangible but visible)
       const theta = (vk * 2 * Math.PI) / e.miniBossHp.length;
       const extra = (e.miniBossOffset && e.miniBossOffset[vk]) || 0;
       const dist = r + extra;
@@ -7182,72 +7353,81 @@ function drawBullets() {
     if (b.spawnDelay > 0) return; // not fired yet, stay invisible
     ctx.globalAlpha = 0.8; // all item bullets drawn at 20% transparency
     if (b.earthLaser) {
-      // long green laser bolt fired sideways from an EARTH pod, oriented to its
-      // current travel direction; a fading afterimage trail behind it makes its
-      // overall visible streak roughly 3x the bolt's own length
-      const ang = Math.atan2(b.vy, b.vx) + Math.PI / 2;
+      // long green laser bolt fired from an EARTH pod, oriented to its current travel direction; a fading afterimage
+      // trail behind it makes its overall visible streak roughly 3x the bolt's own length. Thickness follows screen
+      // height: 1px at the bottom edge growing to 3px at the top edge (each line is a tapered strip)
+      const esp = Math.hypot(b.vx, b.vy) || 1, eux = b.vx / esp, euy = b.vy / esp;
+      const enx = -euy, eny = eux;
+      const ehw = yy => (1 + 2 * Math.max(0, Math.min(1, 1 - yy / H))) / 2; // half width at height yy
+      const estrip = (cx, cy) => {
+        const fx = cx + eux * 40, fy = cy + euy * 40, tx = cx - eux * 40, ty = cy - euy * 40;
+        const fw = ehw(fy), tw = ehw(ty);
+        ctx.beginPath();
+        ctx.moveTo(fx + enx * fw, fy + eny * fw);
+        ctx.lineTo(tx + enx * tw, ty + eny * tw);
+        ctx.lineTo(tx - enx * tw, ty - eny * tw);
+        ctx.lineTo(fx - enx * fw, fy - eny * fw);
+        ctx.closePath();
+        ctx.fill();
+      };
+      ctx.save();
+      ctx.globalAlpha = 0.8; // 20% transparent
       if (b.trail && b.trail.length > 1) {
         for (let k = 0; k < b.trail.length; k++) {
           const p = b.trail[k];
           const alpha = ((k + 1) / (b.trail.length + 1)) * 0.25;
-          ctx.save();
-          ctx.translate(p.x, p.y);
-          ctx.rotate(ang);
-          ctx.globalAlpha = 0.8;
-          ctx.strokeStyle = `rgba(0,220,220,${alpha})`;
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(0, 40);
-          ctx.lineTo(0, -40);
-          ctx.stroke();
-          ctx.restore();
+          ctx.fillStyle = `rgba(0,220,220,${alpha})`;
+          estrip(p.x, p.y);
         }
       }
-      ctx.save();
-      ctx.translate(b.x, b.y);
-      ctx.rotate(ang);
-      ctx.globalAlpha = 0.8; // 20% transparent
-      ctx.strokeStyle = '#00dcdc';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, 40);
-      ctx.lineTo(0, -40);
-      ctx.stroke();
+      ctx.fillStyle = '#00dcdc';
+      estrip(b.x, b.y);
       ctx.restore();
       return;
     }
     if (b.funnelLaser) {
-      // blue laser bolt fired by a FUNNEL, same fading-trail style as EARTH's pod
-      // lasers but its own color, oriented to its current travel direction
-      const ang = Math.atan2(b.vy, b.vx) + Math.PI / 2;
+      // blue laser bolt fired by a FUNNEL, same fading-trail style as EARTH's pod lasers but its own color, oriented
+      // to its current travel direction. Thickness follows screen height: 1px at the bottom edge growing to 3px at
+      // the top edge (each line is a tapered strip)
+      const fsp = Math.hypot(b.vx, b.vy) || 1, fux = b.vx / fsp, fuy = b.vy / fsp;
+      const fnx = -fuy, fny = fux;
+      const fhw = yy => (1 + 2 * Math.max(0, Math.min(1, 1 - yy / H))) / 2; // half width at height yy
+      const fstrip = (cx, cy) => {
+        const fx = cx + fux * 40, fy = cy + fuy * 40, tx = cx - fux * 40, ty = cy - fuy * 40;
+        const fw = fhw(fy), tw = fhw(ty);
+        ctx.beginPath();
+        ctx.moveTo(fx + fnx * fw, fy + fny * fw);
+        ctx.lineTo(tx + fnx * tw, ty + fny * tw);
+        ctx.lineTo(tx - fnx * tw, ty - fny * tw);
+        ctx.lineTo(fx - fnx * fw, fy - fny * fw);
+        ctx.closePath();
+        ctx.fill();
+      };
+      ctx.save();
+      ctx.globalAlpha = 0.8; // 20% transparent
       if (b.trail && b.trail.length > 1) {
         for (let k = 0; k < b.trail.length; k++) {
           const p = b.trail[k];
           const alpha = ((k + 1) / (b.trail.length + 1)) * 0.25;
-          ctx.save();
-          ctx.translate(p.x, p.y);
-          ctx.rotate(ang);
-          ctx.globalAlpha = 0.8;
-          ctx.strokeStyle = `rgba(0,183,255,${alpha})`;
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(0, 40);
-          ctx.lineTo(0, -40);
-          ctx.stroke();
-          ctx.restore();
+          ctx.fillStyle = `rgba(0,183,255,${alpha})`;
+          fstrip(p.x, p.y);
         }
       }
-      ctx.save();
-      ctx.translate(b.x, b.y);
-      ctx.rotate(ang);
-      ctx.globalAlpha = 0.8; // 20% transparent
-      ctx.strokeStyle = '#00b7ff';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, 40);
-      ctx.lineTo(0, -40);
-      ctx.stroke();
+      ctx.fillStyle = '#00b7ff';
+      fstrip(b.x, b.y);
       ctx.restore();
+      return;
+    }
+    if (b.nineShot) {
+      // laser path: a 1.5px polyline through the foes hit so far up to the head, FUNNEL-blue
+      const pts = b.pts.concat(b.dying ? [] : [{ x: b.x, y: b.y }]);
+      const fade = b.dying ? Math.max(0, 1 - b.dyingT / 0.35) : 1;
+      ctx.lineWidth = 1.5 + 0.5 * Math.min(9, b.hits); ctx.lineCap = 'round'; // thicker the more it has hit (1.5px at launch, +0.5px per hit, 6px at 9)
+      for (let k = 1; k < pts.length; k++) {
+        ctx.strokeStyle = `rgba(0,183,255,${((k / pts.length) * 0.4 + 0.4) * fade})`;
+        ctx.beginPath(); ctx.moveTo(pts[k - 1].x, pts[k - 1].y); ctx.lineTo(pts[k].x, pts[k].y); ctx.stroke();
+      }
+      ctx.lineWidth = 1; ctx.lineCap = 'butt';
       return;
     }
     if (b.javelin) {
@@ -7274,7 +7454,8 @@ function drawBullets() {
       ctx.save();
       ctx.translate(b.x, b.y);
       ctx.rotate(Math.atan2(b.vy, b.vx) + Math.PI / 2);
-      ctx.fillRect(-0.5, -jh, 1, jh * 2);
+      const jw = b.phase === 2 ? 3 : 1; // blue spear from above is 3px wide, gray one going up stays 1px
+      ctx.fillRect(-jw / 2, -jh, jw, jh * 2);
       ctx.restore();
       return;
     }
@@ -7311,22 +7492,28 @@ function drawBullets() {
       return;
     }
     if (b.arrow) {
-      // open wireframe arrowhead: a 30px-tall/5px-base isosceles triangle with its
-      // base edge left out (fragments are a smaller 20px-tall/3px-base version),
-      // oriented to its current travel direction
+      // open wireframe arrowhead: a 30px-tall/5px-base isosceles triangle with its base edge left out (fragments are
+      // a smaller 20px-tall/3px-base version), oriented to its travel direction. Each side is a tapered stroke:
+      // 1px thick at the tip growing to 3px at the lower (base) end; 40% transparent
       const halfBase = b.arrowGen ? 1.5 : 2.5, halfHeight = b.arrowGen ? 10 : 15;
       const ang = Math.atan2(b.vy, b.vx) + Math.PI / 2;
       ctx.save();
       ctx.translate(b.x, b.y);
       ctx.rotate(ang);
-      ctx.strokeStyle = '#faff00';
-      ctx.globalAlpha = 0.8; // 20% transparent
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(-halfBase, halfHeight);
-      ctx.lineTo(0, -halfHeight);
-      ctx.lineTo(halfBase, halfHeight);
-      ctx.stroke();
+      ctx.fillStyle = '#faff00';
+      ctx.globalAlpha = 0.6; // 40% transparent
+      [-1, 1].forEach(sd => {
+        const bx0 = sd * halfBase, by0 = halfHeight, tx = 0, ty = -halfHeight;
+        const dx = tx - bx0, dy = ty - by0, dl = Math.hypot(dx, dy) || 1;
+        const nx = -dy / dl, ny = dx / dl; // unit normal of this side
+        ctx.beginPath();
+        ctx.moveTo(bx0 + nx * 1.5, by0 + ny * 1.5); // base end: 3px thick
+        ctx.lineTo(tx + nx * 0.5, ty + ny * 0.5);   // tip end: 1px thick
+        ctx.lineTo(tx - nx * 0.5, ty - ny * 0.5);
+        ctx.lineTo(bx0 - nx * 1.5, by0 - ny * 1.5);
+        ctx.closePath();
+        ctx.fill();
+      });
       ctx.restore();
       return;
     }
@@ -7334,11 +7521,36 @@ function drawBullets() {
       ctx.strokeStyle = '#f4ff2e';
       ctx.globalAlpha = 0.8; // 20% transparent
       ctx.lineWidth = 1;
+      // thickness follows screen height: 1px at the bottom edge growing to 3px at the top edge; every segment is a
+      // tapered strip whose end widths come from the y of its two ends
+      // colour fades toward the root: fully opaque at the head (tip), nearly transparent at the ship end (root)
+      {
+        const yr = b.yawV[0], yh = b.yawV[b.yawV.length - 1];
+        const yg = ctx.createLinearGradient(yr.x, yr.y, yh.x + (yh.x === yr.x && yh.y === yr.y ? 0.1 : 0), yh.y);
+        yg.addColorStop(0, 'rgba(244,255,46,0.05)');
+        yg.addColorStop(1, 'rgba(244,255,46,1)');
+        ctx.fillStyle = yg;
+      }
+      const yhw = yy => (1 + 2 * Math.max(0, Math.min(1, 1 - yy / H))) / 2; // half width at height yy
       const drawLine = (ox, oy) => {
-        ctx.beginPath();
-        b.yawV.forEach((q, n) => { if (n === 0) ctx.moveTo(q.x + ox, q.y + oy); else ctx.lineTo(q.x + ox, q.y + oy); });
-        if (b.yawV.length < 2) ctx.lineTo(b.yawV[0].x + ox + 0.1, b.yawV[0].y + oy);
-        ctx.stroke();
+        if (b.yawV.length < 2) {
+          const q = b.yawV[0], hw = yhw(q.y + oy);
+          ctx.fillRect(q.x + ox - hw, q.y + oy - 0.05, hw * 2, 0.1);
+          return;
+        }
+        for (let n = 1; n < b.yawV.length; n++) {
+          const q0 = b.yawV[n - 1], q1 = b.yawV[n];
+          const x0 = q0.x + ox, y0 = q0.y + oy, x1 = q1.x + ox, y1 = q1.y + oy;
+          const dx = x1 - x0, dy = y1 - y0, dl = Math.hypot(dx, dy) || 1, nx = -dy / dl, ny = dx / dl;
+          const w0 = yhw(y0), w1 = yhw(y1);
+          ctx.beginPath();
+          ctx.moveTo(x0 + nx * w0, y0 + ny * w0);
+          ctx.lineTo(x1 + nx * w1, y1 + ny * w1);
+          ctx.lineTo(x1 - nx * w1, y1 - ny * w1);
+          ctx.lineTo(x0 - nx * w0, y0 - ny * w0);
+          ctx.closePath();
+          ctx.fill();
+        }
       };
       drawLine(0, 0);
       return;
@@ -7351,17 +7563,23 @@ function drawBullets() {
       // offsets while it pierces onward.
       const len = b.qixLength || 50;
       const pivot = b.qixPivot !== undefined ? b.qixPivot : 0.3;
+      // thickness follows screen height: 1px at the bottom edge growing to 3px at the top edge (a tapered strip
+      // whose end widths come from the y of each end of the rod)
+      const qhw = yy => (1 + 2 * Math.max(0, Math.min(1, 1 - yy / H))) / 2; // half width at height yy
       const drawRod = (x, y, phase, alpha) => {
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(phase || 0);
-        ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
-        ctx.lineWidth = 1;
+        const ph = phase || 0, sn = Math.sin(ph), cs = Math.cos(ph);
+        const l0 = -len * pivot, l1 = len * (1 - pivot); // pivot randomized per bullet — off-center
+        const x0 = x - sn * l0, y0 = y + cs * l0, x1 = x - sn * l1, y1 = y + cs * l1; // the rod's two ends in world space
+        const nx = cs, ny = sn; // unit normal of the rod
+        const w0 = qhw(y0), w1 = qhw(y1);
+        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
         ctx.beginPath();
-        ctx.moveTo(0, -len * pivot); // pivot randomized per bullet — off-center
-        ctx.lineTo(0, len * (1 - pivot));
-        ctx.stroke();
-        ctx.restore();
+        ctx.moveTo(x0 + nx * w0, y0 + ny * w0);
+        ctx.lineTo(x1 + nx * w1, y1 + ny * w1);
+        ctx.lineTo(x1 - nx * w1, y1 - ny * w1);
+        ctx.lineTo(x0 - nx * w0, y0 - ny * w0);
+        ctx.closePath();
+        ctx.fill();
       };
       if (b.qixHistory && b.qixHistory.length > 1) {
         [0.2, 0.15, 0.1, 0.05].forEach(agoTarget => {
@@ -7416,61 +7634,61 @@ function drawBullets() {
       return;
     }
     if (b.orbitalBolt) {
-      // fine, narrow laser bolt fired straight ahead from wherever its ring
-      // currently sits; jubilee blue to match ORBITAL's rings. Rotates to match
-      // its current travel direction (relevant once it's forked). Leaves a faint,
-      // short fading afterimage behind it as it flies.
+      // fine laser bolt fired straight ahead from wherever its ring currently sits; jubilee blue to match ORBITAL's
+      // rings. Rotates to match its current travel direction (relevant once it's forked). Leaves a faint, short
+      // fading afterimage behind it as it flies. Thickness follows screen height: 1px at the bottom edge growing to
+      // 3px at the top edge (bolt and afterimage are tapered strips)
+      const ohw = yy => (1 + 2 * Math.max(0, Math.min(1, 1 - yy / H))) / 2; // half width at height yy
+      const oseg = (x0, y0, x1, y1) => {
+        const dx = x1 - x0, dy = y1 - y0, dl = Math.hypot(dx, dy) || 1, nx = -dy / dl, ny = dx / dl;
+        const w0 = ohw(y0), w1 = ohw(y1);
+        ctx.beginPath();
+        ctx.moveTo(x0 + nx * w0, y0 + ny * w0);
+        ctx.lineTo(x1 + nx * w1, y1 + ny * w1);
+        ctx.lineTo(x1 - nx * w1, y1 - ny * w1);
+        ctx.lineTo(x0 - nx * w0, y0 - ny * w0);
+        ctx.closePath();
+        ctx.fill();
+      };
       if (b.trail && b.trail.length > 1) {
         for (let k = 1; k < b.trail.length; k++) {
           const t = k / b.trail.length;
-          ctx.strokeStyle = `rgba(21,96,189,${0.18 * t})`;
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(b.trail[k - 1].x, b.trail[k - 1].y);
-          ctx.lineTo(b.trail[k].x, b.trail[k].y);
-          ctx.stroke();
+          ctx.fillStyle = `rgba(21,96,189,${0.18 * t})`;
+          oseg(b.trail[k - 1].x, b.trail[k - 1].y, b.trail[k].x, b.trail[k].y);
         }
       }
-      const ang = Math.atan2(b.vy, b.vx) + Math.PI / 2;
-      ctx.save();
-      ctx.translate(b.x, b.y);
-      ctx.rotate(ang);
-      ctx.strokeStyle = '#1560bd';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, 12);
-      ctx.lineTo(0, -12);
-      ctx.stroke();
-      ctx.restore();
+      const osp = Math.hypot(b.vx, b.vy) || 1, oux = b.vx / osp, ouy = b.vy / osp;
+      ctx.fillStyle = '#1560bd';
+      oseg(b.x - oux * 12, b.y - ouy * 12, b.x + oux * 12, b.y + ouy * 12);
       ctx.lineWidth = 1;
       return;
     }
     if (b.missile) {
-      // a short fluorescent yellow-green line, oriented to its current travel
-      // direction, with a short fading trail behind it
-      const ang = Math.atan2(b.vy, b.vx) + Math.PI / 2;
+      // a short fluorescent yellow-green line, oriented to its current travel direction, with a short fading trail
+      // behind it. Thickness follows screen height: 1px at the bottom edge growing to 3px at the top edge
+      // (bolt and trail are tapered strips)
+      const mhw = yy => (1 + 2 * Math.max(0, Math.min(1, 1 - yy / H))) / 2; // half width at height yy
+      const mseg = (x0, y0, x1, y1) => {
+        const dx = x1 - x0, dy = y1 - y0, dl = Math.hypot(dx, dy) || 1, nx = -dy / dl, ny = dx / dl;
+        const w0 = mhw(y0), w1 = mhw(y1);
+        ctx.beginPath();
+        ctx.moveTo(x0 + nx * w0, y0 + ny * w0);
+        ctx.lineTo(x1 + nx * w1, y1 + ny * w1);
+        ctx.lineTo(x1 - nx * w1, y1 - ny * w1);
+        ctx.lineTo(x0 - nx * w0, y0 - ny * w0);
+        ctx.closePath();
+        ctx.fill();
+      };
       if (b.trail && b.trail.length > 1) {
         for (let k = 1; k < b.trail.length; k++) {
           const t = k / b.trail.length;
-          ctx.strokeStyle = `rgba(204,255,0,${0.4 * t})`;
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(b.trail[k - 1].x, b.trail[k - 1].y);
-          ctx.lineTo(b.trail[k].x, b.trail[k].y);
-          ctx.stroke();
+          ctx.fillStyle = `rgba(204,255,0,${0.4 * t})`;
+          mseg(b.trail[k - 1].x, b.trail[k - 1].y, b.trail[k].x, b.trail[k].y);
         }
-        ctx.lineWidth = 1;
       }
-      ctx.save();
-      ctx.translate(b.x, b.y);
-      ctx.rotate(ang);
-      ctx.strokeStyle = '#ccff00';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(0, -9);
-      ctx.lineTo(0, 4.5);
-      ctx.stroke();
-      ctx.restore();
+      const msp = Math.hypot(b.vx, b.vy) || 1, mux = b.vx / msp, muy = b.vy / msp;
+      ctx.fillStyle = '#ccff00';
+      mseg(b.x - mux * 4.5, b.y - muy * 4.5, b.x + mux * 9, b.y + muy * 9);
       ctx.lineWidth = 1;
     } else if (b.laser) {
       // gradient beam: bright cyan head, dull tail. Fades out over
@@ -7479,7 +7697,8 @@ function drawBullets() {
         ctx.save();
         ctx.globalAlpha = Math.max(0, 1 - (b.dyingT || 0) / 0.3);
       }
-      ctx.lineWidth = 1; // uniform 1px for all bullets, main beam no longer thickens with level
+      // thickness follows screen height: 1px at the bottom edge growing to 3px at the top edge, so the beam is a
+      // tapered strip (width taken from the y of each of its two ends) rather than a constant-width line
       const { tailX, tailY } = laserSegmentEnds(b);
       const grad = ctx.createLinearGradient(b.x, b.y, tailX, tailY);
       const beamColor = '#39fff3';
@@ -7490,11 +7709,18 @@ function drawBullets() {
         grad.addColorStop(0, beamColor);
         grad.addColorStop(1, darkenColor(beamColor, 0.7));
       }
-      ctx.strokeStyle = grad;
+      const lwAt = yy => 1 + 2 * Math.max(0, Math.min(1, 1 - yy / H));
+      const hw = lwAt(b.y) / 2, tw = lwAt(tailY) / 2;
+      let ldx = tailX - b.x, ldy = tailY - b.y; const ldl = Math.hypot(ldx, ldy) || 1;
+      const lnx = -ldy / ldl, lny = ldx / ldl;
+      ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.moveTo(b.x, b.y);
-      ctx.lineTo(tailX, tailY);
-      ctx.stroke();
+      ctx.moveTo(b.x + lnx * hw, b.y + lny * hw);
+      ctx.lineTo(tailX + lnx * tw, tailY + lny * tw);
+      ctx.lineTo(tailX - lnx * tw, tailY - lny * tw);
+      ctx.lineTo(b.x - lnx * hw, b.y - lny * hw);
+      ctx.closePath();
+      ctx.fill();
       ctx.lineWidth = 1;
       if (b.dying) ctx.restore();
     } else if (b.bubble) {
@@ -7506,20 +7732,23 @@ function drawBullets() {
     } else if (b.thunder) {
       if (b.chaining || b.dying || b.finished) {
         // chain lightning path from the first hit onward, erased from the origin when done;
-        // gradient from a dull tail (origin) to a saturated fluorescent-yellow head (newest jump)
-        ctx.lineWidth = 1;
+        // fluorescent yellow that fades from transparent at the tail (origin) to solid at the head (newest jump)
+        ctx.lineWidth = 3; // chain line: 3px, 20% transparent (80% opaque)
+        ctx.lineCap = 'butt';
+        const prevAlpha = ctx.globalAlpha; ctx.globalAlpha = prevAlpha * 0.8;
         if (b.chainPath.length > 1) {
           const n = b.chainPath.length;
           for (let k = 1; k < n; k++) {
             const t = k / (n - 1);
             const shaped = Math.pow(t, 2.5); // keeps the head bright, darkens more steeply from the midpoint back
-            ctx.strokeStyle = lerpColor('#000000', '#faff00', shaped);
+            ctx.strokeStyle = `rgba(250,255,0,${shaped})`; // fades out toward the origin instead of darkening to black
             ctx.beginPath();
             ctx.moveTo(b.chainPath[k - 1].x, b.chainPath[k - 1].y);
             ctx.lineTo(b.chainPath[k].x, b.chainPath[k].y);
             ctx.stroke();
           }
         }
+        ctx.globalAlpha = prevAlpha; ctx.lineCap = 'butt';
       } else {
         // still traveling: same shape/rendering as LASER Lv1 (fading trail + solid head), just yellow
         ctx.lineWidth = 1;
@@ -7550,6 +7779,9 @@ function drawBullets() {
         for (let k = 1; k < n; k++) {
           const t = k / (n - 1);
           ctx.strokeStyle = lerpColor('#4a2566', '#d400ff', t);
+          // thicker the higher up the screen: 1px at the bottom edge growing to 3px at the top edge
+          const my = (b.fullTrail[k - 1].y + b.fullTrail[k].y) / 2;
+          ctx.lineWidth = 1 + 2 * Math.max(0, Math.min(1, 1 - my / H));
           ctx.beginPath();
           ctx.moveTo(b.fullTrail[k - 1].x, b.fullTrail[k - 1].y);
           ctx.lineTo(b.fullTrail[k].x, b.fullTrail[k].y);
@@ -7566,10 +7798,12 @@ function drawBullets() {
       // single solid blue (no gradient), which fades separately over 0.5s once the
       // bolt itself finishes its zig-zags and stops.
       const fadeAlpha = b.refectDone ? Math.max(0, 1 - (b.refectFadeT || 0) / 0.5) : 1;
+      // thickness follows screen height: 1px at the bottom edge growing to 3px at the top edge (per segment)
+      const rlw = yy => 1 + 2 * Math.max(0, Math.min(1, 1 - yy / H));
       if (b.fullTrail && b.fullTrail.length > 1) {
-        ctx.lineWidth = 1;
         for (let k = 1; k < b.fullTrail.length; k++) {
           const segAlpha = 0.5;
+          ctx.lineWidth = rlw((b.fullTrail[k - 1].y + b.fullTrail[k].y) / 2);
           ctx.strokeStyle = hexToRgba('#00e5ff', segAlpha);
           ctx.beginPath();
           ctx.moveTo(b.fullTrail[k - 1].x, b.fullTrail[k - 1].y);
@@ -7582,7 +7816,7 @@ function drawBullets() {
       ctx.translate(b.x, b.y);
       ctx.rotate(ang);
       ctx.strokeStyle = hexToRgba('#00e5ff', 1.0 * fadeAlpha);
-      ctx.lineWidth = 1;
+      ctx.lineWidth = rlw(b.y);
       ctx.beginPath();
       ctx.moveTo(0, 0.5);
       ctx.lineTo(0, -0.5);
@@ -7606,10 +7840,9 @@ function drawBullets() {
           ctx.translate(p.x, p.y);
           ctx.rotate(p.rot !== undefined ? p.rot : ang);
           ctx.beginPath();
-          ctx.moveTo(0, -halfHeight);
-          ctx.lineTo(-halfBase, halfHeight);
+          ctx.moveTo(-halfBase, halfHeight); // open shape: two slanted sides only, no base edge
+          ctx.lineTo(0, -halfHeight);
           ctx.lineTo(halfBase, halfHeight);
-          ctx.closePath();
           ctx.stroke();
           ctx.restore();
         });
@@ -7617,23 +7850,21 @@ function drawBullets() {
       ctx.save();
       ctx.translate(b.x, b.y);
       ctx.rotate(ang);
-      // two slanted sides at full opacity
-      ctx.strokeStyle = '#baffc9';
-      ctx.beginPath();
-      ctx.moveTo(0, -halfHeight);
-      ctx.lineTo(-halfBase, halfHeight);
-      ctx.moveTo(0, -halfHeight);
-      ctx.lineTo(halfBase, halfHeight);
-      ctx.stroke();
-      // base edge at 50% opacity (thicker line so the opacity difference reads clearly
-      // at this small a scale)
-      ctx.strokeStyle = 'rgba(186,255,201,0.5)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(-halfBase, halfHeight);
-      ctx.lineTo(halfBase, halfHeight);
-      ctx.stroke();
-      ctx.lineWidth = 1;
+      // two slanted sides at full opacity, each a tapered stroke: 1px thick at the apex growing to 2px at the lower
+      // (rear) end
+      ctx.fillStyle = '#baffc9';
+      [-1, 1].forEach(sd => {
+        const bx0 = sd * halfBase, by0 = halfHeight, dx = -bx0, dy = -halfHeight - by0, dl = Math.hypot(dx, dy) || 1;
+        const nx = -dy / dl, ny = dx / dl; // unit normal of this side
+        ctx.beginPath();
+        ctx.moveTo(bx0 + nx * 1.0, by0 + ny * 1.0); // rear end: 2px thick
+        ctx.lineTo(nx * 0.5, -halfHeight + ny * 0.5); // apex: 1px thick
+        ctx.lineTo(-nx * 0.5, -halfHeight - ny * 0.5);
+        ctx.lineTo(bx0 - nx * 1.0, by0 - ny * 1.0);
+        ctx.closePath();
+        ctx.fill();
+      });
+      // (no base edge any more)
       ctx.restore();
     } else if (b.vulcanLine) {
       // two parallel bars "||", each 1x5px, 5px gap between them; afterimage trail
@@ -7658,35 +7889,33 @@ function drawBullets() {
       ctx.fillRect(b.x + 2.5, b.y - 2.5, 1, 5);
     } else if (b.double) {
       // same look as an EARTH pod's laser: 80px line along the heading with a fading trail of copies
-      // (cyan; drawn at the 20% transparency set at the top of the bullet loop)
+      // (cyan; drawn at the 20% transparency set at the top of the bullet loop). Thickness follows screen height:
+      // 1px at the bottom edge growing to 3px at the top edge (each line is a tapered strip)
       ctx.shadowBlur = 0;
-      const ang = Math.atan2(b.vy, b.vx) + Math.PI / 2;
+      const dsp = Math.hypot(b.vx, b.vy) || 1, dux = b.vx / dsp, duy = b.vy / dsp;
+      const dnx = -duy, dny = dux;
+      const dlw = yy => (1 + 2 * Math.max(0, Math.min(1, 1 - yy / H))) / 2; // half width at height yy
+      const strip = (cx, cy) => {
+        const fx = cx + dux * 40, fy = cy + duy * 40, tx = cx - dux * 40, ty = cy - duy * 40;
+        const fw = dlw(fy), tw = dlw(ty);
+        ctx.beginPath();
+        ctx.moveTo(fx + dnx * fw, fy + dny * fw);
+        ctx.lineTo(tx + dnx * tw, ty + dny * tw);
+        ctx.lineTo(tx - dnx * tw, ty - dny * tw);
+        ctx.lineTo(fx - dnx * fw, fy - dny * fw);
+        ctx.closePath();
+        ctx.fill();
+      };
       if (b.trail && b.trail.length > 1) {
         for (let k = 0; k < b.trail.length; k++) {
           const p = b.trail[k];
           const alpha = ((k + 1) / (b.trail.length + 1)) * 0.25;
-          ctx.save();
-          ctx.translate(p.x, p.y);
-          ctx.rotate(ang);
-          ctx.strokeStyle = `rgba(78,240,255,${alpha})`;
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(0, 40);
-          ctx.lineTo(0, -40);
-          ctx.stroke();
-          ctx.restore();
+          ctx.fillStyle = `rgba(78,240,255,${alpha})`;
+          strip(p.x, p.y);
         }
       }
-      ctx.save();
-      ctx.translate(b.x, b.y);
-      ctx.rotate(ang);
-      ctx.strokeStyle = '#4ef0ff';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, 40);
-      ctx.lineTo(0, -40);
-      ctx.stroke();
-      ctx.restore();
+      ctx.fillStyle = '#4ef0ff';
+      strip(b.x, b.y);
     } else if (b.infinityBullet) {
       // draws as a 1px-thick, 10px-long white line oriented along its travel direction
       ctx.globalAlpha = 0.8; ctx.shadowBlur = 0; // guards against any leftover glow/alpha state from other bullet types drawn just before
@@ -7699,9 +7928,17 @@ function drawBullets() {
       ctx.lineTo(b.x + ux * 5, b.y + uy * 5);
       ctx.stroke();
     } else if (b.spark && !b.burst) {
-      // small rising spark, harmless until it bursts above mid-screen — 3x3px square
-      ctx.strokeStyle = '#ffe93a';
-      ctx.strokeRect(b.x - 1.5, b.y - 1.5, 3, 3);
+      // laser-like zigzag line: a polyline through the spark's recent positions, brightest at the head and fading to
+      // nearly transparent at the root; thickness follows screen height (1px at the bottom edge, 3px at the top edge)
+      const sp = (b.trail || []).concat([{ x: b.x, y: b.y }]);
+      ctx.lineCap = 'butt';
+      for (let k = 1; k < sp.length; k++) {
+        if (Math.hypot(sp[k].x - sp[k - 1].x, sp[k].y - sp[k - 1].y) > 60) continue; // (ignore a jump between samples)
+        ctx.lineWidth = 1 + 2 * Math.max(0, Math.min(1, 1 - (sp[k].y + sp[k - 1].y) / 2 / H));
+        ctx.strokeStyle = `rgba(255,233,58,${Math.pow(k / sp.length, 1.5) * 0.95 + 0.05})`;
+        ctx.beginPath(); ctx.moveTo(sp[k - 1].x, sp[k - 1].y); ctx.lineTo(sp[k].x, sp[k].y); ctx.stroke();
+      }
+      ctx.lineWidth = 1;
     } else if (b.sparkFrag) {
       // each fragment is randomly either a filled 8x8px square or an outlined 12x12px
       // square (chosen once at creation), twinkling (glints as it spins in place, no
@@ -7713,13 +7950,9 @@ function drawBullets() {
       ctx.save();
       ctx.translate(b.x, b.y);
       ctx.rotate(b.rot);
-      if (b.sparkFilled) {
-        ctx.fillStyle = `rgba(255,255,80,${mainAlpha * twinkle})`;
-        ctx.fillRect(-2, -2, 4, 4);
-      } else {
-        ctx.strokeStyle = `rgba(255,220,0,${mainAlpha * twinkle})`;
-        ctx.strokeRect(-4, -4, 8, 8);
-      }
+      ctx.fillStyle = `rgba(${b.rgb ? b.rgb.join(',') : '255,233,58'},${mainAlpha})`; // solid fill (0% transparency), only fading near the end of its flight
+      const sz = b.sparkFilled ? 2 : 4; // half size: small 4x4 or large 8x8 (chosen once per fragment)
+      ctx.fillRect(-sz, -sz, sz * 2, sz * 2);
       ctx.restore();
     } else if (b.gravity) {
       // bright-blue circle whose diameter repeats 2px -> 8px, 2px -> 8px (sawtooth, 0.5s per sweep)
