@@ -387,7 +387,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-10-16 22:35';
+const LAST_UPDATED = '2026-10-17 15:45';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -4321,9 +4321,14 @@ function updateBullets(dt) {
         const sx = b.x - ox, sy = b.y - oy, sl = sx * sx + sy * sy || 1;
         const u = Math.max(0, Math.min(1, ((tp.x - ox) * sx + (tp.y - oy) * sy) / sl));
         const cx = ox + sx * u, cy = oy + sy * u;
-        if (Math.hypot(tp.x - cx, tp.y - cy) <= javelinRadius(b.target) + b.r) {
+        // the bolt's two ends also count: the hit zone is this frame's segment extended 10px both ahead of the head
+        // and behind the tail
+        const vl = Math.hypot(b.vx, b.vy) || 1, hux = b.vx / vl * 10, huy = b.vy / vl * 10;
+        const ex0 = ox - hux, ey0 = oy - huy, esx = b.x + hux - ex0, esy = b.y + huy - ey0, esl = esx * esx + esy * esy || 1;
+        const eu = Math.max(0, Math.min(1, ((tp.x - ex0) * esx + (tp.y - ey0) * esy) / esl));
+        if (Math.hypot(tp.x - (ex0 + esx * eu), tp.y - (ey0 + esy * eu)) <= javelinRadius(b.target) + b.r) {
           b.x = cx; b.y = cy;
-          nineShotDamage(b.target, Math.round(1.5 + 0.5 * b.hits)); // damage = line width (rounded) at the moment of the hit
+          nineShotDamage(b.target, Math.pow(2, b.hits)); // damage doubles with every hit already made: 1, 2, 4, 8, 16, 32, 64, 128, 256 (9 hits max)
           b.hitSet.add(b.target); b.hits++;
           b.pts.push({ x: cx, y: cy });
           if (b.pts.length > 12) b.pts.shift();
