@@ -260,10 +260,10 @@ function drawDebris(d){
   }
   ctx.stroke();ROT=null;ctx.globalAlpha=1;
 }
-let kills={},resT=0,resPrev='',paused=false,lastTap={t:0,x:0,y:0};
+let kills={},tot={},resT=0,resPrev='',paused=false,lastTap={t:0,x:0,y:0};
 const KN={inf:'INFANTRY',sm:'SMALL TANK',tr:'TURRET',lg:'LARGE TANK',xl:'HEAVY TANK',jp:'JEEP',fort:'FORTRESS'};
 function killE(e){
-  if(!e.dead)kills[e.k]=(kills[e.k]||0)+1;
+  if(!e.dead){kills[e.k]=(kills[e.k]||0)+1;tot[e.k]=(tot[e.k]||0)+1}
   e.dead=1;
   if(e.k==='fort')for(let i=0;i<8;i++)boom(e.x+rnd(-80,80),e.y+rnd(-80,80),rnd(40,80));
   spawnDebris(e);
@@ -301,7 +301,7 @@ function startGame(){paused=false;pw={w:null,R:0,S:0,B:0,G:0,V:0,Q:0,Lc:0,Hc:0,W
 function advance(){
   if(msgT>0)return;
   if(state==='title')startGame();
-  else if(state==='over'){stage=1;score=0;startGame()}
+  else if(state==='over'){stage=1;score=0;tot={};startGame()}
   else if(state==='clear'){stage++;hp=Math.min(MAXHP,hp+4);ammo=maxAmmo();genStage(stage);state='play'}
 }
 function fire(){
@@ -1118,8 +1118,9 @@ function overlay(){
     if(over&&overWhy){ctx.fillStyle='#f84';ctx.font='16px '+FONT;ctx.fillText(overWhy,cx,cy-72)}
     if(resPrev!==state){resPrev=state;resT=0}
     // typewriter: RESULTS + the list of defeated enemies, one character at a time
-    const ks=['inf','sm','tr','lg','xl','jp','fort'].filter(k=>kills[k]>0);
-    const rows=ks.length?ks.map(k=>[KN[k],'x '+kills[k]]):[['NO ENEMIES DESTROYED','']];
+    const kt=over?tot:kills;
+    const ks=['inf','sm','tr','lg','xl','jp','fort'].filter(k=>kt[k]>0);
+    const rows=ks.length?ks.map(k=>[KN[k],'x '+kt[k]]):[['NO ENEMIES DESTROYED','']];
     let rem=Math.floor(Math.max(0,resT-.5)*16),typing=false;
     const part=(str,x,y,al,col,font)=>{
       const n=Math.max(0,Math.min(str.length,rem));rem-=str.length;
