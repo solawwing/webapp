@@ -305,7 +305,7 @@ function advance(){
   else if(state==='clear'){stage++;hp=Math.min(MAXHP,hp+4);ammo=maxAmmo();genStage(stage);state='play'}
 }
 function fire(){
-  const mw=pw.w,cost=(mw==='L'||mw==='L2'||mw==='H')?2:1;   // laser / homing weapons use 2 shells per shot
+  const mw=pw.w,cost=(mw==='L'||mw==='L2'||mw==='H')?3:mw==='W'?(pw.Wc>=2?3:2):1;   // laser / homing 3, wide 3-way 2, wide 5-way 3
   if(state!=='play'||paused||ammo<cost||cool>0)return;
   ammo-=cost;cool=.14;
   if(mw==='L'){laser();return}
