@@ -1971,6 +1971,7 @@
   let storedStationMarkers = []; // 保存済み駅(全件)専用のマーカー。10kmを超えるものも含めて全て表示する
   let stationFetchTimer = null;
   let stationRetryTimer = null;
+  let lastFailReason = '';
   let stationFailCount = 0; // 連続失敗回数(バックオフ間隔の計算に使用)
   let lastStationCenter = null;
 
@@ -2706,8 +2707,8 @@
   // --- 鉄道路線(線路)の描画: OSMのrailway=rail/subway/light_railを蛍光緑の線で表示 ---
   // 現在地から約5km圏をOverpassから順番に(駅・路線名取得の後に)取得し、端末に蓄積して再訪時は通信なしで描画する。
   const RAIL_COLOR = '#39FF14';
-  const RAIL_RADIUS = 5000;
-  const RAIL_REFETCH_DIST = 2500;     // 取得済み中心からこれ以上離れたら追加取得
+  const RAIL_RADIUS = 3000;
+  const RAIL_REFETCH_DIST = 1500;     // 取得済み中心からこれ以上離れたら追加取得
   const RAIL_STORAGE_KEY = 'whereyouat_rails_v1';
   const RAIL_MAX_WAYS = 8000;
   let railData = { areas: [], ways: {} }; // areas:[[lat,lng],...] ways:{id:[[lat,lng],...]}
@@ -2757,7 +2758,8 @@
   }
 
   async function fetchRails(origin){
-    if(isFetchingRails || railsCovered(origin)) return;
+    // 基本の駅取得が実行中・失敗中のときは、Overpassへの負荷を避けるため鉄道線の取得は見送る
+    if(isFetchingRails || isFetchingStations || stationFailCount > 0 || railsCovered(origin)) return;
     isFetchingRails = true;
     try{
       const q = `[out:json][timeout:25];
@@ -3061,7 +3063,7 @@
       }
 
       // 実際に基本取得を行う場合だけ「取得中」を表示する(間引き時や拡張取得の進行表示を上書きしない)
-      setFetchStatus(t('fsFetchingBasic'));
+      setFetchStatus(t('fsFetchingBasic') + (stationFailCount > 0 ? ` [${currentLang==='ja'?'再試行':'retry'} ${stationFailCount}: ${lastFailReason}]` : ''));
 
       // まず駅ノードのみを軽量取得(路線リレーションは含めない: レスポンスを軽くして成功率を上げる)
       const stationQuery = `[out:json][timeout:10];node["railway"="station"](around:${STATION_RADIUS_FAR},${origin.lat},${origin.lng});out body;`;
@@ -3161,6 +3163,7 @@
       if(!succeeded){
         stationFailCount++;
         const reason = lastError ? (lastError.name === 'AbortError' ? t('reasonTimeout') : lastError.message) : t('reasonUnknown');
+        lastFailReason = reason;
         const backoff = Math.min(30000, 3000 * Math.pow(2, stationFailCount - 1));
         setFetchStatus(t('fsFailedRetry', reason, Math.round(backoff/1000), stationFailCount));
 
