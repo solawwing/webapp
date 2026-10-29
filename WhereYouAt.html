@@ -1152,6 +1152,7 @@
       fsBasicToExtended: '基本取得完了 → 拡張情報を準備中…',
       fsFetchingExtended: '拡張駅情報(2〜10km圏)を取得中…',
       fsFetchingLines: '路線名を取得中…',
+      fsFetchingRails: '鉄道線を取得中…',
       fsAllDone: '取得完了(全ての情報を反映済み)',
       fsExtLinesPartialFail: '拡張・路線名の取得は一部失敗(基本の駅名は表示済み)',
       fsBasicDone: '取得完了(基本情報を反映済み)',
@@ -1217,6 +1218,7 @@
       fsBasicToExtended: 'Basic fetch done → preparing extended range…',
       fsFetchingExtended: 'Fetching extended stations (2-10km)…',
       fsFetchingLines: 'Fetching line names…',
+      fsFetchingRails: 'Fetching rail lines…',
       fsAllDone: 'Done (all data reflected)',
       fsExtLinesPartialFail: 'Extended/line fetch partly failed (basic names shown)',
       fsBasicDone: 'Done (basic data reflected)',
@@ -3019,8 +3021,6 @@
       // この後の通信が成功すれば、最新のデータで上書き・追加される
       showStoredStationsFallback(origin);
 
-      // 定期実行・地図移動など、fetchStationsが呼ばれたことが分かるよう一旦「取得中」を表示する
-      setFetchStatus(t('fsFetchingBasic'));
 
       // 速度が速い(20km/h以上)、または速度が取得できていない場合は間引き距離を広めに(200m)、
       // それ以外(低速で移動中)は細かく再取得できるよう狭めに(100m)する
@@ -3039,6 +3039,7 @@
             fetchExtendedStations(origin).then(()=>{
               return fetchStationLines(origin);
             }).then(()=>{
+              if(!railsCovered(origin)) setFetchStatus(t('fsFetchingRails'));
               return fetchRails(origin);
             }).then(()=>{
               setFetchStatus(t('fsExtLinesReflected'));
@@ -3058,6 +3059,9 @@
           return; // 駅・拡張・路線名とも揃っているので、現在地がほぼ動いていなければAPI再取得は間引く
         }
       }
+
+      // 実際に基本取得を行う場合だけ「取得中」を表示する(間引き時や拡張取得の進行表示を上書きしない)
+      setFetchStatus(t('fsFetchingBasic'));
 
       // まず駅ノードのみを軽量取得(路線リレーションは含めない: レスポンスを軽くして成功率を上げる)
       const stationQuery = `[out:json][timeout:10];node["railway"="station"](around:${STATION_RADIUS_FAR},${origin.lat},${origin.lng});out body;`;
@@ -3136,6 +3140,7 @@
               setFetchStatus(t('fsFetchingLines'));
               return fetchStationLines(origin);
             }).then(()=>{
+              if(!railsCovered(origin)) setFetchStatus(t('fsFetchingRails'));
               return fetchRails(origin);
             }).then(()=>{
               setFetchStatus(t('fsAllDone'));
