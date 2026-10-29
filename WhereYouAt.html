@@ -2701,6 +2701,94 @@
     }
   }
 
+  // --- 鉄道路線(線路)の描画: OSMのrailway=rail/subway/light_railを蛍光緑の線で表示 ---
+  // 現在地から約5km圏をOverpassから順番に(駅・路線名取得の後に)取得し、端末に蓄積して再訪時は通信なしで描画する。
+  const RAIL_COLOR = '#39FF14';
+  const RAIL_RADIUS = 5000;
+  const RAIL_REFETCH_DIST = 2500;     // 取得済み中心からこれ以上離れたら追加取得
+  const RAIL_STORAGE_KEY = 'whereyouat_rails_v1';
+  const RAIL_MAX_WAYS = 8000;
+  let railData = { areas: [], ways: {} }; // areas:[[lat,lng],...] ways:{id:[[lat,lng],...]}
+  let railLayers = {};
+  let railRenderer = null;
+  let isFetchingRails = false;
+  try{
+    const rp = map.createPane('railPane');
+    rp.style.zIndex = 450;
+    rp.style.pointerEvents = 'none';
+    railRenderer = L.canvas({ pane: 'railPane' });
+  }catch(e){ console.warn('railPane creation failed (non-critical):', e); }
+  try{
+    const raw = localStorage.getItem(RAIL_STORAGE_KEY);
+    if(raw){ const o = JSON.parse(raw); if(o && o.ways && o.areas) railData = o; }
+  }catch(e){ console.warn('rail load failed (non-critical):', e); }
+
+  function saveRails(){
+    try{
+      localStorage.setItem(RAIL_STORAGE_KEY, JSON.stringify(railData));
+    }catch(e){
+      // 容量超過時は古い範囲を捨てて保存を試みる
+      try{
+        const ids = Object.keys(railData.ways);
+        ids.slice(0, Math.floor(ids.length / 2)).forEach(id => delete railData.ways[id]);
+        railData.areas = railData.areas.slice(-5);
+        localStorage.setItem(RAIL_STORAGE_KEY, JSON.stringify(railData));
+      }catch(e2){ console.warn('rail save failed (non-critical):', e2); }
+    }
+  }
+
+  function renderRails(){
+    if(!railRenderer) return;
+    Object.keys(railData.ways).forEach(id=>{
+      if(railLayers[id]) return;
+      try{
+        railLayers[id] = L.polyline(railData.ways[id], {
+          pane: 'railPane', renderer: railRenderer, color: RAIL_COLOR,
+          weight: 2, opacity: 0.9, interactive: false, smoothFactor: 1.5
+        }).addTo(map);
+      }catch(e){}
+    });
+  }
+
+  function railsCovered(origin){
+    return railData.areas.some(a => origin.distanceTo(a) < RAIL_REFETCH_DIST);
+  }
+
+  async function fetchRails(origin){
+    if(isFetchingRails || railsCovered(origin)) return;
+    isFetchingRails = true;
+    try{
+      const q = `[out:json][timeout:25];
+        way["railway"~"^(rail|subway|light_rail)$"](around:${RAIL_RADIUS},${origin.lat},${origin.lng});
+        out geom tags;`;
+      for(const endpoint of orderedEndpoints()){
+        try{
+          const res = await fetchWithTimeout(endpoint + '?data=' + encodeURIComponent(q), 30000);
+          if(!res.ok) continue;
+          const data = await res.json();
+          (data.elements || []).forEach(el=>{
+            if(el.type !== 'way' || !el.geometry || el.geometry.length < 2) return;
+            // トンネル・地下を含め全て同色で描画。座標は小数5桁に丸めて容量削減
+            railData.ways[el.id] = el.geometry.map(p => [Math.round(p.lat*1e5)/1e5, Math.round(p.lon*1e5)/1e5]);
+          });
+          const ids = Object.keys(railData.ways);
+          if(ids.length > RAIL_MAX_WAYS) ids.slice(0, ids.length - RAIL_MAX_WAYS).forEach(id => { delete railData.ways[id]; if(railLayers[id]){ map.removeLayer(railLayers[id]); delete railLayers[id]; } });
+          railData.areas.push([origin.lat, origin.lng]);
+          saveRails();
+          renderRails();
+          return;
+        }catch(e){
+          console.warn('fetchRails endpoint failed (non-critical):', endpoint, e);
+        }
+      }
+    }catch(e){
+      console.warn('fetchRails failed (non-critical):', e);
+    }finally{
+      isFetchingRails = false;
+    }
+  }
+  try{ renderRails(); }catch(e){}
+
   // 路線名はベストエフォートで後追い取得(失敗しても駅表示自体には影響しない)
   async function fetchStationLines(origin){
     try{
@@ -2951,6 +3039,8 @@
             fetchExtendedStations(origin).then(()=>{
               return fetchStationLines(origin);
             }).then(()=>{
+              return fetchRails(origin);
+            }).then(()=>{
               setFetchStatus(t('fsExtLinesReflected'));
             }).catch(e=>{
               console.warn('retry fetchExtendedStations/fetchStationLines failed (non-critical):', e);
@@ -2961,6 +3051,10 @@
           return;
         } else {
           setFetchStatus(t('fsWaitingThinned'));
+          if(!isFetchingExtended && !isFetchingRails && !railsCovered(origin)){
+            isFetchingExtended = true;
+            fetchRails(origin).catch(()=>{}).finally(()=>{ isFetchingExtended = false; });
+          }
           return; // 駅・拡張・路線名とも揃っているので、現在地がほぼ動いていなければAPI再取得は間引く
         }
       }
@@ -3041,6 +3135,8 @@
             fetchExtendedStations(origin).then(()=>{
               setFetchStatus(t('fsFetchingLines'));
               return fetchStationLines(origin);
+            }).then(()=>{
+              return fetchRails(origin);
             }).then(()=>{
               setFetchStatus(t('fsAllDone'));
             }).catch(()=>{
