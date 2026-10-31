@@ -6,7 +6,7 @@
 <title>GALAX</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   html, body {
     margin: 0; padding: 0; width: 100%; height: 100%;
@@ -18,34 +18,34 @@
   #overlay {
     position: fixed; inset: 0; display: flex; flex-direction: column;
     align-items: center; justify-content: center; color: #0ff;
-    font-family: 'Montserrat', sans-serif; text-align: center;
+    font-family: 'Orbitron', sans-serif; text-align: center;
     pointer-events: none; text-shadow: 0 0 8px #0ff;
     transform: translateY(-50px);
   }
   #overlay .title {
-    font-size: clamp(28px, 8vw, 56px); letter-spacing: 20px; font-weight: normal;
+    font-size: clamp(22.4px, 6.4vw, 44.8px); letter-spacing: 20px; font-weight: normal;
     margin-bottom: 12px; margin-right: -20px;
   }
   #overlay #itemsScreen { transform: translateY(50px); } /* cancels the parent's -50px shift, unchanged as requested */
   #overlay #cycleScreen { transform: translateY(50px); }
-  #overlay .sub { font-size: clamp(12px, 3.2vw, 16px); letter-spacing: 2px; opacity: 0.85; margin: 4px 0; margin-right: -2px; }
+  #overlay .sub { font-size: clamp(9.6px, 2.56vw, 12.8px); letter-spacing: 2px; opacity: 0.85; margin: 4px 0; margin-right: -2px; }
   #overlay .item-list { margin-top: 14px; display: flex; flex-direction: column; gap: 0px; align-items: flex-start; width: 100%; max-width: 260px; }
   #overlay .item-entry { display: flex; flex-direction: column; align-items: flex-start; width: 100%; }
   #overlay .item-entry[data-weapon] { transition: opacity 0.3s; pointer-events: auto; cursor: pointer; }
   #overlay .item-entry.debug-selected { opacity: 0.4; }
   #overlay .item-header { display: flex; align-items: center; gap: 10px; }
-  #overlay .item-name { font-size: clamp(10px, 2.8vw, 14px); letter-spacing: 1px; }
+  #overlay .item-name { font-size: clamp(8px, 2.24vw, 11.2px); letter-spacing: 1px; }
   #overlay .item-desc {
-    font-size: clamp(10px, 2.2vw, 13px); opacity: 0.75; text-align: left;
+    font-size: clamp(8px, 1.76vw, 10.4px); opacity: 0.75; text-align: left;
     line-height: 1.15; margin-top: -4px; margin-left: 28px; max-width: 220px;
   }
   /* CYCLE screen: no icon column, so no need to indent under one; numbers/descriptions
      are 1.5x the item-legend's size, with matching layout breathing room */
   #cycleScreen .item-list { gap: 12px; }
   #cycleScreen .item-entry { flex-direction: row; align-items: baseline; gap: 12px; flex-wrap: nowrap; }
-  #cycleScreen .item-name { font-size: clamp(13px, 3.6vw, 18px); flex-shrink: 0; min-width: 1.6em; }
+  #cycleScreen .item-name { font-size: clamp(10.4px, 2.88vw, 14.4px); flex-shrink: 0; min-width: 1.6em; }
   #cycleScreen .item-desc {
-    font-size: clamp(13px, 2.8vw, 17px); margin-left: 0; margin-top: 0; max-width: 210px;
+    font-size: clamp(10.4px, 2.24vw, 13.6px); margin-left: 0; margin-top: 0; max-width: 210px;
   }
   #overlay .item-icon {
     position: relative;
@@ -71,18 +71,18 @@
   #equipRow .equip-icon {
     position: relative; width: 30px; height: 30px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: 300; color: #fff;
+    font-size: 11.2px; font-weight: 400; color: #fff;
   }
   #equipRow .equip-icon::before {
     content: ''; position: absolute; inset: 0;
     border: 1px solid rgba(255,255,255,0.6);
     animation: spinIcon 4s linear infinite;
   }
-  #equipRow .equip-name { font-size: 7px; letter-spacing: 1px; opacity: 0.85; }
-  #equipRow .equip-update-tag { font-size: 6px; letter-spacing: 1px; color: #ff1744; text-shadow: 0 0 6px #ff1744; margin-top: -4px; }
+  #equipRow .equip-name { font-size: 5.6px; letter-spacing: 1px; opacity: 0.85; }
+  #equipRow .equip-update-tag { font-size: 5px; letter-spacing: 1px; color: #ff1744; text-shadow: 0 0 6px #ff1744; margin-top: -4px; }
   #equipDescBox { margin: 40px auto 0; max-width: 260px; width: 260px; }
   #equipDescBox .item-header { display: flex; align-items: center; gap: 10px; }
-  #equipDescBox .item-name { font-size: clamp(10px, 2.8vw, 14px); letter-spacing: 1px; }
+  #equipDescBox .item-name { font-size: clamp(8px, 2.24vw, 11.2px); letter-spacing: 1px; }
   #equipDescBox .item-icon {
     position: relative; width: 18px; height: 18px; flex: 0 0 auto;
     display: flex; align-items: center; justify-content: center;
@@ -94,7 +94,7 @@
     animation: spinIcon 4s linear infinite;
   }
   #equipDescBox .item-desc {
-    font-size: clamp(8px, 2.2vw, 11px); opacity: 0.75; text-align: left;
+    font-size: clamp(6.4px, 1.76vw, 8.8px); opacity: 0.75; text-align: left;
     line-height: 1.15; margin-top: 3px; margin-left: 28px; max-width: 220px;
   }
   #equipDescBox .equip-desc-intro { margin-bottom: 6px; }
@@ -108,7 +108,7 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="errOverlay" style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.92); color:#ff5050; font-family:monospace; font-size:11px; padding:14px; overflow:auto; white-space:pre-wrap; word-break:break-all;" onclick="this.style.display='none'; this.textContent='';"></div>
+<div id="errOverlay" style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.92); color:#ff5050; font-family:'Orbitron',sans-serif; font-size:8.8px; padding:14px; overflow:auto; white-space:pre-wrap; word-break:break-all;" onclick="this.style.display='none'; this.textContent='';"></div>
 <script>
 // captures the REAL error detail (message/file/line/col/stack) and shows it on
 // screen, since the browser's own generic "Script error." toast strips all of
@@ -132,8 +132,8 @@
 </script>
 <div id="overlay">
   <div id="titleScreen">
-    <div class="title" id="titleText" style="font-size:clamp(8px,3.5vw,18px); cursor:pointer; pointer-events:auto;">GALAX2026</div>
-    <div style="font-size:14px; opacity:0.6; letter-spacing:2px; margin-top:2px; text-shadow:none;">version 5.0</div>
+    <div class="title" id="titleText" style="font-size:clamp(6.4px,2.8vw,14.4px); cursor:pointer; pointer-events:auto;">GALAX2026</div>
+    <div style="font-size:11.2px; opacity:0.6; letter-spacing:2px; margin-top:2px; text-shadow:none;">version 5.0</div>
     <svg width="360" height="26" viewBox="0 0 360 26" style="display:block; margin:0 auto 0;">
       <defs>
         <linearGradient id="titleArcFade" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -147,7 +147,7 @@
       <path d="M 5 22 A 265 26 0 0 1 355 22" stroke="url(#titleArcFade)" stroke-width="1" fill="none" stroke-linecap="round"/>
     </svg>
     <div class="sub blink" style="margin-top:24px;">TAP TO START</div>
-    <div class="sub" id="updatedLine" style="margin-top:14px; font-size:8px; letter-spacing:1px; opacity:0.5;"></div>
+    <div class="sub" id="updatedLine" style="margin-top:14px; font-size:6.4px; letter-spacing:1px; opacity:0.5;"></div>
     <div id="tierLegend" style="margin-top:112px; display:flex; gap:14px; justify-content:center; align-items:center;">
       <svg id="tierAIcon" width="28" height="31" viewBox="0 0 28 31" style="pointer-events:auto; cursor:pointer;"><polygon points="14,30 6,12.5 22,12.5" fill="none" stroke="#ff0044" stroke-width="1"/>
         <polygon points="6,24.5 4,8.5 8,8.5" fill="none" stroke="#ff0044" stroke-width="1"/>
@@ -175,10 +175,10 @@
         <polygon points="12,12.5 16,12.5 14,6.5" fill="none" stroke="#ffffff" stroke-width="1"/>
       </svg>
     </div>
-    <div class="sub" style="margin-top:10px; font-size:8px; letter-spacing:0.5px; opacity:0.6;">Honestly, we just want to be friends with you...</div>
+    <div class="sub" style="margin-top:10px; font-size:6.4px; letter-spacing:0.5px; opacity:0.6;">Honestly, we just want to be friends with you...</div>
   </div>
   <div id="itemsScreen" class="hidden">
-    <div class="title" style="font-size:clamp(8px,3.5vw,18px);">ITEMS</div>
+    <div class="title" style="font-size:clamp(6.4px,2.8vw,14.4px);">ITEMS</div>
     <div class="item-list">
       <div class="item-entry" data-weapon="ARROW">
         <div class="item-header"><span class="item-icon">A</span><span class="item-name">ARROW</span></div>
@@ -249,7 +249,7 @@
         <div class="item-desc">Zig-zags forward, splits in two on every hit.</div>
       </div>
       <div class="item-entry" data-weapon="SPARK">
-        <div class="item-header"><span class="item-icon">S</span><span class="item-name">SPARK <span style="font-size:6px;">(SUMIDAGAWA HANABI FES.)</span></span></div>
+        <div class="item-header"><span class="item-icon">S</span><span class="item-name">SPARK <span style="font-size:5px;">(SUMIDAGAWA HANABI FES.)</span></span></div>
         <div class="item-desc">Piercing zigzag sparks burst into colorful fragments.</div>
       </div>
       <div class="item-entry" data-weapon="THUNDER">
@@ -288,6 +288,10 @@
         <div class="item-header"><span class="item-icon">9</span><span class="item-name">9SHOT</span></div>
         <div class="item-desc">Laser that chases foe after foe, up to 9 times.</div>
       </div>
+      <div class="item-entry" data-weapon="5ATELLITE">
+        <div class="item-header"><span class="item-icon">5</span><span class="item-name">5ATELLITE</span></div>
+        <div class="item-desc">A big ring with a small satellite orbiting it, drifting slowly up through foes.</div>
+      </div>
       <hr style="width:100%; border:none; border-top:1px solid #39FF14; margin:8px 0;">
       <div class="item-entry">
         <div class="item-header"><span class="item-icon">^</span><span class="item-name">RAPID</span></div>
@@ -296,7 +300,7 @@
     </div>
   </div>
   <div id="cycleScreen" class="hidden">
-    <div class="title" style="font-size:clamp(8px,3.5vw,18px);">CYCLE</div>
+    <div class="title" style="font-size:clamp(6.4px,2.8vw,14.4px);">CYCLE</div>
     <div class="item-list">
       <div class="item-desc" style="margin-bottom:14px; max-width:250px;">Every 12 waves repeat this fixed sequence, looping forever and getting progressively tougher:</div>
       <div class="item-entry">
@@ -358,7 +362,7 @@
     </div>
   </div>
   <div id="overScreen" class="hidden">
-    <div class="title" style="font-size:clamp(8px,3.5vw,18px);">GAME OVER</div>
+    <div class="title" style="font-size:clamp(6.4px,2.8vw,14.4px);">GAME OVER</div>
     <div class="sub" id="finalScoreLine"></div>
     <div class="sub" id="hiScoreLine2"></div>
     <div class="sub blink" style="margin-top:24px;">TAP TO RETRY</div>
@@ -368,7 +372,7 @@
   <div style="background:#fff; padding:16px; border-radius:6px;">
     <canvas id="qrCanvas" width="200" height="200" style="display:block;"></canvas>
   </div>
-  <div style="color:#7CFFF0; font-family:'Montserrat',sans-serif; font-size:11px; margin-top:14px; letter-spacing:1px;">TAP TO CLOSE</div>
+  <div style="color:#7CFFF0; font-family:'Orbitron',sans-serif; font-size:8.8px; margin-top:14px; letter-spacing:1px;">TAP TO CLOSE</div>
 </div>
 
 <script>
@@ -387,7 +391,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-10-18 19:25';
+const LAST_UPDATED = '2026-11-01 02:28';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -456,7 +460,7 @@ function reportDamage(d) { if (d > 0) { lastHitDamage = Math.round(d * 10) / 10;
 function unleashPulseTime() { return Math.max(0.5, 1.3 - (player.rapidLevel || 0) * 0.1); }
 function weaponMaxLevel(type) {
   // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL/ZAPPER/XCROSS/KURU2/ARROW/QIX/EARTH/WHIPS/INFINITY/FUNNEL uniquely level up to 7, every other weapon caps at 5
-  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS' || type === 'INFINITY' || type === 'FUNNEL' || type === 'UNLEASH' || type === 'YARELY' || type === 'NORMAL' || type === 'JAVELIN' || type === '9SHOT') ? 7 : 5;
+  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS' || type === 'INFINITY' || type === 'FUNNEL' || type === 'UNLEASH' || type === 'YARELY' || type === 'NORMAL' || type === 'JAVELIN' || type === '9SHOT' || type === '5ATELLITE') ? 7 : 5;
 }
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function formatScore(n) { return Math.round(n).toLocaleString('en-US'); }
@@ -520,8 +524,8 @@ function resetPlayer() {
 }
 
 // ---------- items ----------
-const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL', 'UNLEASH', 'YARELY', 'NORMAL', 'JAVELIN', '9SHOT'];
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff7a1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff', UNLEASH: '#ff2fd4', YARELY: '#f4ff2e', NORMAL: '#ffffff', JAVELIN: '#9a9a9a', '9SHOT': '#ff3b3b' };
+const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL', 'UNLEASH', 'YARELY', 'NORMAL', 'JAVELIN', '9SHOT', '5ATELLITE'];
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff7a1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff', UNLEASH: '#ff2fd4', YARELY: '#f4ff2e', NORMAL: '#ffffff', JAVELIN: '#9a9a9a', '9SHOT': '#ff3b3b', '5ATELLITE': '#ff9d00' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -793,7 +797,7 @@ function updateItems(dt) {
     }
   }
 }
-const ITEM_GLYPHS = { LIFE: '+', DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E', WHIPS: 'W', INFINITY: 'I', FUNNEL: 'F', UNLEASH: 'U', YARELY: 'Y', NORMAL: 'N', JAVELIN: 'J', '9SHOT': '9' };
+const ITEM_GLYPHS = { LIFE: '+', DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E', WHIPS: 'W', INFINITY: 'I', FUNNEL: 'F', UNLEASH: 'U', YARELY: 'Y', NORMAL: 'N', JAVELIN: 'J', '9SHOT': '9', '5ATELLITE': '5' };
 function drawItems() {
   ctx.lineWidth = 1;
   items.forEach(it => {
@@ -817,7 +821,7 @@ function drawItems() {
     ctx.restore();
     // glyph stays upright even while the square rotates
     ctx.fillStyle = '#ffffff';
-    ctx.font = '300 11px "Montserrat", sans-serif';
+    ctx.font = '400 9px "Orbitron", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(ITEM_GLYPHS[it.type], it.x, it.y);
@@ -853,7 +857,7 @@ function drawPickupTexts() {
     }
     ctx.globalAlpha = Math.max(0, alpha);
     ctx.fillStyle = p.color || '#7CFFF0';
-    ctx.font = `300 ${size}px "Montserrat", sans-serif`;
+    ctx.font = `400 ${size * 0.8}px "Orbitron", sans-serif`;
     ctx.textAlign = 'center';
     ctx.fillText(p.text, p.x, p.y - rise);
     ctx.textAlign = 'left';
@@ -1200,7 +1204,7 @@ const SPARK_COOLDOWNS = [0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]; // fixed 0.5s re
 // "wait until the screen is clear of your own bullets" gate for these weapons
 const WEAPON_FIRE_COOLDOWNS = {
   NORMAL: 0.2, DOUBLE: 0.5, MISSILE: 1.0, HOMING: 0.3, LASER: 1.0,
-  GRAVITY: 0.3, BUBBLE: 0.3, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4, QIX: 0.4, INFINITY: 1.0, YARELY: 0.4, JAVELIN: 0.4, '9SHOT': 0.3,
+  GRAVITY: 0.3, BUBBLE: 0.3, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4, QIX: 0.4, INFINITY: 1.0, YARELY: 0.4, JAVELIN: 0.4, '9SHOT': 0.05, '5ATELLITE': 1.5,
 };
 const LASER_SPECS = [null,
   { length: 200, pierce: 5, speed: 300 },
@@ -1311,16 +1315,35 @@ function nineShotPick(x, y, exclude) {
   asteroids.forEach(a => consider(a, { x: a.x, y: a.y }));
   return best ? { key: best, pos: bestPos } : null;
 }
+function eachFoe(cb) {
+  // every valid target (enemy, asteroid, mini-boss vertex, vulnerable boss body): cb(key, pos, radius)
+  enemies.forEach(e => {
+    if (e.type === 'GIANTBOSS') {
+      if (e.miniBossHp) {
+        e.miniBossMarkers = e.miniBossMarkers || [];
+        for (let vk = 0; vk < e.miniBossHp.length; vk++) {
+          if (e.miniBossHp[vk] <= 0) continue;
+          if (!e.miniBossMarkers[vk]) e.miniBossMarkers[vk] = {};
+          const m = e.miniBossMarkers[vk];
+          m.isMiniBoss = true; m.bossRef = e; m.vertexIndex = vk;
+          cb(m, bossVertexWorldPos(e, vk), javelinRadius(m));
+        }
+      }
+      if (isBossVulnerable(e)) cb(e, { x: e.x, y: e.y }, javelinRadius(e));
+    } else cb(e, { x: e.x, y: e.y }, javelinRadius(e));
+  });
+  asteroids.forEach(a => cb(a, { x: a.x, y: a.y }, javelinRadius(a)));
+}
 function nineShotPickFor(b) {
   // pick a foe this bolt hasn't hit AND no other 9SHOT bolt is currently aiming at; only if none is free, share one
   const ex = new Set(b.hitSet);
   playerBullets.forEach(o => { if (o !== b && o.nineShot && !o.dying && o.target) ex.add(o.target); });
   return nineShotPick(b.x, b.y, ex) || nineShotPick(b.x, b.y, b.hitSet);
 }
-function nineShotDamage(t, dmg) {
+function nineShotDamage(t, dmg, fixed) {
   // one hit of 9SHOT on any kind of target. Against the boss body (not its mini-bosses) the damage ignores the hit count
   // and is picked at random from 1, 2, 4, 8, 16, 32, 128, 256 (no 64, as specified)
-  if (t.type === 'GIANTBOSS') dmg = choice([1, 2, 4, 8, 16, 32, 128, 256]);
+  if (t.type === 'GIANTBOSS' && !fixed) dmg = choice([1, 2, 4, 8, 16, 32, 128, 256]);
   if (t.isMiniBoss) {
     const boss = t.bossRef, vk = t.vertexIndex, pos = bossVertexWorldPos(boss, vk);
     boss.miniBossHp[vk] -= reportDamage(capBossDmg(dmg));
@@ -1584,18 +1607,24 @@ function fireWeapon() {
       qix: true, qixPhase: rand(0, Math.PI * 2), qixDir: rand(0, 1) < 0.5 ? 1 : -1, qixPivot: rand(0.15, 0.85), qixHitSets: [new Set(), new Set(), new Set(), new Set(), new Set()], qixHistory: [], qixLength,
     });
   } else if (player.weapon === '9SHOT') {
-    // `level` laser bolts, each locking a different nearest foe, then chaining from foe to foe (see updateBullets)
-    const bx = player.x, by = player.y - player.r - 15; // muzzle 15px further forward
+    // `level` laser bolts, each appearing at a random spot within (50 + level*25)px of the ship and flying straight at its own foe, then chaining
+    // from foe to foe (see updateBullets)
     const claimed = new Set();
     const n = Math.max(1, Math.min(7, lvl));
     for (let k = 0; k < n; k++) {
+      const sa = rand(0, Math.PI * 2), sr = (50 + lvl * 25) * Math.sqrt(Math.random()); // uniform random spot within (50 + level*25)px of the ship
+      const bx = Math.max(0, Math.min(W, player.x + Math.cos(sa) * sr)), by = Math.max(0, Math.min(H, player.y + Math.sin(sa) * sr));
       const found = nineShotPick(bx, by, claimed);
       if (!found) continue; // no foe left to aim at: this bolt is simply not fired
       claimed.add(found.key);
-      const ang = (k - (n - 1) / 2) * 6 * Math.PI / 180; // fanned a little when launched
-      playerBullets.push({ x: bx, y: by, vx: Math.sin(ang) * 3000, vy: -Math.cos(ang) * 3000, r: 3, power: 1, nineShot: true,
-        target: found ? found.key : null, hitSet: new Set(), hits: 0, pts: [{ x: bx, y: by }], dyingT: 0 });
+      const ang = Math.atan2(found.pos.y - by, found.pos.x - bx);
+      playerBullets.push({ x: bx, y: by, vx: Math.cos(ang) * 3000, vy: Math.sin(ang) * 3000, r: 3, power: 1, nineShot: true,
+        target: found.key, hitSet: new Set(), hits: 0, pts: [{ x: bx, y: by }], dyingT: 0 });
     }
+  } else if (player.weapon === '5ATELLITE') {
+    // one 100px ring (with an orbiting 10px satellite) straight up; it drifts slowly up, piercing foes until it has hit (2 + level) of them
+    playerBullets.push({ x: player.x, y: player.y - player.r - 5, vx: 0, vy: -200, r: 50, power: 2, ball: true, n: lvl, sats: Array.from({ length: lvl }, () => rand(0, Math.PI * 2)), // every satellite starts at its own random spot on the ring
+       left: 2 + lvl, hitSet: new Set(), life: 0 });
   } else if (player.weapon === 'JAVELIN') {
     // `level` gray 50x1px spears fanned out from the ship (angles by level); phase 1 pierces enemies (no damage, halves
     // their speed); once off the top each turns blue and drops onto a slowed enemy (see updateBullets)
@@ -2646,7 +2675,7 @@ function updateWaveAnnounce(dt) {
   if (waveAnnounce.t >= waveAnnounce.hold + waveAnnounce.fade) waveAnnounce = null;
 }
 function drawSpacedText(text, cx, cy, fontPx, spacing) {
-  ctx.font = `300 ${fontPx}px "Montserrat", sans-serif`;
+  ctx.font = `400 ${fontPx * 0.8}px "Orbitron", sans-serif`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   const chars = text.split('');
@@ -2665,7 +2694,7 @@ function drawWaveNumberText(text, cx, cy, fontPx, spacing) {
   const chars = text.split('');
   const isDigit = c => /[0-9]/.test(c);
   const widths = chars.map(c => {
-    ctx.font = `300 ${isDigit(c) ? bigFontPx : fontPx}px "Montserrat", sans-serif`;
+    ctx.font = `400 ${(isDigit(c) ? bigFontPx : fontPx) * 0.8}px "Orbitron", sans-serif`;
     return ctx.measureText(c).width;
   });
   const totalWidth = widths.reduce((s, w) => s + w, 0) + spacing * (chars.length - 1);
@@ -2673,7 +2702,7 @@ function drawWaveNumberText(text, cx, cy, fontPx, spacing) {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   chars.forEach((c, i) => {
-    ctx.font = `300 ${isDigit(c) ? bigFontPx : fontPx}px "Montserrat", sans-serif`;
+    ctx.font = `400 ${(isDigit(c) ? bigFontPx : fontPx) * 0.8}px "Orbitron", sans-serif`;
     ctx.fillText(c, x, bottomY);
     x += widths[i] + spacing;
   });
@@ -2927,7 +2956,7 @@ function checkMiniBossHits(e) {
       if (b.kuru2) continue; // KURU2 has its own dedicated mini-boss handling elsewhere
       if (b.arrow) continue; // ARROW has its own dedicated mini-boss handling elsewhere
       if (b.javelin) continue; // JAVELIN has its own mini-boss handling in handleCollisions
-      if (b.nineShot) continue; // 9SHOT does its own hit handling in updateBullets
+      if (b.nineShot || b.ball || b.satLaser) continue; // 9SHOT / 5ATELLITE do their own hit handling in updateBullets
       if (b.earthLaser) continue; // EARTH has its own dedicated mini-boss handling elsewhere
       if (b.funnelLaser) continue; // FUNNEL has its own dedicated mini-boss handling elsewhere
       if (b.qix) continue; // QIX has its own dedicated mini-boss handling elsewhere
@@ -3151,7 +3180,7 @@ let debugStartAtBoss = false; // set via tapping the tier-A icon on the title sc
 let debugSkipEnemyWaves = false; // set via tapping the tier-C icon on the title screen — only ASTEROID/CRYSTAL/BOSS cycle positions play, ENEMY positions are silently skipped
 let debugWallBossOnly = false; // set via double-tapping the tier-D (green) icon on the title screen — only cycle positions 2, 6, 10 (wall stages) and the BOSS play, weapon starts at Lv3
 let debugStartMaxLevel = false; // set via tapping the tier-E icon on the title screen
-const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'JAVELIN', 'KURU2', 'LASER', 'MISSILE', 'NORMAL', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'UNLEASH', 'VULCAN', 'WHIPS', 'XCROSS', 'YARELY', 'ZAPPER', '9SHOT']; // no NORMAL — alphabetical order
+const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'JAVELIN', 'KURU2', 'LASER', 'MISSILE', 'NORMAL', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'UNLEASH', 'VULCAN', 'WHIPS', 'XCROSS', 'YARELY', 'ZAPPER', '9SHOT', '5ATELLITE']; // no NORMAL — alphabetical order
 function showEquipSelect() {
   showingEquip = true;
   titleScreen.classList.add('hidden');
@@ -3210,6 +3239,8 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["100px reach.", "200px reach.", "300px reach.", "400px reach.", "500px reach.", "600px reach.", "700px reach, screen-spanning."] },
   '9SHOT': { intro: "Laser bolts fly straight at the nearest foe, then the next nearest, never hitting one twice, up to 9 targets. Each level launches one more bolt, each locking a different foe.",
     levels: ["1 bolt.", "2 bolts.", "3 bolts.", "4 bolts.", "5 bolts.", "6 bolts.", "7 bolts, up to 63 hits."] },
+  '5ATELLITE': { intro: "A 100px planet with a 10px satellite circling its edge drifts slowly upward through foes; the planet ring does no damage; the satellite fires homing laser bolts outward from it, and it pierces foes, ticking 1 damage every 0.05s while it overlaps them, and the whole thing vanishes after a set number of hits. Each level adds one satellite and one hit. Levels to 7.",
+    levels: ["1 satellite, vanishes after 3 hits.", "2 satellites, 4 hits.", "3 satellites, 5 hits.", "4 satellites, 6 hits.", "5 satellites, 7 hits.", "6 satellites, 8 hits.", "7 satellites, 9 hits."] },
   JAVELIN: { intro: "Gray 150x1px spears pierce targets without damage, cutting their speed to 1/4 and locking them in blue. Off-screen they turn blue (500px, fast) and hit each locked target to destroy it.",
     levels: ["1 spear, 0°.", "2 spears, ±5°.", "3 spears, 0/±5°.", "4 spears, ±5/10°.", "5 spears, 0/±5/10°.", "6 spears, ±5/10/15°.", "7 spears, 0/±5/10/15°."] },
   KURU2: { intro: "Spinning fluorescent-yellow triangles. Any kill sets off a spinning burst of smaller triangles in every direction at that spot. Each level lengthens the burst by 1s. Levels to 7.",
@@ -3232,7 +3263,7 @@ function updateEquipDesc() {
   const nameEl = document.getElementById('equipDescName');
   if (type === 'SPARK') {
     nameEl.textContent = '';
-    nameEl.innerHTML = 'SPARK <span style="font-size:6px;">(SUMIDAGAWA HANABI FES.)</span>';
+    nameEl.innerHTML = 'SPARK <span style="font-size:5px;">(SUMIDAGAWA HANABI FES.)</span>';
   } else {
     nameEl.textContent = type;
   }
@@ -3261,7 +3292,7 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 2000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['NORMAL', 'UNLEASH', 'YARELY', 'INFINITY', 'JAVELIN', 'SPARK', '9SHOT']; // shows "NEW"
+const EQUIP_UPDATED = ['NORMAL', 'UNLEASH', 'YARELY', 'INFINITY', 'JAVELIN', 'SPARK', '9SHOT', '5ATELLITE']; // shows "NEW"
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -4305,19 +4336,95 @@ function updateBullets(dt) {
       b.spawnDelay -= dt;
       continue; // held back, not yet fired
     }
+    if (b.satLaser) {
+      // satellite laser bolt: homes in on the nearest foe it hasn't hit (turn rate 3 rad/s, so it swings round in a wide curve), pierces, 2 damage once per foe
+      b.life = (b.life || 0) + dt;
+      b.spd = b.life < 0.3 ? 150 : 900; // creeps out at 150, then jumps to 900 all at once after 0.3s
+      let tp = b.target ? zapperTargetPos(b.target) : null;
+      if (!tp || b.hitSet.has(b.target)) { const f = nineShotPick(b.x, b.y, b.hitSet); b.target = f ? f.key : null; tp = f ? f.pos : null; }
+      if (tp) {
+        const cur = Math.atan2(b.vy, b.vx);
+        let da = Math.atan2(tp.y - b.y, tp.x - b.x) - cur; da = Math.atan2(Math.sin(da), Math.cos(da));
+        const na = cur + Math.max(-3 * dt, Math.min(3 * dt, da));
+        b.vx = Math.cos(na) * b.spd; b.vy = Math.sin(na) * b.spd;
+      } else { const cv = Math.hypot(b.vx, b.vy) || 1; b.vx *= b.spd / cv; b.vy *= b.spd / cv; } // no target: still speeds up, straight
+      const ox = b.x, oy = b.y;
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      b.dist = (b.dist || 0) + Math.hypot(b.vx, b.vy) * dt; // distance flown, for the thickness
+      // keep the last 240px of the flown path so the bolt is drawn bending along its curve
+      (b.pts = b.pts || [{ x: ox, y: oy }]).push({ x: b.x, y: b.y });
+      for (let acc = 0, k = b.pts.length - 1; k > 0; k--) { acc += Math.hypot(b.pts[k].x - b.pts[k - 1].x, b.pts[k].y - b.pts[k - 1].y); if (acc > 240) { b.pts.splice(0, k - 1); break; } }
+      // piercing: while any part of the bolt's body (its last 240px of path) overlaps a foe it deals 1 damage every 0.05s
+      b.lcd = b.lcd || new Map();
+      eachFoe((key, pos, rad) => {
+        let hit = false;
+        for (let k = b.pts.length - 1; k > 0 && !hit; k--) {
+          const ax = b.pts[k - 1].x, ay = b.pts[k - 1].y, dx = b.pts[k].x - ax, dy = b.pts[k].y - ay, l2 = dx * dx + dy * dy || 1;
+          const u = Math.max(0, Math.min(1, ((pos.x - ax) * dx + (pos.y - ay) * dy) / l2));
+          if (Math.hypot(pos.x - (ax + dx * u), pos.y - (ay + dy * u)) <= rad + b.r) hit = true;
+        }
+        if (!hit) return;
+        b.hitSet.add(key); // once touched, the homing moves on to another foe
+        const last = b.lcd.get(key);
+        if (last !== undefined && b.life - last < 0.05) return;
+        b.lcd.set(key, b.life); nineShotDamage(key, 1, true);
+      });
+      if (b.life > 3 || b.x < -60 || b.x > W + 60 || b.y < -60 || b.y > H + 60) playerBullets.splice(i, 1);
+      continue;
+    }
+    if (b.ball) {
+      // 5ATELLITE: slow, no reflection; ring is harmless, the satellite deals 2 damage once to each foe it touches
+      b.life += dt;
+      for (let k = 0; k < b.n; k++) b.sats[k] += dt * 1.25; // satellite orbit angles
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      // no reflection; the big ring passes through foes harmlessly, only the orbiting satellite hits (2 damage, once per foe), until it has hit enough
+      // `n` satellites (one per level), each at its own random spot on the ring
+      eachFoe((key, pos, rad) => {
+        if (b.hitSet.has(key) || b.left <= 0) return;
+        for (let k = 0; k < b.n; k++) {
+          const a = b.sats[k];
+          if (Math.hypot(b.x + Math.cos(a) * b.r - pos.x, b.y + Math.sin(a) * b.r - pos.y) > rad + 5) continue; // only a 10px satellite touches; the big ring does 0 damage and just passes through
+          b.hitSet.add(key); nineShotDamage(key, b.power, true); b.left--;
+          break;
+        }
+      });
+      // the satellite (10px) FIRES laser bolts: every 0.5s it shoots one straight out from the planet (perpendicular to the
+      // circumference); each bolt starts at the satellite's centre and then flies on by itself, jumping to full speed after a brief crawl
+      b.shotT = (b.shotT || 0) - dt;
+      if (b.shotT <= 0) {
+        b.shotT += 0.5;
+        for (let k = 0; k < b.n; k++) {
+          const a = b.sats[k], ux = Math.cos(a), uy = Math.sin(a);
+          playerBullets.push({ x: b.x + ux * b.r, y: b.y + uy * b.r, vx: ux * 150, vy: uy * 150, spd: 150, r: 1, power: 2, satLaser: true, hitSet: new Set() });
+        }
+      }
+      if (b.left <= 0 || b.x < -b.r - 10 || b.x > W + b.r + 10 || b.y < -b.r - 10 || b.y > H + b.r + 10) playerBullets.splice(i, 1);
+      continue;
+    }
     if (b.nineShot) {
       // straight-line chaser: flies at its target, hits it once, then goes for the nearest foe it hasn't hit yet; up to 9 hits
       if (b.dying) { b.dyingT += dt; if (b.dyingT >= 0.35) playerBullets.splice(i, 1); continue; }
       // the heading is fixed once chosen: aimed at the target's position at that moment, never steered afterwards
-      const aim = (tx, ty) => { const ddx = tx - b.x, ddy = ty - b.y, dd = Math.hypot(ddx, ddy) || 1; b.vx = ddx / dd * 3000; b.vy = ddy / dd * 3000; };
+      const aim = (tx, ty) => { const ddx = tx - b.x, ddy = ty - b.y, dd = Math.hypot(ddx, ddy) || 1; b.vx = ddx / dd * 3000; b.vy = ddy / dd * 3000; b.curveS = 30; };
       if (!b.aimed) {
         b.aimed = true;
         const pp = b.target ? zapperTargetPos(b.target) : null; // target claimed at launch
         const f = pp ? { key: b.target, pos: pp } : nineShotPickFor(b);
-        if (f) { b.target = f.key; aim(f.pos.x, f.pos.y); } else b.target = null; // no foe: keeps its spread angle
+        // the bolt leaves along its spread angle, then bends toward the target over its first 15px of path
+        const h0 = Math.atan2(b.vy, b.vx); let dh = 0;
+        if (f) { b.target = f.key; dh = Math.atan2(f.pos.y - b.y, f.pos.x - b.x) - h0; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); } else b.target = null;
+        b.h0 = h0; b.dh = dh; b.curveS = 30; // launched already aimed: straight flight, no curve
       }
       const ox = b.x, oy = b.y;
-      b.x += b.vx * dt; b.y += b.vy * dt;
+      let rem = 3000 * dt;
+      while (rem > 0) {
+        if (b.curveS < 30) {
+          const st = Math.min(rem, 1.5, 30 - b.curveS), a = b.h0 + b.dh * ((b.curveS + st / 2) / 30);
+          b.x += Math.cos(a) * st; b.y += Math.sin(a) * st; b.curveS += st; rem -= st;
+          const ae = b.h0 + b.dh * Math.min(1, b.curveS / 30); b.vx = Math.cos(ae) * 3000; b.vy = Math.sin(ae) * 3000;
+          b.pts.push({ x: b.x, y: b.y });
+        } else { b.x += b.vx / 3000 * rem; b.y += b.vy / 3000 * rem; rem = 0; }
+      }
       const tp = b.target ? zapperTargetPos(b.target) : null;
       if (tp) {
         // closest approach of this frame's segment to the (moving) target
@@ -4334,7 +4441,7 @@ function updateBullets(dt) {
           nineShotDamage(b.target, Math.pow(2, b.hits)); // damage doubles with every hit already made: 1, 2, 4, 8, 16, 32, 64, 128, 256 (9 hits max)
           b.hitSet.add(b.target); b.hits++;
           b.pts.push({ x: cx, y: cy });
-          if (b.pts.length > 12) b.pts.shift();
+          if (b.pts.length > 24) b.pts.shift();
           b.target = null;
           if (b.hits >= 9) b.dying = true;
           else {
@@ -5440,7 +5547,7 @@ function handleCollisions() {
       if (stop) playerBullets.splice(j, 1);
       continue;
     }
-    if (b.nineShot) continue; // 9SHOT does its own hit handling in updateBullets
+    if (b.nineShot || b.ball || b.satLaser) continue; // 9SHOT / 5ATELLITE do their own hit handling in updateBullets
     if (b.chaining) continue; // thunder: handled entirely in updateBullets once chaining starts
     if (b.javelin) {
       // phase 1 (gray): pierce enemies / boss / mini-boss vertices without damage, permanently halving
@@ -6910,7 +7017,7 @@ function handleAsteroidCollisions() {
       }
       continue;
     }
-    if (b.nineShot) continue;
+    if (b.nineShot || b.ball || b.satLaser) continue;
     if (b.chaining) continue; // thunder: handled entirely in updateBullets once chaining starts
     if (b.javelin) {
       if (b.phase === 1) for (let i = 0; i < asteroids.length; i++) javelinSlowTarget(b, asteroids[i], { x: asteroids[i].x, y: asteroids[i].y });
@@ -7424,6 +7531,27 @@ function drawBullets() {
       ctx.fillStyle = '#00b7ff';
       fstrip(b.x, b.y);
       ctx.restore();
+      return;
+    }
+    if (b.satLaser) {
+      const sp = Math.hypot(b.vx, b.vy) || 1, pp = b.pts || [];
+      ctx.save(); ctx.globalAlpha = 0.8; // 20% transparent
+      ctx.strokeStyle = '#ff10f0'; ctx.lineWidth = 1 + 2 * Math.min(1, (b.dist || 0) / 400); ctx.beginPath(); // 1px at launch, thickening with distance flown to 3px at 400px
+      if (pp.length > 1) { ctx.moveTo(pp[0].x, pp[0].y); for (let k = 1; k < pp.length; k++) ctx.lineTo(pp[k].x, pp[k].y); }
+      else { ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx / sp * 240, b.y - b.vy / sp * 240); }
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
+    if (b.ball) {
+      ctx.strokeStyle = '#ff10f0';
+      ctx.globalAlpha = 0.6; ctx.fillStyle = '#000'; ctx.lineWidth = 1; // ring line 40% transparent
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.stroke(); // 100px ring, 1px line
+      ctx.globalAlpha = 1;
+      for (let k = 0; k < b.n; k++) { // 10px satellites on its edge
+        const a = b.sats[k];
+        ctx.beginPath(); ctx.arc(b.x + Math.cos(a) * b.r, b.y + Math.sin(a) * b.r, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      }
       return;
     }
     if (b.nineShot) {
@@ -8270,7 +8398,7 @@ function drawNextStageText() {
 
 function drawHUD() {
   ctx.fillStyle = '#7CFFF0';
-  ctx.font = '300 12px "Montserrat", sans-serif';
+  ctx.font = '400 10px "Orbitron", sans-serif';
   ctx.textBaseline = 'top';
 
   // SCORE + HI: centered together as one block
@@ -8317,7 +8445,7 @@ function drawHUD() {
   }
 
   // item status: right side, as name + level block bar (font 2px smaller than the rest of the HUD)
-  ctx.font = '300 10px "Montserrat", sans-serif';
+  ctx.font = '400 8px "Orbitron", sans-serif';
   if (player.weapon !== 'NORMAL' || player.weaponLevel > 0) drawLevelBar(player.weapon, player.weaponLevel, weaponMaxLevel(player.weapon), W - 12, 26);
   if (player.rapidLevel > 0) drawLevelBar('RAPID', player.rapidLevel, 3, W - 12, 44);
   ctx.fillStyle = '#7CFFF0';
