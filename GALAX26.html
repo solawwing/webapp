@@ -391,7 +391,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-01 02:28';
+const LAST_UPDATED = '2026-11-01 02:55';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -4351,14 +4351,15 @@ function updateBullets(dt) {
       const ox = b.x, oy = b.y;
       b.x += b.vx * dt; b.y += b.vy * dt;
       b.dist = (b.dist || 0) + Math.hypot(b.vx, b.vy) * dt; // distance flown, for the thickness
-      // keep the last 240px of the flown path so the bolt is drawn bending along its curve
+      // keep the last 560px of the flown path: the first 80px behind the head is the laser, the next 480px is its fading afterimage
       (b.pts = b.pts || [{ x: ox, y: oy }]).push({ x: b.x, y: b.y });
-      for (let acc = 0, k = b.pts.length - 1; k > 0; k--) { acc += Math.hypot(b.pts[k].x - b.pts[k - 1].x, b.pts[k].y - b.pts[k - 1].y); if (acc > 240) { b.pts.splice(0, k - 1); break; } }
-      // piercing: while any part of the bolt's body (its last 240px of path) overlaps a foe it deals 1 damage every 0.05s
+      for (let acc = 0, k = b.pts.length - 1; k > 0; k--) { acc += Math.hypot(b.pts[k].x - b.pts[k - 1].x, b.pts[k].y - b.pts[k - 1].y); if (acc > 560) { b.pts.splice(0, k - 1); break; } }
+      // piercing: while any part of the bolt's body (its last 80px of path) overlaps a foe it deals 1 damage every 0.05s
       b.lcd = b.lcd || new Map();
       eachFoe((key, pos, rad) => {
         let hit = false;
-        for (let k = b.pts.length - 1; k > 0 && !hit; k--) {
+        for (let k = b.pts.length - 1, acc = 0; k > 0 && !hit && acc <= 80; k--) {
+          acc += Math.hypot(b.pts[k].x - b.pts[k - 1].x, b.pts[k].y - b.pts[k - 1].y);
           const ax = b.pts[k - 1].x, ay = b.pts[k - 1].y, dx = b.pts[k].x - ax, dy = b.pts[k].y - ay, l2 = dx * dx + dy * dy || 1;
           const u = Math.max(0, Math.min(1, ((pos.x - ax) * dx + (pos.y - ay) * dy) / l2));
           if (Math.hypot(pos.x - (ax + dx * u), pos.y - (ay + dy * u)) <= rad + b.r) hit = true;
@@ -7535,11 +7536,18 @@ function drawBullets() {
     }
     if (b.satLaser) {
       const sp = Math.hypot(b.vx, b.vy) || 1, pp = b.pts || [];
-      ctx.save(); ctx.globalAlpha = 0.8; // 20% transparent
-      ctx.strokeStyle = '#ff10f0'; ctx.lineWidth = 1 + 2 * Math.min(1, (b.dist || 0) / 400); ctx.beginPath(); // 1px at launch, thickening with distance flown to 3px at 400px
-      if (pp.length > 1) { ctx.moveTo(pp[0].x, pp[0].y); for (let k = 1; k < pp.length; k++) ctx.lineTo(pp[k].x, pp[k].y); }
-      else { ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx / sp * 240, b.y - b.vy / sp * 240); }
-      ctx.stroke();
+      ctx.save(); ctx.strokeStyle = '#ff10f0'; ctx.lineCap = 'butt';
+      ctx.lineWidth = 2 + Math.min(1, (b.dist || 0) / 400); // 2px at launch, thickening with distance flown to 3px at 400px
+      if (pp.length > 1) {
+        // 80px laser (20% transparent) followed by a 480px afterimage fading out behind it
+        let acc = 0;
+        for (let k = pp.length - 1; k > 0; k--) {
+          const seg = Math.hypot(pp[k].x - pp[k - 1].x, pp[k].y - pp[k - 1].y), mid = acc + seg / 2;
+          ctx.globalAlpha = mid <= 80 ? 0.8 : 0.8 * 0.4 * Math.max(0, 1 - (mid - 80) / 480);
+          ctx.beginPath(); ctx.moveTo(pp[k].x, pp[k].y); ctx.lineTo(pp[k - 1].x, pp[k - 1].y); ctx.stroke();
+          acc += seg;
+        }
+      } else { ctx.globalAlpha = 0.8; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx / sp * 80, b.y - b.vy / sp * 80); ctx.stroke(); }
       ctx.restore();
       return;
     }
