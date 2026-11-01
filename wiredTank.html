@@ -20,7 +20,7 @@ canvas{position:absolute;background:#000;display:block;left:0;top:0}
 </style></head><body>
 <canvas id="c"></canvas><canvas id="rd"></canvas>
 <div id="pad">
- <div class="stick" id="sm"><div class="knob"></div><div class="lbl mv">MOVE</div></div>
+ <div class="stick" id="sm"><div class="knob"></div><div class="lbl mv">MOVE / FIRE</div></div>
  <div class="stick aim" id="sa"><div class="knob"></div><div class="lbl">AIM / FIRE</div></div>
 </div>
 <script>
@@ -1219,7 +1219,18 @@ function mkStick(id,cb){
   const end=e=>{if(e.pointerId!==act)return;act=null;kn.style.transform='';cb(0,0,false)};
   ['pointerup','pointercancel'].forEach(n=>el.addEventListener(n,end));
 }
-mkStick('sm',(x,y)=>{SX=x;SY=y});
+// MOVE / FIRE stick: a TAP fires, a DRAG moves
+let sm0=null,smDrag=false;
+mkStick('sm',(x,y,on)=>{
+  if(on){
+    if(!sm0){sm0=[x,y];smDrag=false}
+    if(!smDrag&&Math.hypot(x-sm0[0],y-sm0[1])>.14)smDrag=true;
+    if(smDrag){SX=x;SY=y}
+  }else{
+    if(sm0&&!smDrag)fire();
+    sm0=null;smDrag=false;SX=0;SY=0;
+  }
+});
 // AIM / FIRE stick: a TAP fires (aim untouched), a DRAG aims (no shot on release)
 let sa0=null,saDrag=false;
 mkStick('sa',(x,y,on)=>{
