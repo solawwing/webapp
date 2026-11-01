@@ -395,7 +395,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-01 19:50';
+const LAST_UPDATED = '2026-11-02 01:20';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -3635,7 +3635,7 @@ function updatePlayer(dt) {
     player.zapperSquares.length = pairCount * 2;
     const claimed = new Set();
     player.zapperSquares.forEach(sq => { if (sq && sq.target) claimed.add(sq.target); });
-    const ZAPPER_SPEED = 700;
+    const ZAPPER_SPEED = 1400;
     const ZAPPER_HOME_OFFSET = 35; // fixed — every pair's idle/home slot is the same 2 points beside the ship, stacked on top of each other
     for (let pi = 0; pi < pairCount; pi++) {
       [-1, 1].forEach((side) => {
@@ -3649,15 +3649,14 @@ function updatePlayer(dt) {
         const sq = player.zapperSquares[idx];
         sq.angle += dt * 2; // slow continuous spin
         const homeX = player.x + sq.side * sq.homeOffset, homeY = player.y;
+        const tryAcquire = () => {
+          let found = findZapperTarget(sq.x, sq.y, claimed, false);
+          if (!found) found = findZapperTarget(sq.x, sq.y, claimed, true); // no free target — sharing allowed as a fallback
+          if (found) { sq.target = found; claimed.add(found); sq.state = 'seeking'; }
+        };
         if (sq.state === 'idle') {
           sq.x = homeX; sq.y = homeY;
-          if (sq.cooldownTimer > 0) {
-            sq.cooldownTimer -= dt;
-          } else {
-            let found = findZapperTarget(sq.x, sq.y, claimed, false);
-            if (!found) found = findZapperTarget(sq.x, sq.y, claimed, true); // no free target — sharing allowed as a fallback
-            if (found) { sq.target = found; claimed.add(found); sq.state = 'seeking'; }
-          }
+          tryAcquire();
         } else if (sq.state === 'seeking' || sq.state === 'attacking') {
           const pos = sq.target ? zapperTargetPos(sq.target) : null;
           if (!pos) {
@@ -3671,7 +3670,7 @@ function updatePlayer(dt) {
             sq.x = pos.x; sq.y = pos.y;
             sq.attackTimer -= dt;
             if (sq.attackTimer <= 0) {
-              sq.attackTimer = 0.1;
+              sq.attackTimer += 0.02; if (sq.attackTimer < -0.02) sq.attackTimer = 0; // carries the remainder so 0.02s holds on average even at 60fps
               if (zapperDealDamage(sq.target)) { sq.state = 'returning'; sq.target = null; }
             }
           }
@@ -3683,7 +3682,7 @@ function updatePlayer(dt) {
           // a slightly different amount, they'd settle into a small jittery cluster
           // instead of landing exactly on top of each other
           const step = Math.min(dist, ZAPPER_SPEED * dt);
-          if (dist < 0.5) { sq.x = homeX; sq.y = homeY; sq.state = 'idle'; sq.cooldownTimer = 0; }
+          if (dist <= ZAPPER_SPEED * dt || dist < 0.5) { sq.x = homeX; sq.y = homeY; sq.state = 'idle'; sq.cooldownTimer = 0; tryAcquire(); } // no wait at home: search again the same frame
           else { sq.x += dx / dist * step; sq.y += dy / dist * step; }
         }
       });
