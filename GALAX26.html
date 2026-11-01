@@ -395,7 +395,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-02 01:40';
+const LAST_UPDATED = '2026-11-02 01:52';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1631,8 +1631,8 @@ function fireWeapon() {
        left: 2 + lvl, hitSet: new Set(), life: 0 });
   } else if (player.weapon === '6OARD') {
     // one square board straight up (bigger with each level); it flies straight and spins about a horizontal axis
-    const hs = 25 * Math.pow(1.2, Math.max(1, Math.min(7, lvl)) - 1); // half-size: the square is 1.2x bigger with every level (always one board)
-    playerBullets.push({ x: player.x, y: player.y - player.r - 5 - hs, vx: 0, vy: -500, r: hs, hs: hs, power: 1, board: true, spin: 0, life: 0, cd: new Map() });
+    const k = Math.pow(1.2, Math.max(1, Math.min(7, lvl)) - 1), hs = 50 * k, hsx = 25 * k; // half-size: the 50x100 board is 1.2x bigger with every level (always one board); hs = half height, hsx = half width
+    playerBullets.push({ x: player.x, y: player.y - player.r - 5 - hs, vx: 0, vy: -500, r: hs, hs: hs, hsx: hsx, power: 1, board: true, spin: 0, life: 0, cd: new Map() });
   } else if (player.weapon === 'JAVELIN') {
     // `level` gray 50x1px spears fanned out from the ship (angles by level); phase 1 pierces enemies (no damage, halves
     // their speed); once off the top each turns blue and drops onto a slowed enemy (see updateBullets)
@@ -3251,7 +3251,7 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["1 bolt.", "2 bolts.", "3 bolts.", "4 bolts.", "5 bolts.", "6 bolts.", "7 bolts, up to 63 hits."] },
   '5ATELLITE': { intro: "A 100px planet with a 10px satellite circling its edge drifts slowly upward through foes; the planet and its satellites pierce foes, each ticking 1 damage every 0.1s while overlapping them; the satellites also fire homing laser bolts outward that tick 1 damage every 0.05s. Each level adds one satellite. Levels to 7.",
     levels: ["1 satellite.", "2 satellites.", "3 satellites.", "4 satellites.", "5 satellites.", "6 satellites.", "7 satellites."] },
-  '6OARD': { intro: "A 50x50px square board (1.2x bigger with every level) flies straight up, spinning about its own horizontal axis, and pierces everything in its way, ticking 1 damage every 0.05s while overlapping a foe; while piercing a foe it slows to speed 5, then speeds back up. Each level makes the board 1.2x bigger. Levels to 7.",
+  '6OARD': { intro: "A 50x100px board (1.2x bigger with every level) flies straight up, spinning about its own horizontal axis, and pierces everything in its way, ticking 1 damage every 0.05s while overlapping a foe; while piercing a foe it slows to speed 5, then speeds back up. Each level makes the board 1.2x bigger. Levels to 7.",
     levels: ["50px.", "60px.", "72px.", "86px.", "104px.", "124px.", "149px."] },
   JAVELIN: { intro: "Gray 150x1px spears pierce targets without damage, cutting their speed to 1/4 and locking them in blue. Off-screen they turn blue (500px, fast) and hit each locked target for 5 damage.",
     levels: ["1 spear, 0°.", "2 spears, ±5°.", "3 spears, 0/±5°.", "4 spears, ±5/10°.", "5 spears, 0/±5/10°.", "6 spears, ±5/10/15°.", "7 spears, 0/±5/10/15°."] },
@@ -4348,12 +4348,12 @@ function updateBullets(dt) {
       continue; // held back, not yet fired
     }
     if (b.board) {
-      // 6OARD: straight flight; the 50x50 square (its height shrinks and grows as it spins about a horizontal axis) pierces
+      // 6OARD: straight flight; the 50x100 board (its height shrinks and grows as it spins about a horizontal axis) pierces
       // every foe, 1 damage per 0.05s while overlapping
       b.spin += dt * (Math.PI * 2 / 2.5); b.life += dt; // one full turn every 2.5s
       const sf = b.slow ? 5 / 500 : 1; // while piercing a target it crawls at speed 5, then returns to 500
       b.x += b.vx * dt * sf; b.y += b.vy * dt * sf;
-      const hw = b.hs, hh = Math.max(3, b.hs * Math.abs(Math.cos(b.spin)));
+      const hw = b.hsx, hh = Math.max(3, b.hs * Math.abs(Math.cos(b.spin)));
       let touching = false;
       eachFoe((key, pos, rad) => {
         const cx = Math.max(b.x - hw, Math.min(b.x + hw, pos.x)), cy = Math.max(b.y - hh, Math.min(b.y + hh, pos.y));
@@ -7586,9 +7586,9 @@ function drawBullets() {
       // white wireframe board turning about a horizontal axis, not filled: the edge swinging toward the viewer is wider and
       // drawn bright, the far edge narrower and dark (the line colour carries the shading)
       const sn = Math.sin(b.spin), cs = Math.cos(b.spin);
-      const yT = b.y - b.hs * cs, yB = b.y + b.hs * cs, wT = b.hs * (1 + 0.2 * sn), wB = b.hs * (1 - 0.2 * sn);
+      const yT = b.y - b.hs * cs, yB = b.y + b.hs * cs, wT = b.hsx * (1 + 0.2 * sn), wB = b.hsx * (1 - 0.2 * sn);
       const sh = z => { const v = Math.round(255 * (0.2 + 0.8 * (z + 1) / 2)); return `rgb(${v},${v},${v})`; };
-      ctx.lineWidth = 1; ctx.lineCap = 'butt';
+      ctx.lineWidth = 2; ctx.lineCap = 'butt';
       ctx.strokeStyle = sh(sn); ctx.beginPath(); ctx.moveTo(b.x - wT, yT); ctx.lineTo(b.x + wT, yT); ctx.stroke(); // top edge
       ctx.strokeStyle = sh(-sn); ctx.beginPath(); ctx.moveTo(b.x - wB, yB); ctx.lineTo(b.x + wB, yB); ctx.stroke(); // bottom edge
       const g = ctx.createLinearGradient(0, yT, 0, Math.abs(yB - yT) < 0.01 ? yT + 0.01 : yB);
