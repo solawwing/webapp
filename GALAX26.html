@@ -395,7 +395,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-02 01:20';
+const LAST_UPDATED = '2026-11-02 01:40';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -530,7 +530,7 @@ function resetPlayer() {
 // ---------- items ----------
 const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL', 'UNLEASH', 'YARELY', 'NORMAL', 'JAVELIN', '9SHOT', '5ATELLITE', '6OARD'];
 document.getElementById('versionLine').textContent = 'version 5.0 (' + ITEM_TYPES.length + ' items)'; // item count follows the item list automatically
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff7a1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff', UNLEASH: '#ff2fd4', YARELY: '#f4ff2e', NORMAL: '#ffffff', JAVELIN: '#9a9a9a', '9SHOT': '#ff3b3b', '5ATELLITE': '#00ff9f', '6OARD': '#ffffff' };
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff7a1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff', UNLEASH: '#ff2fd4', YARELY: '#f4ff2e', NORMAL: '#ffffff', JAVELIN: '#9a9a9a', '9SHOT': '#ff3b3b', '5ATELLITE': '#00e5ff', '6OARD': '#ffffff' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -1627,7 +1627,7 @@ function fireWeapon() {
     }
   } else if (player.weapon === '5ATELLITE') {
     // one 100px ring (with an orbiting 10px satellite) straight up; it drifts slowly up, piercing foes until it has hit (2 + level) of them
-    playerBullets.push({ x: player.x, y: player.y - player.r - 5, vx: 0, vy: -200, r: 50, power: 2, ball: true, n: lvl, sats: Array.from({ length: lvl }, () => rand(0, Math.PI * 2)), // every satellite starts at its own random spot on the ring
+    playerBullets.push({ x: player.x, y: player.y - player.r - 5, vx: 0, vy: -200, r: 50, power: 2, ball: true, n: lvl, sats: Array.from({ length: lvl }, (_, k) => -Math.PI / 2 + k * Math.PI * 2 / lvl), // satellites evenly spaced around the ring, first one at the top
        left: 2 + lvl, hitSet: new Set(), life: 0 });
   } else if (player.weapon === '6OARD') {
     // one square board straight up (bigger with each level); it flies straight and spins about a horizontal axis
@@ -4384,11 +4384,11 @@ function updateBullets(dt) {
       // keep the last 560px of the flown path: the first 80px behind the head is the laser, the next 480px is its fading afterimage
       (b.pts = b.pts || [{ x: ox, y: oy }]).push({ x: b.x, y: b.y });
       for (let acc = 0, k = b.pts.length - 1; k > 0; k--) { acc += Math.hypot(b.pts[k].x - b.pts[k - 1].x, b.pts[k].y - b.pts[k - 1].y); if (acc > 560) { b.pts.splice(0, k - 1); break; } }
-      // piercing: while any part of the bolt's body (its last 80px of path) overlaps a foe it deals 1 damage every 0.05s
+      // piercing: while any part of the bolt's body (its last 10px of path) overlaps a foe it deals 1 damage every 0.05s
       b.lcd = b.lcd || new Map();
       eachFoe((key, pos, rad) => {
         let hit = false;
-        for (let k = b.pts.length - 1, acc = 0; k > 0 && !hit && acc <= 80; k--) {
+        for (let k = b.pts.length - 1, acc = 0; k > 0 && !hit && acc <= 10; k--) {
           acc += Math.hypot(b.pts[k].x - b.pts[k - 1].x, b.pts[k].y - b.pts[k - 1].y);
           const ax = b.pts[k - 1].x, ay = b.pts[k - 1].y, dx = b.pts[k].x - ax, dy = b.pts[k].y - ay, l2 = dx * dx + dy * dy || 1;
           const u = Math.max(0, Math.min(1, ((pos.x - ax) * dx + (pos.y - ay) * dy) / l2));
@@ -7599,23 +7599,23 @@ function drawBullets() {
     }
     if (b.satLaser) {
       const sp = Math.hypot(b.vx, b.vy) || 1, pp = b.pts || [];
-      ctx.save(); ctx.strokeStyle = '#00ff9f'; ctx.lineCap = 'butt';
+      ctx.save(); ctx.strokeStyle = '#00e5ff'; ctx.lineCap = 'butt';
       ctx.lineWidth = 2 + Math.min(1, (b.dist || 0) / 400); // 2px at launch, thickening with distance flown to 3px at 400px
       if (pp.length > 1) {
-        // 80px laser (20% transparent) followed by a 480px afterimage fading out behind it
+        // 10px laser (20% transparent) followed by a 480px afterimage fading out behind it
         let acc = 0;
         for (let k = pp.length - 1; k > 0; k--) {
           const seg = Math.hypot(pp[k].x - pp[k - 1].x, pp[k].y - pp[k - 1].y), mid = acc + seg / 2;
-          ctx.globalAlpha = mid <= 80 ? 0.8 : 0.8 * 0.4 * Math.max(0, 1 - (mid - 80) / 480);
+          ctx.globalAlpha = mid <= 10 ? 0.8 : 0.8 * 0.4 * Math.max(0, 1 - (mid - 10) / 480);
           ctx.beginPath(); ctx.moveTo(pp[k].x, pp[k].y); ctx.lineTo(pp[k - 1].x, pp[k - 1].y); ctx.stroke();
           acc += seg;
         }
-      } else { ctx.globalAlpha = 0.8; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx / sp * 80, b.y - b.vy / sp * 80); ctx.stroke(); }
+      } else { ctx.globalAlpha = 0.8; ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - b.vx / sp * 10, b.y - b.vy / sp * 10); ctx.stroke(); }
       ctx.restore();
       return;
     }
     if (b.ball) {
-      ctx.strokeStyle = '#00ff9f';
+      ctx.strokeStyle = '#00e5ff';
       ctx.globalAlpha = 0.6; ctx.fillStyle = '#000'; ctx.lineWidth = 1; // ring line 40% transparent
       ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.stroke(); // 100px ring, 1px line
       ctx.globalAlpha = 1;
