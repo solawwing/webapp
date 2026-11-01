@@ -395,7 +395,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-01 18:50';
+const LAST_UPDATED = '2026-11-01 19:50';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -6291,6 +6291,20 @@ function checkWaveClear() {
 }
 
 // ---------- drawing (all wireframe: stroke only, no fills) ----------
+// 9SHOT: ripples spreading slowly out of the ship's centre show the launch range (50 + level*25 px); each ring fades out
+// as it reaches that maximum radius
+function drawNineShotRipples() {
+  if (player.weapon !== '9SHOT' || !player.alive) return;
+  const R = 50 + Math.max(1, Math.min(7, player.weaponLevel || 1)) * 25, PERIOD = 1.5, RINGS = 1; // one ring at a time: the next appears only after the previous has faded out
+  const tt = performance.now() / 1000;
+  ctx.save(); ctx.strokeStyle = '#5a9bff'; ctx.lineWidth = 1;
+  for (let k = 0; k < RINGS; k++) {
+    const p = (((tt + k * PERIOD / RINGS) % PERIOD) / PERIOD); // 0 at the ship's centre -> 1 at the maximum range
+    ctx.globalAlpha = 1.0 * (1 - p) * (1 - p) * Math.min(1, p * 8); // soft in at the centre, fully faded at the max radius
+    ctx.beginPath(); ctx.arc(player.x, player.y, R * p, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
+}
 function drawPlayer() {
   if (!player.alive) return;
   if (!player.warping && player.invT > 0 && Math.floor(player.invT * 10) % 2 === 0) return; // blink
@@ -8612,7 +8626,7 @@ function frameBody(now) {
   drawShockwaves();
   drawPhantomFlashes();
   drawXCrossFlashes();
-  if (state === STATE.PLAYING) drawPlayer();
+  if (state === STATE.PLAYING) { drawNineShotRipples(); drawPlayer(); }
   drawPickupTexts();
   drawHUD();
   if (state === STATE.PLAYING) { drawWaveAnnounce(); }
