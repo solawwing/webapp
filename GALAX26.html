@@ -399,7 +399,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-02 22:55';
+const LAST_UPDATED = '2026-11-03 02:00';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1429,11 +1429,15 @@ function startThreeSpin(respin) {
     if (Math.random() < (9 - v) / 10) final[2] = v; else if (alt.length) final[2] = choice(alt);
   }
   const lk = player.threeLock;
-  if (lk && lk.left > 0) { final = [lk.v, lk.v, lk.v]; lk.left--; } // after a triple, the next spin rolls the very same triple
-  else if (final[0] !== 0 && final[0] === final[1] && final[1] === final[2]) player.threeLock = { v: final[0], left: 1 };
-  // each reel scrolls through the symbol strip, decelerating to a halt exactly on its final symbol after THREE_STOP[k] seconds
-  const D = final.map((fv, k) => { const base = Math.round(7 * THREE_STOP[k]); const fi = sy.indexOf(fv); return base + ((((fi - base) % n) + n) % n); });
-  player.slot = { next: 20, spinT: 0, spinning: true, hold: 0, sy, final, D, pos: [0, 0, 0], stopped: [false, false, false],
+  if (lk && lk.left > 0) { final = [lk.v, lk.v, lk.v]; lk.left--; } // after a triple, the next 2 spins roll the very same triple
+  else if (final[0] !== 0 && final[0] === final[1] && final[1] === final[2]) player.threeLock = { v: final[0], left: 2 };
+  // reach (left and middle reels match): the right reel takes 5s after the middle one stops (9s in all) to come to rest
+  const stop = [THREE_STOP[0], THREE_STOP[1], final[0] === final[1] ? THREE_STOP[1] + 5 : THREE_STOP[2]];
+  // the previous result's FEVER stays in force until this spin has finished turning
+  const fv0 = threeFeverState(), keep = { jack: !!fv0, v: fv0 ? fv0.v : 0 };
+  // each reel scrolls through the symbol strip, decelerating to a halt exactly on its final symbol after stop[k] seconds
+  const D = final.map((fv, k) => { const base = Math.round(7 * stop[k]); const fi = sy.indexOf(fv); return base + ((((fi - base) % n) + n) % n); });
+  player.slot = { next: 15, spinT: 0, spinning: true, hold: 0, sy, final, D, stop, keep, pos: [0, 0, 0], stopped: [false, false, false],
     cur: old ? old.cur.slice() : [0, 0, 0], alpha: 1, appear: (respin && old) ? old.appear : 0, exitT: null };
 }
 // 7THREE reel boxes: rise in a straight line from below the screen up to their spot in front of the ship (appear 0..1), and when the
@@ -1444,17 +1448,20 @@ function threeReelRect(sl, k) {
   const sx = fx, sy0 = H + 10; // below the bottom edge of the screen, straight up from there
   const p = Math.min(1, sl.appear);
   let x = sx + (fx - sx) * p, y = sy0 + (fy - sy0) * p;
-  if (sl.exitT !== null) { const d = 1237.5 * sl.exitT; x += Math.cos(THREE_EXIT_ANG[k]) * d; y += Math.sin(THREE_EXIT_ANG[k]) * d; }
+  if (sl.exitT !== null) { const d = 2475 * sl.exitT; x += Math.cos(THREE_EXIT_ANG[k]) * d; y += Math.sin(THREE_EXIT_ANG[k]) * d; }
   return { x, y, w: THREE_BW, h: THREE_BH };
 }
-function threeJackpot() { // 7THREE: reels stopped on a non-zero three of a kind
+function threeFeverState() { // 7THREE FEVER (eleven lasers, kill points x10): from the moment three of a kind stops until the NEXT spin has finished turning
   const sl = player.slot;
-  return player.weapon === '7THREE' && !!sl && !sl.spinning && sl.cur[0] !== 0 && sl.cur[0] === sl.cur[1] && sl.cur[1] === sl.cur[2];
+  if (player.weapon !== '7THREE' || !sl) return null;
+  if (!sl.spinning) return (sl.cur[0] !== 0 && sl.cur[0] === sl.cur[1] && sl.cur[1] === sl.cur[2]) ? { v: sl.cur[0] } : null;
+  return (sl.keep && sl.keep.jack) ? { v: sl.keep.v } : null;
 }
+function threeJackpot() { return !!threeFeverState(); }
 function threeDamages() {
   const sl = player.slot; if (!sl) return [0, 0, 0];
-  const triple = !sl.spinning && sl.cur[0] !== 0 && sl.cur[0] === sl.cur[1] && sl.cur[1] === sl.cur[2];
-  return sl.cur.map(v => triple ? v * 10 : v);
+  const fv = threeFeverState();
+  return fv ? [fv.v * 10, fv.v * 10, fv.v * 10] : sl.cur.slice();
 }
 function fireWeapon() {
   const bx = player.x, by = player.y - player.r;
@@ -1678,20 +1685,15 @@ function fireWeapon() {
        left: 2 + lvl, hitSet: new Set(), life: 0 });
   } else if (player.weapon === '7THREE') {
     // three lasers straight up from -20 / 0 / +20px; each one's damage is its reel's value (x10 on a non-zero triple); a 0 laser isn't fired
-    const dm = threeDamages(), jack = !player.slot.spinning && player.slot.cur[0] !== 0 && player.slot.cur[0] === player.slot.cur[1] && player.slot.cur[1] === player.slot.cur[2]; // three of a kind: FEVER (homing beams)
-    const claimed3 = new Set();
-    [-30, 0, 30].forEach((ox, k) => {
-      if (dm[k] <= 0) return;
-      const bx3 = player.x + ox, by3 = player.y - player.r - 5;
-      if (jack) {
-        // FEVER: homing beams, each one locked on a different foe (never the same one as another beam)
-        const found = nineShotPick(bx3, by3, claimed3);
-        if (found) claimed3.add(found.key);
-        playerBullets.push({ x: bx3, y: by3, vx: 0, vy: -1125, r: 3, power: dm[k], three: true, homing3: true, tgt: found ? found.key : null, ang: -Math.PI / 2, pts: [{ x: bx3, y: by3 }], cd: new Map(), life: 0 });
-        return;
-      }
-      playerBullets.push({ x: bx3, y: by3, vx: 0, vy: -1125, r: 3, power: dm[k], three: true, length: 900, spawnY: by3, hitSet: new Set() });
-    });
+    const dm = threeDamages(), jack = threeJackpot(); // three of a kind: eleven lasers instead of three
+    const by3 = player.y - player.r - 5;
+    const pushBeam = (ox, power) => playerBullets.push({ x: player.x + ox, y: by3, vx: 0, vy: -1125, r: 3, power, three: true, length: 900, spawnY: by3, hitSet: new Set() });
+    if (jack) {
+      // FEVER (reels matched): eleven lasers at +150 ... -150 in steps of 30, each dealing the matched number x10
+      [150, 120, 90, 60, 30, 0, -30, -60, -90, -120, -150].forEach(ox => pushBeam(ox, dm[0]));
+    } else {
+      [-30, 0, 30].forEach((ox, k) => { if (dm[k] > 0) pushBeam(ox, dm[k]); });
+    }
   } else if (player.weapon === '6OARD') {
     // one square board straight up (bigger with each level); it flies straight and spins about a horizontal axis
     const k = Math.pow(1.2, Math.max(1, Math.min(7, lvl)) - 1), hs = 50 * k, hsx = 25 * k; // half-size: the 50x100 board is 1.2x bigger with every level (always one board); hs = half height, hsx = half width
@@ -3108,7 +3110,7 @@ function updateEnemies(dt) {
       const f = phantomFlashes[pi];
       if (e.x >= f.x && e.x <= f.x + f.w && e.y >= f.y && e.y <= f.y + f.h) { slowedByPhantom = true; break; }
     }
-    const dt = ((slowedByShockwave || slowedByPhantom) ? fullDt * (slowedByShockwave ? (1 / 4) : 0.5) : fullDt) * (e.javelinSlow ? 0.25 : 1) * (e.threeSlow ? 0.1 : 1); // JAVELIN-pierced enemies stay at quarter speed; a foe pierced by 7THREE's departing reels runs at 1/10 speed
+    const dt = ((slowedByShockwave || slowedByPhantom) ? fullDt * (slowedByShockwave ? (1 / 4) : 0.5) : fullDt) * (e.javelinSlow ? 0.25 : 1); // JAVELIN-pierced enemies stay at quarter speed
     e.gravSlowed = slowedByShockwave; // for the GRAVITY lock-on square
     if (e.state === 'enter') {
       e.t += (dt * (e.type === 'GIANTBOSS' ? 2 : 1.875)) / e.duration; // moves into formation at 1.875x speed (boss 2x)
@@ -3316,7 +3318,7 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["1 satellite.", "2 satellites.", "3 satellites.", "4 satellites.", "5 satellites.", "6 satellites.", "7 satellites."] },
   '6OARD': { intro: "A 50x100px board (1.2x bigger with every level) flies straight up, spinning about its own horizontal axis, and pierces everything in its way, ticking 1 damage every 0.05s while overlapping a foe; while piercing a foe it slows to speed 5, then speeds back up. Each level makes the board 1.2x bigger. Levels to 7.",
     levels: ["50px.", "60px.", "72px.", "86px.", "104px.", "124px.", "149px."] },
-  '7THREE': { intro: "Three LASER-style beams fly straight up from the ship at -30, 0 and +30px. A 3-reel slot machine (its reels shoot down enemy bullets while they are on screen) sets their damage: the left reel is the left laser's damage, the middle reel the centre laser's, the right reel the right laser's (a 0 reel, shown as '-', means that laser does no damage; if all three reels are 0 the slot spins again). The reels (shown in front of the ship only while they spin) spin when the item is picked up and then every 20s; each reel takes 2s to slow to a stop, one after another from the left. If all three reels match on a number other than 0, every laser deals that number x10 and kill points are x10 while the reels stay matched. During that FEVER the lasers become homing beams, each locked on a different foe. After a triple the next spin rolls the same triple again, (a reach completes with 80% at 11 down to 20% at 77). Each level removes the low numbers from the reels. Levels to 7.",
+  '7THREE': { intro: "Three LASER-style beams fly straight up from the ship at -30, 0 and +30px. A 3-reel slot machine (its reels shoot down enemy bullets while they are on screen) sets their damage: the left reel is the left laser's damage, the middle reel the centre laser's, the right reel the right laser's (a 0 reel, shown as '-', means that laser does no damage; if all three reels are 0 the slot spins again). The reels (shown in front of the ship only while they spin) spin when the item is picked up and then every 15s; each reel takes 2s to slow to a stop, one after another from the left. If all three reels match on a number other than 0, every laser deals that number x10 and kill points are x10 while the reels stay matched. While the reels are matched (until the next spin has finished turning) the lasers are replaced by eleven lasers at +150, +120 ... -150 (30px steps), each dealing the matched number x10. After a triple the next 2 spins roll the same triple again, (a reach completes with 80% at 11 down to 20% at 77, and then the right reel takes 5s to stop). Each level removes the low numbers from the reels. Levels to 7.",
     levels: ["Reels: 0-7.", "Reels: 0, 2-7.", "Reels: 0, 3-7.", "Reels: 0, 4-7.", "Reels: 0, 5-7.", "Reels: 0, 6-7.", "Reels: 0, 7."] },
   JAVELIN: { intro: "Gray 150x1px spears pierce targets without damage, cutting their speed to 1/4 and locking them in blue. Off-screen they turn blue (500px, fast) and hit each locked target for 5 damage.",
     levels: ["1 spear, 0°.", "2 spears, ±5°.", "3 spears, 0/±5°.", "4 spears, ±5/10°.", "5 spears, 0/±5/10°.", "6 spears, ±5/10/15°.", "7 spears, 0/±5/10/15°."] },
@@ -3690,7 +3692,7 @@ function updatePlayer(dt) {
     player.orbitalRings = null;
   }
 
-  // 7THREE: the slot machine (spins on pickup, then every 20s; each reel decelerates to a stop over 2s, left to right at 2s / 4s / 6s)
+  // 7THREE: the slot machine (spins on pickup, then every 15s; each reel decelerates to a stop over 2s, left to right at 2s / 4s / 6s)
   if (player.weapon === '7THREE') {
     if (!player.slot) startThreeSpin(true);
     const sl = player.slot;
@@ -3698,11 +3700,11 @@ function updatePlayer(dt) {
     if (sl.spinning) {
       sl.spinT += dt;
       for (let k = 0; k < 3; k++) {
-        const t = Math.min(1, sl.spinT / THREE_STOP[k]);
+        const t = Math.min(1, sl.spinT / sl.stop[k]);
         sl.pos[k] = sl.D[k] * (1 - (1 - t) * (1 - t));
         if (!sl.stopped[k] && t >= 1) { sl.stopped[k] = true; sl.cur[k] = sl.final[k]; }
       }
-      if (sl.spinT >= THREE_STOP[2]) { sl.spinning = false; sl.hold = 1.0; if (sl.cur.every(v => v === 0)) startThreeSpin(true); } // all three reels 0: spin again right away // result stays visible for 1s, then the slot disappears
+      if (sl.spinT >= sl.stop[2]) { sl.spinning = false; sl.hold = 1.0; if (sl.cur.every(v => v === 0)) startThreeSpin(true); } // all three reels 0: spin again right away // result stays visible for 1s, then the slot disappears
     } else if (sl.hold > 0) {
       sl.hold -= dt;
     }
@@ -3714,16 +3716,6 @@ function updatePlayer(dt) {
       } else {
         s2.exitT += dt; s2.alpha = Math.max(0, 1 - s2.exitT / 0.5);
       } }
-    // a departing reel passes through foes without damage, cutting the speed of each one it pierces to 1/10 (once; no stacking; not for bosses/mini-bosses)
-    if (player.slot.exitT !== null && player.slot.alpha > 0.05) {
-      eachFoe((key, pos, rad) => {
-        if (key.isMiniBoss || key.type === 'GIANTBOSS' || key.threeSlow) return;
-        for (let k = 0; k < 3; k++) {
-          const rc = threeReelRect(player.slot, k), cx = Math.max(rc.x, Math.min(rc.x + rc.w, pos.x)), cy = Math.max(rc.y, Math.min(rc.y + rc.h, pos.y));
-          if (Math.hypot(pos.x - cx, pos.y - cy) <= rad) { key.threeSlow = true; break; }
-        }
-      });
-    }
     // while the reels are on screen they shoot down enemy bullets that touch them (same geometry as drawHUD's reels)
     if (player.slot.alpha > 0.1) {
       for (let i = enemyBullets.length - 1; i >= 0; i--) {
@@ -4459,40 +4451,6 @@ function updateBullets(dt) {
     if (b.spawnDelay > 0) {
       b.spawnDelay -= dt;
       continue; // held back, not yet fired
-    }
-    if (b.three && b.homing3) {
-      // FEVER beam: steers toward its own foe (no two beams share one), drawn/hit as a path of recent positions, damage every 0.1s while overlapping
-      if (b.dying) { b.dyingT += dt; if (b.dyingT >= 0.3) playerBullets.splice(i, 1); continue; }
-      b.life += dt;
-      const foes = []; eachFoe((key, pos, rad) => foes.push({ key, pos, rad }));
-      let tg = foes.find(o => o.key === b.tgt);
-      if (!tg || tg.pos.y < -20 || tg.pos.y > H + 20 || tg.pos.x < -20 || tg.pos.x > W + 20) {
-        const ex = new Set(); playerBullets.forEach(o => { if (o !== b && o.homing3 && !o.dying && o.tgt) ex.add(o.tgt); });
-        const found = nineShotPick(b.x, b.y, ex);
-        b.tgt = found ? found.key : null; tg = found ? { key: found.key, pos: found.pos } : null;
-      }
-      if (tg) {
-        const want = Math.atan2(tg.pos.y - b.y, tg.pos.x - b.x);
-        let df = want - b.ang; while (df > Math.PI) df -= 2 * Math.PI; while (df < -Math.PI) df += 2 * Math.PI;
-        b.ang += Math.max(-12 * dt, Math.min(12 * dt, df));
-      }
-      b.vx = Math.cos(b.ang) * 1125; b.vy = Math.sin(b.ang) * 1125;
-      b.x += b.vx * dt; b.y += b.vy * dt;
-      b.pts.push({ x: b.x, y: b.y });
-      for (let acc = 0, k = b.pts.length - 1; k > 0; k--) { acc += Math.hypot(b.pts[k].x - b.pts[k - 1].x, b.pts[k].y - b.pts[k - 1].y); if (acc > 450) { b.pts.splice(0, k - 1); break; } }
-      foes.forEach(o => {
-        let hit = false;
-        for (let k = b.pts.length - 1; k > 0 && !hit; k--) {
-          const ax = b.pts[k - 1].x, ay = b.pts[k - 1].y, dx = b.pts[k].x - ax, dy = b.pts[k].y - ay, l2 = dx * dx + dy * dy || 1;
-          const u = Math.max(0, Math.min(1, ((o.pos.x - ax) * dx + (o.pos.y - ay) * dy) / l2));
-          if (Math.hypot(o.pos.x - (ax + dx * u), o.pos.y - (ay + dy * u)) <= o.rad + b.r) hit = true;
-        }
-        if (!hit) return;
-        const last = b.cd.get(o.key);
-        if (last === undefined || b.life - last >= 0.1) { b.cd.set(o.key, b.life); nineShotDamage(o.key, b.power, true); }
-      });
-      if (b.life > 3 || b.x < -40 || b.x > W + 40 || b.y < -40 || b.y > H + 40) { b.dying = true; b.dyingT = 0; b.vx = 0; b.vy = 0; }
-      continue;
     }
     if (b.three) {
       // 7THREE laser (LASER-style long beam growing out of the muzzle): pierces everything, damaging each foe it overlaps every 0.1s (damage = its reel value)
@@ -7029,7 +6987,7 @@ function updateAsteroids(fullDt) {
       const scx = s.x + s.jitterX, scy = s.y + s.jitterY;
       if (Math.hypot(a.x - scx, a.y - scy) <= ringR + (a.r || 10)) { slowedByShockwave = true; break; }
     }
-    const dt = (slowedByShockwave ? fullDt * (1 / 4) : fullDt) * (a.javelinSlow ? 0.25 : 1) * (a.threeSlow ? 0.1 : 1);
+    const dt = (slowedByShockwave ? fullDt * (1 / 4) : fullDt) * (a.javelinSlow ? 0.25 : 1);
     a.gravSlowed = slowedByShockwave; // for the GRAVITY lock-on square
     a.x += (a.vx || 0) * dt;
     a.y += a.vy * dt;
@@ -7742,19 +7700,6 @@ function drawBullets() {
       }
       ctx.fillStyle = '#00b7ff';
       fstrip(b.x, b.y);
-      ctx.restore();
-      return;
-    }
-    if (b.three && b.homing3) {
-      // FEVER homing beam: a path (normal 1-3px thickness) that is bright at the head and fades toward its tail
-      const pp = b.pts;
-      ctx.save(); ctx.strokeStyle = '#ff10f0'; ctx.lineCap = 'butt';
-      const lwAt3 = yy => 1 + 2 * Math.max(0, Math.min(1, 1 - yy / H)); // same 1px (bottom) to 3px (top) as the normal beam
-      const fade = b.dying ? Math.max(0, 1 - b.dyingT / 0.3) : 1;
-      for (let k = 1; k < pp.length; k++) {
-        ctx.globalAlpha = fade * (0.25 + 0.75 * (k / (pp.length - 1))); ctx.lineWidth = lwAt3((pp[k - 1].y + pp[k].y) / 2);
-        ctx.beginPath(); ctx.moveTo(pp[k - 1].x, pp[k - 1].y); ctx.lineTo(pp[k].x, pp[k].y); ctx.stroke();
-      }
       ctx.restore();
       return;
     }
@@ -8737,7 +8682,6 @@ function drawHUD() {
       ctx.restore();
       ctx.strokeStyle = spinning ? '#888' : '#ff10f0'; ctx.globalAlpha = fa; ctx.strokeRect(x + 0.5, y0 + 0.5, bw - 1, bh - 1);
     });
-    if (jack) { ctx.globalAlpha = fa; ctx.font = '400 12px "Orbitron", sans-serif'; ctx.fillStyle = '#ff10f0'; { const mr = threeReelRect(sl, 1); ctx.fillText('FEVER TIME !!', mr.x + bw / 2, mr.y - 11); } }
     ctx.restore(); ctx.textBaseline = 'top';
   }
 
