@@ -399,7 +399,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-02 10:15';
+const LAST_UPDATED = '2026-11-02 12:12';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -8643,7 +8643,7 @@ function drawHUD() {
       ctx.restore();
       ctx.strokeStyle = spinning ? '#888' : '#ff10f0'; ctx.globalAlpha = 1; ctx.strokeRect(x + 0.5, y0 + 0.5, bw - 1, bh - 1);
     });
-    if (jack) { ctx.font = '400 12px "Orbitron", sans-serif'; ctx.fillStyle = '#ff10f0'; ctx.fillText('x10', player.x, y0 - 9); }
+    if (jack) { ctx.font = '400 12px "Orbitron", sans-serif'; ctx.fillStyle = '#ff10f0'; ctx.fillText('FEVER TIME !!', player.x, y0 - 9); }
     ctx.restore(); ctx.textBaseline = 'top';
   }
 
