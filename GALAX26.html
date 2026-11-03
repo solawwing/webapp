@@ -232,6 +232,10 @@
         <div class="item-header"><span class="item-icon">M</span><span class="item-name">MISSILE</span></div>
         <div class="item-desc">Loops back, arcs forward, splits in two.</div>
       </div>
+      <div class="item-entry" data-weapon="NORMAL">
+        <div class="item-header"><span class="item-icon">N</span><span class="item-name">NORMAL</span></div>
+        <div class="item-desc">White shots that split on every hit.</div>
+      </div>
       <div class="item-entry" data-weapon="ORBITAL">
         <div class="item-header"><span class="item-icon">O</span><span class="item-name">ORBITAL</span></div>
         <div class="item-desc">Orbiting rings fire fine lasers.</div>
@@ -272,10 +276,6 @@
         <div class="item-header"><span class="item-icon">X</span><span class="item-name">XCROSS</span></div>
         <div class="item-desc">On hit, shoots an X-shaped shockwave.</div>
       </div>
-      <div class="item-entry" data-weapon="NORMAL">
-        <div class="item-header"><span class="item-icon">N</span><span class="item-name">NORMAL</span></div>
-        <div class="item-desc">White shots that split on every hit.</div>
-      </div>
       <div class="item-entry" data-weapon="YARELY">
         <div class="item-header"><span class="item-icon">Y</span><span class="item-name">YARELY</span></div>
         <div class="item-desc">Line bolts in 10 directions, bouncing off walls.</div>
@@ -283,10 +283,6 @@
       <div class="item-entry" data-weapon="ZAPPER">
         <div class="item-header"><span class="item-icon">Z</span><span class="item-name">ZAPPER</span></div>
         <div class="item-desc">Drones dash in, zap, then return.</div>
-      </div>
-      <div class="item-entry" data-weapon="9SHOT">
-        <div class="item-header"><span class="item-icon">9</span><span class="item-name">9SHOT</span></div>
-        <div class="item-desc">Laser that chases foe after foe, up to 9 times.</div>
       </div>
       <div class="item-entry" data-weapon="5ATELLITE">
         <div class="item-header"><span class="item-icon">5</span><span class="item-name">5ATELLITE</span></div>
@@ -299,6 +295,10 @@
       <div class="item-entry" data-weapon="7THREE">
         <div class="item-header"><span class="item-icon">7</span><span class="item-name">7THREE</span></div>
         <div class="item-desc">Three laser beams (every 0.5s, damaging a pierced foe every 0.1s) whose damage is set by a slot machine.</div>
+      </div>
+      <div class="item-entry" data-weapon="9SHOT">
+        <div class="item-header"><span class="item-icon">9</span><span class="item-name">9SHOT</span></div>
+        <div class="item-desc">Laser that chases foe after foe, up to 9 times.</div>
       </div>
       <hr style="width:100%; border:none; border-top:1px solid #39FF14; margin:8px 0;">
       <div class="item-entry">
@@ -399,7 +399,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-03 13:10';
+const LAST_UPDATED = '2026-11-03 19:50';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -3258,7 +3258,7 @@ let debugStartAtBoss = false; // set via tapping the tier-A icon on the title sc
 let debugSkipEnemyWaves = false; // set via tapping the tier-C icon on the title screen — only ASTEROID/CRYSTAL/BOSS cycle positions play, ENEMY positions are silently skipped
 let debugWallBossOnly = false; // set via double-tapping the tier-D (green) icon on the title screen — only cycle positions 2, 6, 10 (wall stages) and the BOSS play, weapon starts at Lv3
 let debugStartMaxLevel = false; // set via tapping the tier-E icon on the title screen
-const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'JAVELIN', 'KURU2', 'LASER', 'MISSILE', 'NORMAL', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'UNLEASH', 'VULCAN', 'WHIPS', 'XCROSS', 'YARELY', 'ZAPPER', '9SHOT', '5ATELLITE', '6OARD', '7THREE']; // no NORMAL — alphabetical order
+const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'JAVELIN', 'KURU2', 'LASER', 'MISSILE', 'NORMAL', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'UNLEASH', 'VULCAN', 'WHIPS', 'XCROSS', 'YARELY', 'ZAPPER', '5ATELLITE', '6OARD', '7THREE', '9SHOT']; // no NORMAL — alphabetical order
 function showEquipSelect() {
   showingEquip = true;
   titleScreen.classList.add('hidden');
@@ -7726,7 +7726,7 @@ function drawBullets() {
       const sn = Math.sin(b.spin), cs = Math.cos(b.spin);
       const yT = b.y - b.hs * cs, yB = b.y + b.hs * cs, wT = b.hsx * (1 + 0.2 * sn), wB = b.hsx * (1 - 0.2 * sn);
       const sh = z => { const v = Math.round(255 * (0.2 + 0.8 * (z + 1) / 2)); return `rgb(${v},${v},${v})`; };
-      ctx.lineWidth = 2; ctx.lineCap = 'butt';
+      ctx.lineWidth = 1.5; ctx.lineCap = 'butt';
       ctx.strokeStyle = sh(sn); ctx.beginPath(); ctx.moveTo(b.x - wT, yT); ctx.lineTo(b.x + wT, yT); ctx.stroke(); // top edge
       ctx.strokeStyle = sh(-sn); ctx.beginPath(); ctx.moveTo(b.x - wB, yB); ctx.lineTo(b.x + wB, yB); ctx.stroke(); // bottom edge
       const g = ctx.createLinearGradient(0, yT, 0, Math.abs(yB - yT) < 0.01 ? yT + 0.01 : yB);
