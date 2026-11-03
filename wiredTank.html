@@ -26,9 +26,9 @@ canvas{position:absolute;background:#000;display:block;left:0;top:0}
 <script>
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),rcv=document.getElementById('rd'),rctx=rcv.getContext('2d');
 // the playfield is monochrome (bright greyscale); enemies (PINK) keep their colour, same as on the radar
-const PINK='#ff2bd6',CYAN='#00e5ff',_gc={};   // the only two colours kept: enemies / player
+const PINK='#ff2bd6',CYAN='#00e5ff',RED='#ff1133',_gc={};   // the only two colours kept: enemies / player
 function toGray(v){
-  if(typeof v!=='string'||v===PINK||v===CYAN)return v;
+  if(typeof v!=='string'||v===PINK||v===CYAN||v===RED)return v;
   let r=_gc[v];if(r)return r;
   let m=v.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i),R,G,B,A=1;
   if(m){let h=m[1];if(h.length===3)h=h.split('').map(c=>c+c).join('');R=parseInt(h.slice(0,2),16);G=parseInt(h.slice(2,4),16);B=parseInt(h.slice(4,6),16)}
@@ -893,7 +893,7 @@ const PL=[
 function drawPlane(){
   const p=plane,c=Math.cos(p.ha),s=Math.sin(p.ha),q=p.sc;
   for(const sh of[1,0]){
-    ctx.strokeStyle=sh?'#9cf':'#164';ctx.lineWidth=LW;ctx.beginPath();
+    ctx.strokeStyle=sh?CYAN:'#164';ctx.lineWidth=LW;ctx.beginPath();
     for(const l of PL){
       seg3(p.x+(c*l[0]-s*l[1])*q,p.y+(s*l[0]+c*l[1])*q,sh?p.z+l[2]*q:0,
            p.x+(c*l[3]-s*l[4])*q,p.y+(s*l[3]+c*l[4])*q,sh?p.z+l[5]*q:0);
@@ -967,8 +967,11 @@ function drawBeam(b){
 }
 function mineA(m){return .3}   // always there, faint
 function drawMine(m){ // flat pentagon lying on the ground
-  const a=mineA(m);if(a<=.01)return;
-  ctx.globalAlpha=a;ctx.strokeStyle='#f84';ctx.lineWidth=LW;ctx.beginPath();
+  let a=mineA(m);if(a<=.01)return;
+  // now and then a mine pulses fluorescent red (each on its own timing)
+  const ph=((t+m.x*.0137+m.y*.0071)%5)/5,fl=ph<.14?Math.sin(ph/.14*Math.PI):0;
+  if(fl>0)a=.3+.7*fl;
+  ctx.globalAlpha=a;ctx.strokeStyle=fl>0.05?RED:'#f84';ctx.lineWidth=LW;ctx.beginPath();
   ring(m.x,m.y,0,17,5);ring(m.x,m.y,0,8,5);
   ctx.stroke();ctx.globalAlpha=1;
 }
