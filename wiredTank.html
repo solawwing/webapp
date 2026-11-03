@@ -149,7 +149,7 @@ const ET={
   sm:{hp:3,r:22,s:.85,sc:300,sp:25,sd:240,rng:300,cd:2.0,lt:1.0,v:240,col:PINK},
   lg:{hp:5,r:34,s:1.35,sc:800,sp:15,sd:300,rng:360,cd:1.8,lt:1.3,v:240,col:PINK},
   jp:{hp:2,r:18,s:.8,sc:400,sp:105,sd:170,rng:380,cd:1.6,lt:.55,col:PINK},
-  fort:{hp:25,r:90,s:2.6,sc:5000,sp:0,sd:0,rng:560,cd:3.2,lt:1.6,v:210,col:PINK,big:1},
+  fort:{hp:12,r:90,s:2.6,sc:5000,sp:0,sd:0,rng:560,cd:3.2,lt:1.6,v:210,col:PINK,big:1},
   xl:{hp:10,r:50,s:1.9,sc:2000,sp:10,sd:380,rng:440,cd:3.2,lt:1.8,v:200,col:PINK,big:1}
 };
 
@@ -186,7 +186,7 @@ function genStage(n){
     let ok=true;
     for(const p of pts)if(Math.hypot(p[0]-P.x,p[1]-P.y)<260||circleHits(p[0],p[1],26)||nearFort(p[0],p[1],30)){ok=false;break}
     if(!ok)continue;
-    const q=Math.random(),lv=q<.5?1:q<.8?2:3;
+    const q=Math.random(),lv=q<.35?1:q<.6?2:q<.78?3:q<.91?4:5;
     walls.push({x,y,w,h,lv,H:24*lv,hp:6*lv,max:6*lv,seed:Math.random()*100});c++;
   }
   const spawn=(k,cnt)=>{
@@ -198,7 +198,19 @@ function genStage(n){
   };
   spawn('inf',6+n*2);spawn('sm',3+n);spawn('lg',1+(n>>1));spawn('xl',1+(n>>2));spawn('jp',2+(n>>1));spawn('tr',2+(n>>1));
   if(fortC){
-    enemies.push({k:'fort',x:fortC.x,y:fortC.y,hp:ET.fort.hp,cd:2.5,a:Math.PI/2,ta:Math.PI/2,ph:0,hit:0,walk:0,st:0,sg:1,vx:0,vy:0});
+    const F0={k:'fort',x:fortC.x,y:fortC.y,cd:2.5,a:Math.PI/2,ta:Math.PI/2,ph:0,hit:0,walk:0,st:0,sg:1,vx:0,vy:0,bar:0,chain:0,lastH:-9,bf:0};
+    // fortress: damage taken in quick succession raises a barrier that soaks up 5 damage
+    let _hp=ET.fort.hp;
+    Object.defineProperty(F0,'hp',{enumerable:true,get(){return _hp},set(v){
+      const d=_hp-v;
+      if(d>0){
+        if(F0.bar>0){F0.bar-=d;F0.bf=.25;if(F0.bar<=0){F0.bar=0;F0.chain=0;boom(F0.x,F0.y,120)}return}
+        _hp=v;
+        F0.chain=(t-F0.lastH<1.5)?F0.chain+1:1;F0.lastH=t;
+        if(F0.chain>=2&&_hp>0){F0.bar=5;F0.chain=0;F0.bf=.4}
+      }else _hp=v;
+    }});
+    enemies.push(F0);
   }
   mines=[];P.fly=null;
   for(let i=0,c=0;i<600&&c<10;i++){
@@ -340,6 +352,11 @@ function maxAmmo(){return 3+pw.V}                  // V: 3, +1 per item
 function stepShocks(dt){
   for(const s of shocks){
     s.t+=dt;if(s.t<0)continue;const cur=s.R*Math.pow(Math.min(1,s.t/s.d),.6);
+    if(s.hw)for(const w of walls){
+      if(w.dead||s.hw.has(w))continue;
+      const qx=clamp(s.x,w.x,w.x+w.w),qy=clamp(s.y,w.y,w.y+w.h);
+      if(Math.hypot(s.x-qx,s.y-qy)<=cur){s.hw.add(w);w.hp-=s.dmg||1;if(w.hp<=0){w.dead=1;boom(w.x+w.w/2,w.y+w.h/2,50)}}
+    }
     for(const e of enemies){
       if(e.dead||s.hit.has(e))continue;
       if(Math.hypot(e.x-s.x,e.y-s.y)-ET[e.k].r*.8<=cur){s.hit.add(e);e.hp-=s.dmg||1;addScore(10*(s.dmg||1));e.hit=.15;boom(e.x,e.y,16);if(e.hp<=0)killE(e)}
@@ -376,6 +393,20 @@ function laser(){
   beams.push({x0,y0,x1:ex,y1:ey,t:0,d:1.4,ext:1.125,pend,len:Math.hypot(ex-x0,ey-y0)});
 
 }
+// can the player see this enemy? (in front of the camera and no wall between)
+function segRect(x0,y0,x1,y1,w){
+  let u0=0,u1=1;const dx=x1-x0,dy=y1-y0;
+  for(const [p,q] of [[-dx,x0-w.x],[dx,w.x+w.w-x0],[-dy,y0-w.y],[dy,w.y+w.h-y0]]){
+    if(p===0){if(q<0)return false}
+    else{const rr=q/p;if(p<0){if(rr>u1)return false;if(rr>u0)u0=rr}else{if(rr<u0)return false;if(rr<u1)u1=rr}}
+  }
+  return true;
+}
+function visE(e){
+  if(!inView(e.x,e.y,0))return false;
+  for(const w of walls)if(!w.dead&&segRect(CPX,CPY,e.x,e.y,w))return false;
+  return true;
+}
 function laserH(){
   let a=aimA,av=0,x=P.x+Math.cos(a)*34,y=P.y+Math.sin(a)*34;
   const pts=[[x,y]],hit=new Set(),pend=[],reach=(maxR()+60)*3;
@@ -383,7 +414,7 @@ function laserH(){
     if(d>=30){
       let best=null,bd=520;
       for(const e of enemies){
-        if(e.dead||hit.has(e))continue;
+        if(e.dead||hit.has(e)||!visE(e))continue;
         const ta=Math.atan2(e.y-y,e.x-x),dd=Math.hypot(e.x-x,e.y-y);
         if(dd<bd&&Math.abs(wrap(ta-a))<1.2){bd=dd;best=e;best.ta2=ta}
       }
@@ -412,7 +443,7 @@ function stepMissiles(dt){
   for(const m of missiles){
     m.life-=dt;
     const near=[];
-    for(const e of enemies){if(e.dead)continue;const d=Math.hypot(e.x-m.x,e.y-m.y);if(d<700)near.push([d,e])}
+    for(const e of enemies){if(e.dead)continue;const d=Math.hypot(e.x-m.x,e.y-m.y);if(d<700&&visE(e))near.push([d,e])}
     near.sort((a,b)=>a[0]-b[0]);
     const best=near.length?near[Math.min(m.k||0,near.length-1)][1]:null;
     if(best)m.a=turnTo(m.a,Math.atan2(best.y-m.y,best.x-m.x),3.2*dt);
@@ -561,7 +592,7 @@ function updE(e,dt){
   }
 }
 function impWave(s){ // R500 shockwave; 2nd+ I pickup: a second wave follows
-  for(let i=0;i<s.imp;i++)shocks.push({x:s.x,y:s.y,t:-.7*i,d:.9,R:500,hit:new Set(),dmg:2,big:1});
+  for(let i=0;i<s.imp;i++)shocks.push({x:s.x,y:s.y,t:-.7*i,d:.9,R:300,hit:new Set(),hw:new Set(),dmg:2,big:1});
 }
 function stepShells(dt){
   for(const s of shells){
@@ -710,6 +741,14 @@ function drawFort(e,T){
   box(x,y,0,22,22,66,92);
   const ct=Math.cos(e.ta),st=Math.sin(e.ta);
   box(x,y,e.ta,12,9,92,104);
+  if(e.bar>0){ // barrier: rings + struts around the fortress
+    e.bf=Math.max(0,e.bf-.016);
+    ctx.stroke();ctx.beginPath();ctx.strokeStyle=e.bf>0?'#fff':PINK;
+    ctx.globalAlpha=.45+.35*Math.sin(t*8)+(e.bf>0?.2:0);
+    for(const z of[0,50,100])ring(x,y,z,150-Math.abs(z-50)*.5,28);
+    for(let i=0;i<8;i++){const a=i*.785+t*.5,ca=Math.cos(a),sa=Math.sin(a);seg3(x+ca*150,y+sa*150,0,x+ca*125,y+sa*125,100)}
+    ctx.stroke();ctx.globalAlpha=1;ctx.beginPath();
+  }
   for(const o of[-3,3])seg3(x+ct*12-st*o,y+st*12+ct*o,98,x+ct*85-st*o,y+st*85+ct*o,98);
   ctx.stroke();
 }
