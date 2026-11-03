@@ -269,7 +269,7 @@ function killE(e){
   spawnDebris(e);
   boom(e.x,e.y,e.k==='fort'?200:e.k==='xl'?130:e.k==='lg'?90:(e.k==='sm'||e.k==='tr')?60:e.k==='jp'?45:30);
 }
-function blast(x,y,r,own,dmg){
+function blast(x,y,r,own,dmg,od){
   boom(x,y,r);
   if(own&&pw.G>0){
     const hs=new Set();
@@ -279,7 +279,7 @@ function blast(x,y,r,own,dmg){
   if(own){
     for(const e of enemies){
       if(e.dead)continue;
-      if(Math.hypot(e.x-x,e.y-y)<r+ET[e.k].r*.8){e.hp--;addScore(10);e.hit=.15;if(e.hp<=0)killE(e)}
+      if(Math.hypot(e.x-x,e.y-y)<r+ET[e.k].r*.8){e.hp-=od||1;addScore(10*(od||1));e.hit=.15;if(e.hp<=0)killE(e)}
     }
   }else if(Math.hypot(P.x-x,P.y-y)<r+14){hitP(dmg||2,.3)}
   for(const w of walls){
@@ -418,11 +418,11 @@ function stepMissiles(dt){
     if(best)m.a=turnTo(m.a,Math.atan2(best.y-m.y,best.x-m.x),3.2*dt);
     m.x+=Math.cos(m.a)*230*dt;m.y+=Math.sin(m.a)*230*dt;
     m.trail.push([m.x,m.y]);if(m.trail.length>12)m.trail.shift();
-    if(m.life<=0||m.x<0||m.y<0||m.x>WS||m.y>WS){m.dead=1;blast(m.x,m.y,24,1);continue}
-    if(hitObst(m.x,m.y,12)){m.dead=1;blast(m.x,m.y,30,1);continue}
+    if(m.life<=0||m.x<0||m.y<0||m.x>WS||m.y>WS){m.dead=1;blast(m.x,m.y,24,1,0,2);continue}
+    if(hitObst(m.x,m.y,12)){m.dead=1;blast(m.x,m.y,30,1,0,2);continue}
     for(const e of enemies){
       if(e.dead)continue;
-      if(Math.hypot(e.x-m.x,e.y-m.y)<ET[e.k].r+6){m.dead=1;blast(m.x,m.y,34,1);break}
+      if(Math.hypot(e.x-m.x,e.y-m.y)<ET[e.k].r+6){m.dead=1;blast(m.x,m.y,34,1,0,2);break}
     }
   }
   missiles=missiles.filter(m=>!m.dead);
