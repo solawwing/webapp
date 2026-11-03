@@ -729,27 +729,33 @@ function drawTank(x,y,hA,tA,s,col,flash){
   ctx.stroke();
 }
 function drawFort(e,T){
-  const x=e.x,y=e.y;
+  const x=e.x,y=e.y,ra=t*.12,cr=Math.cos(ra),sr=Math.sin(ra);   // the whole fortress turns slowly on its vertical axis
+  const Q=(dx,dy)=>[x+cr*dx-sr*dy,y+sr*dx+cr*dy];
   ctx.strokeStyle=e.hit>0?'#fff':T.col;ctx.lineWidth=LW;ctx.beginPath();
-  box(x,y,0,90,90,0,34);
-  for(const sx of[-1,1])for(const sy of[-1,1])box(x+sx*90,y+sy*90,0,15,15,0,58);
+  box(x,y,ra,90,90,0,34);
+  for(const sx of[-1,1])for(const sy of[-1,1]){const q=Q(sx*90,sy*90);box(q[0],q[1],ra,15,15,0,58)}
   for(let i=-3;i<=3;i++){
-    box(x+i*26,y-90,0,7,3,34,43);box(x+i*26,y+90,0,7,3,34,43);
-    if(i>-3&&i<3){box(x-90,y+i*26,0,3,7,34,43);box(x+90,y+i*26,0,3,7,34,43)}
+    let q=Q(i*26,-90);box(q[0],q[1],ra,7,3,34,43);q=Q(i*26,90);box(q[0],q[1],ra,7,3,34,43);
+    if(i>-3&&i<3){q=Q(-90,i*26);box(q[0],q[1],ra,3,7,34,43);q=Q(90,i*26);box(q[0],q[1],ra,3,7,34,43)}
   }
-  box(x,y,0,46,46,34,66);
-  box(x,y,0,22,22,66,92);
+  box(x,y,ra,46,46,34,66);
+  box(x,y,ra,22,22,66,92);
   const ct=Math.cos(e.ta),st=Math.sin(e.ta);
   box(x,y,e.ta,12,9,92,104);
-  if(e.bar>0){ // barrier: rings + struts around the fortress
+  for(const o of[-3,3])seg3(x+ct*12-st*o,y+st*12+ct*o,98,x+ct*85-st*o,y+st*85+ct*o,98);
+  if(e.bar>0){ // barrier: a dome covering the whole fortress
     e.bf=Math.max(0,e.bf-.016);
     ctx.stroke();ctx.beginPath();ctx.strokeStyle=e.bf>0?'#fff':PINK;
     ctx.globalAlpha=.45+.35*Math.sin(t*8)+(e.bf>0?.2:0);
-    for(const z of[0,50,100])ring(x,y,z,150-Math.abs(z-50)*.5,28);
-    for(let i=0;i<8;i++){const a=i*.785+t*.5,ca=Math.cos(a),sa=Math.sin(a);seg3(x+ca*150,y+sa*150,0,x+ca*125,y+sa*125,100)}
+    const R=155;
+    for(const l of[0,.5,1,1.3]){ring(x,y,R*Math.sin(l),R*Math.cos(l),32)}
+    for(let i=0;i<8;i++){
+      const a=i*.785+t*.4,ca=Math.cos(a),sa=Math.sin(a);
+      let pl=[x+ca*R,y+sa*R,0];
+      for(let k=1;k<=6;k++){const l=k/6*1.5708,rr=R*Math.cos(l),q=[x+ca*rr,y+sa*rr,R*Math.sin(l)];seg3(pl[0],pl[1],pl[2],q[0],q[1],q[2]);pl=q}
+    }
     ctx.stroke();ctx.globalAlpha=1;ctx.beginPath();
   }
-  for(const o of[-3,3])seg3(x+ct*12-st*o,y+st*12+ct*o,98,x+ct*85-st*o,y+st*85+ct*o,98);
   ctx.stroke();
 }
 function drawTurret(e,T){ // round fixed turret: cylinder base + rotating barrel
