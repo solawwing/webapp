@@ -399,7 +399,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-03 02:00';
+const LAST_UPDATED = '2026-11-03 13:10';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1424,13 +1424,16 @@ function startThreeSpin(respin) {
   let final = [0, 1, 2].map(() => choice(sy)); // every reel draws from the full symbol set, "-" (0) included
   // reach (left and middle reels already match on a non-zero number v): the right reel completes the triple with probability (9 - v) x 10%
   // -> 11: 80%, 22: 70%, 33: 60%, 44: 50%, 55: 40%, 66: 30%, 77: 20%; otherwise it lands on one of the other symbols
-  if (final[0] !== 0 && final[0] === final[1]) {
+  // the spin right after an all-"-" result (the automatic re-spin) turns into a FEVER triple with 50% probability
+  let forced = false;
+  if (respin && Math.random() < 0.5) { const nzs = sy.filter(x => x !== 0); if (nzs.length) { const v = choice(nzs); final = [v, v, v]; forced = true; } }
+  if (!forced && final[0] !== 0 && final[0] === final[1]) {
     const v = final[0], alt = sy.filter(x => x !== v);
     if (Math.random() < (9 - v) / 10) final[2] = v; else if (alt.length) final[2] = choice(alt);
   }
   const lk = player.threeLock;
-  if (lk && lk.left > 0) { final = [lk.v, lk.v, lk.v]; lk.left--; } // after a triple, the next 2 spins roll the very same triple
-  else if (final[0] !== 0 && final[0] === final[1] && final[1] === final[2]) player.threeLock = { v: final[0], left: 2 };
+  if (lk && lk.left > 0) { final = [lk.v, lk.v, lk.v]; lk.left--; } // after a triple, the next 4 spins roll the very same triple: the FEVER always lasts 5 spins
+  else if (final[0] !== 0 && final[0] === final[1] && final[1] === final[2]) player.threeLock = { v: final[0], left: 4 };
   // reach (left and middle reels match): the right reel takes 5s after the middle one stops (9s in all) to come to rest
   const stop = [THREE_STOP[0], THREE_STOP[1], final[0] === final[1] ? THREE_STOP[1] + 5 : THREE_STOP[2]];
   // the previous result's FEVER stays in force until this spin has finished turning
@@ -1687,7 +1690,7 @@ function fireWeapon() {
     // three lasers straight up from -20 / 0 / +20px; each one's damage is its reel's value (x10 on a non-zero triple); a 0 laser isn't fired
     const dm = threeDamages(), jack = threeJackpot(); // three of a kind: eleven lasers instead of three
     const by3 = player.y - player.r - 5;
-    const pushBeam = (ox, power) => playerBullets.push({ x: player.x + ox, y: by3, vx: 0, vy: -1125, r: 3, power, three: true, length: 900, spawnY: by3, hitSet: new Set() });
+    const pushBeam = (ox, power) => playerBullets.push({ x: player.x + ox, y: by3, vx: 0, vy: jack ? -2250 : -1125, r: 3, power, three: true, length: 900, spawnY: by3, hitSet: new Set() });
     if (jack) {
       // FEVER (reels matched): eleven lasers at +150 ... -150 in steps of 30, each dealing the matched number x10
       [150, 120, 90, 60, 30, 0, -30, -60, -90, -120, -150].forEach(ox => pushBeam(ox, dm[0]));
@@ -3318,7 +3321,7 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["1 satellite.", "2 satellites.", "3 satellites.", "4 satellites.", "5 satellites.", "6 satellites.", "7 satellites."] },
   '6OARD': { intro: "A 50x100px board (1.2x bigger with every level) flies straight up, spinning about its own horizontal axis, and pierces everything in its way, ticking 1 damage every 0.05s while overlapping a foe; while piercing a foe it slows to speed 5, then speeds back up. Each level makes the board 1.2x bigger. Levels to 7.",
     levels: ["50px.", "60px.", "72px.", "86px.", "104px.", "124px.", "149px."] },
-  '7THREE': { intro: "Three LASER-style beams fly straight up from the ship at -30, 0 and +30px. A 3-reel slot machine (its reels shoot down enemy bullets while they are on screen) sets their damage: the left reel is the left laser's damage, the middle reel the centre laser's, the right reel the right laser's (a 0 reel, shown as '-', means that laser does no damage; if all three reels are 0 the slot spins again). The reels (shown in front of the ship only while they spin) spin when the item is picked up and then every 15s; each reel takes 2s to slow to a stop, one after another from the left. If all three reels match on a number other than 0, every laser deals that number x10 and kill points are x10 while the reels stay matched. While the reels are matched (until the next spin has finished turning) the lasers are replaced by eleven lasers at +150, +120 ... -150 (30px steps), each dealing the matched number x10. After a triple the next 2 spins roll the same triple again, (a reach completes with 80% at 11 down to 20% at 77, and then the right reel takes 5s to stop). Each level removes the low numbers from the reels. Levels to 7.",
+  '7THREE': { intro: "Three LASER-style beams fly straight up from the ship at -30, 0 and +30px. A 3-reel slot machine (its reels shoot down enemy bullets while they are on screen) sets their damage: the left reel is the left laser's damage, the middle reel the centre laser's, the right reel the right laser's (a 0 reel, shown as '-', means that laser does no damage; if all three reels are 0 the slot spins again). The reels (shown in front of the ship only while they spin) spin when the item is picked up and then every 15s; each reel takes 2s to slow to a stop, one after another from the left. If all three reels match on a number other than 0, every laser deals that number x10 and kill points are x10 while the reels stay matched. While the reels are matched (until the next spin has finished turning) the lasers are replaced by eleven lasers at +150, +120 ... -150 (30px steps), each dealing the matched number x10, fired every 0.25s and flying at 2250px/s. After a triple the next 4 spins roll the same triple again (the FEVER always lasts 5 spins), (a reach completes with 80% at 11 down to 20% at 77, and then the right reel takes 5s to stop); after an all-'-' result the next spin is a FEVER with 50% probability. Each level removes the low numbers from the reels. Levels to 7.",
     levels: ["Reels: 0-7.", "Reels: 0, 2-7.", "Reels: 0, 3-7.", "Reels: 0, 4-7.", "Reels: 0, 5-7.", "Reels: 0, 6-7.", "Reels: 0, 7."] },
   JAVELIN: { intro: "Gray 150x1px spears pierce targets without damage, cutting their speed to 1/4 and locking them in blue. Off-screen they turn blue (500px, fast) and hit each locked target for 5 damage.",
     levels: ["1 spear, 0°.", "2 spears, ±5°.", "3 spears, 0/±5°.", "4 spears, ±5/10°.", "5 spears, 0/±5/10°.", "6 spears, ±5/10/15°.", "7 spears, 0/±5/10/15°."] },
@@ -4437,7 +4440,7 @@ function updatePlayer(dt) {
     if (player.weaponFireCooldown > 0) player.weaponFireCooldown -= dt;
     if (player.alive && player.weaponFireCooldown <= 0) {
       fireWeapon();
-      player.weaponFireCooldown = player.weapon === 'NORMAL' ? 0.2 : player.weapon === 'YARELY' ? 1.0 - 0.05 * (player.weaponLevel || 1) : (WEAPON_FIRE_COOLDOWNS[player.weapon] || 0.3); // YARELY: 1.0s - 0.05s x level
+      player.weaponFireCooldown = player.weapon === 'NORMAL' ? 0.2 : player.weapon === 'YARELY' ? 1.0 - 0.05 * (player.weaponLevel || 1) : (player.weapon === '7THREE' && threeJackpot() ? 0.25 : (WEAPON_FIRE_COOLDOWNS[player.weapon] || 0.3)); // 7THREE FEVER: twice the fire rate; YARELY: 1.0s - 0.05s x level
       const rapidCount = (player.weapon === 'YARELY' || player.weapon === '6OARD') ? 1 : (player.rapidLevel === 1 ? 2 : player.rapidLevel === 2 ? 3 : player.rapidLevel === 3 ? 5 : 1); // YARELY never burst-fires; 6OARD uses RAPID as a damage bonus instead
       player.burstRemaining = rapidCount - 1;
       player.burstTimer = 0.25; // brief delay before the rapid burst kicks in
