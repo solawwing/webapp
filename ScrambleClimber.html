@@ -181,7 +181,7 @@ function endGame(){
 
 function throwObj(r,c){
   const o=Math.random()<0.5?{t:'pot',w:0.384,h:0.448,vr:0}:{t:'bell',w:0.576,h:0.256,vr:(Math.random()<0.5?-1:1)*(3+Math.random()*3)};
-  o.x=c+0.5;o.y=r+0.5;o.vy=2.8+Math.random()*1.2+stage*0.2;o.rot=0;
+  o.x=c+0.5;o.y=r+0.5;o.vy=2.8+Math.random()*1.2+stage*0.2;o.rot=0;o.hold=1;
   objs.push(o);
 }
 function closeOne(){
@@ -249,16 +249,18 @@ function update(dt){
     // objects
     const cxm=P.dc+1,avg=(P.dhl+P.dhr)/2,top=avg+0.75,bot=avg-0.95;
     for(const o of objs){
-      if(o.bnc){o.bt+=dt;while(o.bt>=1.3){o.bt-=1.3;o.by-=4;}const p=o.bt/1.3;o.y=o.by-4*p+4*p*(1-p);}else o.y-=o.vy*dt;o.rot+=(o.vr||0)*dt;
+      if(o.hold>0){o.hold-=dt;continue;}
+      if(o.bnc){o.bt+=dt;while(o.bt>=1.3){o.bt-=1.3;o.by-=4;}const p=o.bt/1.3;o.y=o.by-4*p+4*p*(1-p);}else{o.y-=o.vy*dt;if(o.g)o.vy+=o.g*dt;o.x+=(o.vx||0)*dt;}o.rot+=(o.vr||0)*dt;
       const hbx=o.hbx||0.25,hby=o.hby||0.25;
-      if(state==='play'&&invuln<=0&&Math.abs(o.x-cxm)<hbx+0.4&&o.y<top+hby&&o.y>bot-hby){if(P.hl===P.hr){o.dead=true;absorb();}else hit();}
+      if(state==='play'&&invuln<=0&&!o.hit&&Math.abs(o.x-cxm)<hbx+0.4&&o.y<top+hby&&o.y>bot-hby){o.hit=true;if(P.hl===P.hr){absorb();if(o.t!=='beam'&&o.t!=='sign'){o.vx=(o.x<cxm?-1:o.x>cxm?1:(Math.random()<0.5?-1:1))*(2+Math.random()*1.5);o.vy=-4;o.g=16;if(!o.vr)o.vr=o.vx>0?6:-6;}}else hit();}
     }
     objs=objs.filter(o=>o.y>camY-2&&!o.dead);
     for(const b of birds){
       b.x+=b.d*2.2*dt;
+      if((b.d>0&&b.x>COLS+1)||(b.d<0&&b.x<-1)){b.turns=(b.turns||0)+1;if(b.turns>=2)b.gone=true;else{b.d=-b.d;b.dr=false;}}
       if(!b.dr&&Math.abs(b.x-cxm)<0.5){b.dr=true;objs.push({t:'drop',x:b.x,y:camY+b.dy-0.3,vy:5,w:0.13824,h:0.18432,rot:0,vr:0});}
     }
-    birds=birds.filter(b=>b.x>-2&&b.x<COLS+2);
+    birds=birds.filter(b=>!b.gone);
     // goal
     if(P.hl>=ROWS&&P.hr>=ROWS&&state==='play'){
       state='clear';clearT=0;clearBonus=0;objs=[];birds=[];
@@ -374,7 +376,7 @@ function drawObj(o){
   ctx.restore();
 }
 function drawBird(b){
-  const x=wx(b.x),y=wy(camY+b.dy),f=Math.sin(time*14)*cs*0.2,s=cs*0.45;
+  const x=wx(b.x),y=wy(camY+b.dy),f=Math.sin(time*14)*cs*0.2,s=cs*0.54;
   ctx.strokeStyle='#f4f';ctx.lineWidth=Math.max(1.5,cs*0.035);
   poly([[x-s,y+f],[x-s*0.3,y],[x,y+s*0.1],[x+s*0.3,y],[x+s,y+f]],false);
   seg(x+b.d*s*0.3,y,x+b.d*s*0.65,y+s*0.12);
