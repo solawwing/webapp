@@ -165,13 +165,13 @@ function act(k,d){
     }
   }else if(d==='d'){
       }else if(d==='l'){
-    if(P.c>0&&cellOK(P.hl,P.c-1)&&cellOK(P.hr,P.c)){if(winState(P.hl,P.c-1)!==2&&winState(P.hr,P.c)!==2)P.c--;}
+    if(P.c>0&&cellOK(P.hl,P.c-1)&&cellOK(P.hr,P.c))P.c--;
     else{const t=Math.min(blk(P.hl,P.c)[1],blk(P.hr,P.c+1)[1]-1);
-      if(t>=0&&cellOK(P.hl,t)&&cellOK(P.hr,t+1)&&winState(P.hl,t,faces[(face+3)%4])!==2&&winState(P.hr,t+1,faces[(face+3)%4])!==2){turnT=TURN;turnDir=-1;turnFrom=P.c;turnTo=t;}}
+      if(t>=0&&cellOK(P.hl,t)&&cellOK(P.hr,t+1)){turnT=TURN;turnDir=-1;turnFrom=P.c;turnTo=t;}}
   }else if(d==='r'){
-    if(P.c<COLS-2&&cellOK(P.hl,P.c+1)&&cellOK(P.hr,P.c+2)){if(winState(P.hl,P.c+1)!==2&&winState(P.hr,P.c+2)!==2)P.c++;}
+    if(P.c<COLS-2&&cellOK(P.hl,P.c+1)&&cellOK(P.hr,P.c+2))P.c++;
     else{const t=Math.max(blk(P.hl,P.c)[0],blk(P.hr,P.c+1)[0]-1);
-      if(t<=COLS-2&&cellOK(P.hl,t)&&cellOK(P.hr,t+1)&&winState(P.hl,t,faces[(face+1)%4])!==2&&winState(P.hr,t+1,faces[(face+1)%4])!==2){turnT=TURN;turnDir=1;turnFrom=P.c;turnTo=t;}}
+      if(t<=COLS-2&&cellOK(P.hl,t)&&cellOK(P.hr,t+1)){turnT=TURN;turnDir=1;turnFrom=P.c;turnTo=t;}}
   }
 }
 function hit(){
