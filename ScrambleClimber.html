@@ -109,7 +109,7 @@ function startStage(n){
 }
 function resetClimber(r){P.c=P.dc=bestC(r);P.hl=P.hr=P.dhl=P.dhr=r;invuln=2;camY=Math.max(camMin,r-camOff);objs=[];birds=[];}
 function newGame(){score=0;lives=3;startStage(1);}
-function winState(r,c){const w=wins[r]&&wins[r][c];if(!w||!w.a)return 0;const t=w.t;return (t>=w.ud&&t<w.ud+w.od)?2:1;}
+function winState(r,c,ws){const w=(ws||wins)[r]&&(ws||wins)[r][c];if(!w||!w.a)return 0;const t=w.t;return (t>=w.ud&&t<w.ud+w.od)?2:1;}
 
 // ---------- input ----------
 const TURN=0.9;
@@ -158,20 +158,20 @@ function act(k,d){
   if(state!=='play'||turnT>0)return;
   const me=k?'hr':'hl',ot=k?'hl':'hr';
   if(d==='u'){
-    if(P[me]<=P[ot]&&P[me]<ROWS&&cellOK(P[me]+1,k?P.c+1:P.c)){
+    if(P[me]<=P[ot]&&P[me]<ROWS&&cellOK(P[me]+1,k?P.c+1:P.c)&&winState(P[me]+1,k?P.c+1:P.c)!==2){
       P[me]++;
       const m=Math.max(P.hl,P.hr);
       if(m>maxRow){score+=(m-maxRow);maxRow=m;ck=1+10*Math.floor((maxRow-1)/10);}
     }
   }else if(d==='d'){
       }else if(d==='l'){
-    if(P.c>0&&cellOK(P.hl,P.c-1)&&cellOK(P.hr,P.c))P.c--;
+    if(P.c>0&&cellOK(P.hl,P.c-1)&&cellOK(P.hr,P.c)){if(winState(P.hl,P.c-1)!==2&&winState(P.hr,P.c)!==2)P.c--;}
     else{const t=Math.min(blk(P.hl,P.c)[1],blk(P.hr,P.c+1)[1]-1);
-      if(t>=0&&cellOK(P.hl,t)&&cellOK(P.hr,t+1)){turnT=TURN;turnDir=-1;turnFrom=P.c;turnTo=t;}}
+      if(t>=0&&cellOK(P.hl,t)&&cellOK(P.hr,t+1)&&winState(P.hl,t,faces[(face+3)%4])!==2&&winState(P.hr,t+1,faces[(face+3)%4])!==2){turnT=TURN;turnDir=-1;turnFrom=P.c;turnTo=t;}}
   }else if(d==='r'){
-    if(P.c<COLS-2&&cellOK(P.hl,P.c+1)&&cellOK(P.hr,P.c+2))P.c++;
+    if(P.c<COLS-2&&cellOK(P.hl,P.c+1)&&cellOK(P.hr,P.c+2)){if(winState(P.hl,P.c+1)!==2&&winState(P.hr,P.c+2)!==2)P.c++;}
     else{const t=Math.max(blk(P.hl,P.c)[0],blk(P.hr,P.c+1)[0]-1);
-      if(t<=COLS-2&&cellOK(P.hl,t)&&cellOK(P.hr,t+1)){turnT=TURN;turnDir=1;turnFrom=P.c;turnTo=t;}}
+      if(t<=COLS-2&&cellOK(P.hl,t)&&cellOK(P.hr,t+1)&&winState(P.hl,t,faces[(face+1)%4])!==2&&winState(P.hr,t+1,faces[(face+1)%4])!==2){turnT=TURN;turnDir=1;turnFrom=P.c;turnTo=t;}}
   }
 }
 function hit(){
@@ -227,9 +227,9 @@ function update(dt){
   if(sayT>0)sayT-=dt;
   if(btn[0]>0)btn[0]-=dt;
   if(btn[1]>0)btn[1]-=dt;
-  for(let r=1;r<ROWS;r++){const row=wins[r];for(let c=0;c<COLS;c++){const w=row[c];if(w&&w.a){w.t+=dt;if(!w.th&&w.t>=w.ud){w.th=true;if(state==='play'&&r>Math.max(P.hl,P.hr)+1&&Math.random()<0.8)throwObj(r,c);}if(w.t>=w.ud+w.od+w.cd){w.a=false;w.t=0;}}}}
+  for(let r=1;r<ROWS;r++){const row=wins[r];for(let c=0;c<COLS;c++){const w=row[c];if(w&&w.a){w.t+=dt;if(!w.th&&w.t>=w.ud){w.th=true;if(state==='play'&&r>Math.max(P.hl,P.hr)+1&&Math.random()<Math.min(0.95,0.25+0.05*(stage-1)))throwObj(r,c);}if(w.t>=w.ud+w.od+w.cd){w.a=false;w.t=0;}}}}
   closeT-=dt;
-  if(closeT<=0&&state!=='over'){closeT=Math.max(1.0,2.4-0.15*stage)*(0.6+Math.random()*0.8);closeOne();}
+  if(closeT<=0&&state!=='over'){closeT=Math.max(0.25,0.6-0.0375*stage)*(0.6+Math.random()*0.8);closeOne();}
   if(state==='title'||state==='over'){
     return;
   }
