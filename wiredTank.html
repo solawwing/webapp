@@ -16,11 +16,16 @@ canvas{position:absolute;background:#000;display:block;left:0;top:0}
 .aim .knob{border-color:#ff4;background:rgba(255,255,80,.25)}
 .lbl{position:absolute;left:0;right:0;bottom:8px;text-align:center;font:400 10px 'Orbitron',sans-serif;color:#ff4;opacity:.7;pointer-events:none}
 .lbl.mv{color:#4f4}
+#vw{pointer-events:auto;touch-action:none;display:flex;flex-direction:column;align-items:center;gap:4px}
+#vw .t{font:400 9px 'Orbitron',sans-serif;color:#8ff;opacity:.7}
+#vb{position:relative;width:34px;height:104px;border:1px solid #8ff;border-radius:6px;background:rgba(0,40,40,.3)}
+#vk{position:absolute;left:3px;right:3px;height:14px;margin-top:-7px;box-sizing:border-box;border:1px solid #8ff;border-radius:3px;background:rgba(80,255,255,.3)}
 @media (orientation:landscape){#pad{height:160px;opacity:.6}.stick{width:120px;height:120px}}
 </style></head><body>
 <canvas id="c"></canvas><canvas id="rd"></canvas>
 <div id="pad">
  <div class="stick" id="sm"><div class="knob"></div><div class="lbl mv">MOVE / FIRE</div></div>
+ <div id="vw"><div class="t">VIEW</div><div id="vb"><div id="vk"></div></div></div>
  <div class="stick aim" id="sa"><div class="knob"></div><div class="lbl">AIM / FIRE</div></div>
 </div>
 <script>
@@ -76,12 +81,22 @@ function turnTo(a,b,s){return a+clamp(wrap(b-a),-s,s)}
 function line(a,b,c,d){ctx.moveTo(a,b);ctx.lineTo(c,d)}
 
 // ---- camera (chase cam: behind and above) ----
-const CAMD=210,CAMZ=170,PITCH=.5,CP=Math.cos(PITCH),SP=Math.sin(PITCH),NEAR=8,FARD=1150;
+const NEAR=8,FARD=1150,CAMR=190;
+let CAMD=210,CAMZ=170,PITCH=.5,CP=Math.cos(PITCH),SP=Math.sin(PITCH),viewT=.5;
+// view bar: 0 = low, straight behind the tank ... 1 = 45 degrees above, still behind
+function setView(v){
+  viewT=Math.max(0,Math.min(1,v));
+  // bottom: right behind the tank, low. Rising: the camera backs away while climbing, ending 45 deg above
+  CAMD=30+viewT*370;CAMZ=32+viewT*368;PITCH=viewT*.59;CP=Math.cos(PITCH);SP=Math.sin(PITCH);
+  if(typeof W!=='undefined'&&W)setupCam();
+}
 let FOC=600,CX=280,CY=300,cf=0,sf=-1,CPX=0,CPY=0,camA=-Math.PI/2;
 function setupCam(){
   FOC=Math.min(W,H)*1.1;CX=W/2;
   const zcP=CAMD*CP+CAMZ*SP,ycP=CAMD*SP-CAMZ*CP;
-  CY=H*(PORT?.70:.58)+FOC*ycP/zcP;
+  const cyT=H*(PORT?.70:.58)+FOC*ycP/zcP,cy0=H*(PORT?.46:.42);   // anchored on the tank / first-person (camera at the tank centre)
+  const w=Math.min(1,viewT/.3),sm=w*w*(3-2*w);
+  CY=cy0+(cyT-cy0)*sm;
 }
 function camFrame(){cf=Math.cos(camA);sf=Math.sin(camA);CPX=P.x-cf*CAMD;CPY=P.y-sf*CAMD}
 function rotPt(x,y,z){const m=ROT.m,dx=x-ROT.x,dy=y-ROT.y,dz=z-ROT.z;RX=ROT.x+m[0]*dx+m[1]*dy+m[2]*dz;RY=ROT.y+m[3]*dx+m[4]*dy+m[5]*dz;RZ=ROT.z+m[6]*dx+m[7]*dy+m[8]*dz}
@@ -114,6 +129,13 @@ function inView(x,y,m){
 function ring(x,y,z,r,n){
   n=n||24;let ox=x+r,oy=y;
   for(let i=1;i<=n;i++){const a=i/n*6.283185,qx=x+Math.cos(a)*r,qy=y+Math.sin(a)*r;seg3(ox,oy,z,qx,qy,z);ox=qx;oy=qy}
+}
+function boxFill(cx,cy,a,hl,hw,z0,z1){ // opaque black box (hides what is behind / inside it)
+  const c=Math.cos(a),s=Math.sin(a);
+  const X=[[hl,hw],[hl,-hw],[-hl,-hw],[-hl,hw]].map(p=>[cx+p[0]*c-p[1]*s,cy+p[0]*s+p[1]*c]);
+  ctx.fillStyle='#000';
+  for(let i=0;i<4;i++){const p=X[i],q=X[(i+1)%4];fillFace([[p[0],p[1],z0],[q[0],q[1],z0],[q[0],q[1],z1],[p[0],p[1],z1]])}
+  fillFace(X.map(p=>[p[0],p[1],z1]));
 }
 function box(cx,cy,a,hl,hw,z0,z1){
   const c=Math.cos(a),s=Math.sin(a);
@@ -157,7 +179,12 @@ const ET={
 function mkRock(x,y,r){
   const n=7+(Math.random()*3|0),pts=[];
   for(let i=0;i<n;i++){const a=i/n*6.283,rr=r*rnd(.7,1.1);pts.push([Math.cos(a)*rr,Math.sin(a)*rr])}
-  return{x,y,r,cr:r*.85,pts};
+  return{x,y,r,cr:r*.85,pts,hp:Math.round(r/8)};
+}
+function hitRock(k,d){ // rocks can be destroyed too
+  if(k.dead)return;
+  k.hp-=d;
+  if(k.hp<=0){k.dead=1;boom(k.x,k.y,k.r*1.6);rocks=rocks.filter(q=>!q.dead)}
 }
 function circleHits(x,y,r){
   for(const k of rocks)if(Math.hypot(x-k.x,y-k.y)<k.cr+r)return true;
@@ -294,6 +321,7 @@ function blast(x,y,r,own,dmg,od){
       if(Math.hypot(e.x-x,e.y-y)<r+ET[e.k].r*.8){e.hp-=od||1;addScore(10*(od||1));e.hit=.15;if(e.hp<=0)killE(e)}
     }
   }else if(Math.hypot(P.x-x,P.y-y)<r+14){hitP(dmg||2,.3)}
+  for(const k of rocks)if(Math.hypot(x-k.x,y-k.y)<r+k.cr)hitRock(k,1);
   for(const w of walls){
     const cx=clamp(x,w.x,w.x+w.w),cy=clamp(y,w.y,w.y+w.h);
     if(Math.hypot(x-cx,y-cy)<r){
@@ -352,6 +380,7 @@ function maxAmmo(){return 3+pw.V}                  // V: 3, +1 per item
 function stepShocks(dt){
   for(const s of shocks){
     s.t+=dt;if(s.t<0)continue;const cur=s.R*Math.pow(Math.min(1,s.t/s.d),.6);
+    if(s.hw)for(const k of rocks)if(!s.hw.has(k)&&Math.hypot(s.x-k.x,s.y-k.y)<=cur+k.cr){s.hw.add(k);hitRock(k,s.dmg||1)}
     if(s.hw)for(const w of walls){
       if(w.dead||s.hw.has(w))continue;
       const qx=clamp(s.x,w.x,w.x+w.w),qy=clamp(s.y,w.y,w.y+w.h);
@@ -385,6 +414,7 @@ function laser(){
         hit.add(w);pend.push({d,w,x,y});
       }
     }
+    for(const k of rocks)if(!hit.has(k)&&Math.hypot(x-k.x,y-k.y)<k.cr){hit.add(k);pend.push({d,k,x,y})}
     for(const e of enemies){
       if(e.dead||hit.has(e))continue;
       if(Math.hypot(x-e.x,y-e.y)<ET[e.k].r+3){hit.add(e);pend.push({d,e,x,y,dmg:2})}
@@ -431,6 +461,7 @@ function laserH(){
         hit.add(w);pend.push({d,w,x,y});
       }
     }
+    for(const k of rocks)if(!hit.has(k)&&Math.hypot(x-k.x,y-k.y)<k.cr){hit.add(k);pend.push({d,k,x,y})}
     for(const e of enemies){
       if(e.dead||hit.has(e))continue;
       if(Math.hypot(x-e.x,y-e.y)<ET[e.k].r+3){hit.add(e);pend.push({d,e,x,y,dmg:2})}
@@ -572,7 +603,7 @@ function updE(e,dt){
   if(d2<m&&d2>1e-6){e.x=P.x+(e.x-P.x)/d2*m;e.y=P.y+(e.y-P.y)/d2*m}
   e.cd-=dt;
   if(e.cd>0||dist>T.rng){e.lk=Math.max(0,(e.lk||0)-dt*2);return}
-  e.lk=(e.lk||0)+dt;
+  e.lk=(e.lk||0)+dt*.5;   // lock-on takes twice as long
   if(e.lk<T.lt)return;
   e.lk=0;
   e.cd=T.cd*rnd(.85,1.2)/(1+.06*stage);
@@ -611,7 +642,7 @@ function stepFlats(dt){
       if(b.dead)continue;
       b.x+=b.vx*h;b.y+=b.vy*h;b.life-=h;
       if(b.life<=0){b.dead=1;continue}
-      for(const r of rocks)if(Math.hypot(b.x-r.x,b.y-r.y)<r.cr){b.dead=1;break}
+      for(const r of rocks)if(Math.hypot(b.x-r.x,b.y-r.y)<r.cr){b.dead=1;boom(b.x,b.y,10);hitRock(r,1);break}
       if(b.dead)continue;
       for(const w of walls)if(b.x>w.x&&b.x<w.x+w.w&&b.y>w.y&&b.y<w.y+w.h){
         b.dead=1;w.hp--;boom(b.x,b.y,10);
@@ -630,7 +661,8 @@ function fxStep(dt){stepDebris(dt);flashT=Math.max(0,flashT-dt);for(const f of f
       const head=b.len*Math.min(1,b.t/(b.ext||b.d*.45));
       for(const q of b.pend){
         if(q.done||head<q.d)continue;q.done=1;
-        if(q.w){if(q.w.dead)continue;q.w.hp-=2;boom(q.x,q.y,16);if(q.w.hp<=0){q.w.dead=1;boom(q.w.x+q.w.w/2,q.w.y+q.w.h/2,50)}}
+        if(q.k){if(!q.k.dead){boom(q.x,q.y,16);hitRock(q.k,2)}}
+        else if(q.w){if(q.w.dead)continue;q.w.hp-=2;boom(q.x,q.y,16);if(q.w.hp<=0){q.w.dead=1;boom(q.w.x+q.w.w/2,q.w.y+q.w.h/2,50)}}
         else if(q.e&&!q.e.dead){const dm=Math.min(q.dmg||1,q.e.hp);q.e.hp-=dm;addScore(10*dm);q.e.hit=.15;boom(q.x,q.y,16);if(q.e.hp<=0)killE(q.e)}
       }
     }
@@ -714,18 +746,33 @@ function update(dt){
 }
 
 // ---- draw (3D wireframe) ----
-function drawTank(x,y,hA,tA,s,col,flash){
+function trkPh(o,x,y,a){ // distance travelled along the hull heading (drives the tread animation)
+  if(o.lx===undefined){o.lx=x;o.ly=y;o.trk=0}
+  o.trk+=(x-o.lx)*Math.cos(a)+(y-o.ly)*Math.sin(a);o.lx=x;o.ly=y;return o.trk;
+}
+function drawTank(x,y,hA,tA,s,col,flash,ph){
   ctx.strokeStyle=flash?'#fff':col;ctx.lineWidth=LW;ctx.beginPath();
-  const ca=Math.cos(hA),sa=Math.sin(hA);
-  for(const sg of[-1,1])box(x-sa*sg*13*s,y+ca*sg*13*s,hA,26*s,4.5*s,0,7*s);
-  box(x,y,hA,21*s,9*s,3*s,9*s);
-  box(x,y,tA,9*s,7*s,9*s,15*s);
-  const ct=Math.cos(tA),st=Math.sin(tA),z=12.5*s;
-  for(const o of[-2,2]){
-    const ox=-st*o*s,oy=ct*o*s;
-    seg3(x+ct*9*s+ox,y+st*9*s+oy,z,x+ct*34*s+ox,y+st*34*s+oy,z);
+  const ca=Math.cos(hA),sa=Math.sin(hA),TO=16.35;   // track centre: inner edge stays flush with the hull side (9)
+  for(const sg of[-1,1])box(x-sa*sg*TO*s,y+ca*sg*TO*s,hA,26*s,7.35*s,0,7*s);
+  if(ph!==undefined){ // tread links scroll along both tracks
+    const P6=6,n=Math.ceil(52/P6);
+    for(const sg of[-1,1])for(let k=0;k<n;k++){
+      let u=((k*P6-ph/s)%52+52)%52-26;
+      const cx=x-sa*sg*TO*s,cy=y+ca*sg*TO*s,ux=ca*u*s,uy=sa*u*s;
+      seg3(cx+ux+sa*7.35*s,cy+uy-ca*7.35*s,7*s,cx+ux-sa*7.35*s,cy+uy+ca*7.35*s,7*s);
+      const ox=-sa*sg*7.35*s,oy=ca*sg*7.35*s;   // outer side face
+      seg3(cx+ux+ox,cy+uy+oy,0,cx+ux+ox,cy+uy+oy,7*s);
+    }
   }
-  seg3(x+ct*34*s-st*2*s,y+st*34*s+ct*2*s,z,x+ct*34*s+st*2*s,y+st*34*s-ct*2*s,z);
+  box(x,y,hA,21*s,9*s,3*s,9*s);
+  ctx.stroke();boxFill(x,y,tA,12*s,12.75*s,9*s,17*s);ctx.beginPath();   // turret: filled black, sits on the hull top (z=9)
+  box(x,y,tA,12*s,12.75*s,9*s,17*s);
+  const ct=Math.cos(tA),st=Math.sin(tA),z=13*s;
+  for(const o of[-2.4,2.4]){
+    const ox=-st*o*s,oy=ct*o*s;
+    seg3(x+ct*12*s+ox,y+st*12*s+oy,z,x+ct*38*s+ox,y+st*38*s+oy,z);
+  }
+  seg3(x+ct*38*s-st*2.4*s,y+st*38*s+ct*2.4*s,z,x+ct*38*s+st*2.4*s,y+st*38*s-ct*2.4*s,z);
   ctx.stroke();
 }
 function drawFort(e,T){
@@ -803,8 +850,9 @@ function drawRock(k){
 // opaque wall: faces facing the camera are filled black so anything behind is hidden
 function fillFace(P3){
   const q=[];
-  for(const p of P3){
-    const dx=p[0]-CPX,dy=p[1]-CPY,v=p[2]-CAMZ-CB,f=dx*cf+dy*sf;
+  for(let p of P3){
+    if(ROT){rotPt(p[0],p[1],p[2]);p=[RX,RY,RZ]}
+    const dx=p[0]-CPX,dy=p[1]-CPY,v=p[2]+ZO-CAMZ-CB,f=dx*cf+dy*sf;
     q.push([-dx*sf+dy*cf,f*SP+v*CP,f*CP-v*SP]);
   }
   const o=[];
@@ -930,7 +978,7 @@ function drawLock(e){
   const u=Math.min(1,e.lk/ET[e.k].lt),fl=u>.7&&Math.floor(t*14)%2===0;
   ctx.strokeStyle=fl?'#fff':'#f33';ctx.lineWidth=LW;ctx.globalAlpha=.35+.55*u;
   ctx.setLineDash([5,5]);ctx.beginPath();seg3(e.x,e.y,14,P.x,P.y,10);ctx.stroke();ctx.setLineDash([]);
-  const r=14+34*(1-u),a0=t*3;ctx.beginPath();
+  const r=14+34*(1-u),a0=t*1.5;ctx.beginPath();
   for(let i=0;i<4;i++){
     const a=a0+i*1.5708,c=Math.cos(a),s=Math.sin(a);
     seg3(P.x+c*r,P.y+s*r,2,P.x+c*(r+10),P.y+s*(r+10),2);
@@ -1144,6 +1192,11 @@ function hud(){
   rctx.clearRect(0,0,W,H);
   const cx=W-56,cy=88,R=46,sc=R/650;
   rctx.lineWidth=LW;rctx.strokeStyle='#ddd';rctx.beginPath();rctx.moveTo(cx+R,cy);rctx.arc(cx,cy,R,0,6.283);rctx.stroke();
+  // world angle -> radar vector (up = camera forward)
+  const rv=(al,L)=>[(-Math.cos(al)*sf+Math.sin(al)*cf)*L,-(Math.cos(al)*cf+Math.sin(al)*sf)*L];
+  const rl=(x,y,al,L0,L1,col,w,a)=>{const p=rv(al,L0),q=rv(al,L1);rctx.globalAlpha=a;rctx.strokeStyle=col;rctx.lineWidth=w;rctx.beginPath();rctx.moveTo(x+p[0],y+p[1]);rctx.lineTo(x+q[0],y+q[1]);rctx.stroke();rctx.globalAlpha=1;rctx.lineWidth=LW};
+  rl(cx,cy,hullA,0,10,CYAN,LW*1.6,.55);       // player: hull (moving) direction, dim
+  rl(cx,cy,aimA,0,8.5,'#fff',LW*1.6,1);    // player: turret direction, bright
   rctx.fillStyle=CYAN;rctx.fillRect(cx-1.5,cy-1.5,3,3);
   rctx.fillStyle='#ff2bd6';rctx.shadowColor='#ff2bd6';rctx.shadowBlur=4;
   for(const e of enemies){
@@ -1222,7 +1275,7 @@ function draw(){
       const T=ET[e.k];
       if(e.k==='inf')drawInf(e);
       else{
-        if(e.k==='fort')drawFort(e,T);else if(e.k==='jp')drawJeep(e,T);else if(e.k==='tr')drawTurret(e,T);else drawTank(e.x,e.y,e.a,e.ta,T.s,T.col,e.hit>0);
+        if(e.k==='fort')drawFort(e,T);else if(e.k==='jp')drawJeep(e,T);else if(e.k==='tr')drawTurret(e,T);else drawTank(e.x,e.y,e.a,e.ta,T.s,T.col,e.hit>0,trkPh(e,e.x,e.y,e.a));
         if(pr(e.x,e.y,22*T.s+10)){
           ctx.strokeStyle=T.col;ctx.lineWidth=LW;ctx.beginPath();
           for(let i=0;i<e.hp;i++)ctx.rect(pxs-e.hp*4+i*8,pys-5,5,5);
@@ -1244,20 +1297,21 @@ function draw(){
   if(plane)drawPlane();
   if(state==='play')drawAim();
   for(const e of enemies)if(e.lk>0&&inView(e.x,e.y,60))drawLock(e);
-  if(state!=='over'){
-    const f=P.fly;
-    if(f){const u=Math.min(1,f.t/f.T);ctx.strokeStyle='#555';ctx.lineWidth=LW;ctx.beginPath();ring(P.x,P.y,0,16,12);ctx.stroke();ZO=f.H*4*u*(1-u)}
-    if(f){const u=Math.min(1,f.t/f.T),w=6.283185*u;ROT={x:P.x,y:P.y,z:5,m:rotM(w*f.rx,w*f.ry,w*f.rz)}}   // whole turns only: lands upright
-    drawTank(P.x,P.y,hullA,aimA,1,CYAN,hurt>0&&Math.floor(t*30)%2===0);
-    ROT=null;
-    if(pw.B>0)drawBarrier();
-    ZO=0;
-  }
   for(const s of shells)drawShell(s);
   for(const m of missiles)drawMissile(m);
   for(const b of beams)drawBeam(b);
   for(const s of shocks)drawShock(s);
   for(const f of fx)drawFx(f);
+  // the player's tank (turret / barrel included) is drawn last, in front of everything
+  if(state!=='over'){
+    const f=P.fly;
+    if(f){const u=Math.min(1,f.t/f.T);ctx.strokeStyle='#555';ctx.lineWidth=LW;ctx.beginPath();ring(P.x,P.y,0,16,12);ctx.stroke();ZO=f.H*4*u*(1-u)}
+    if(f){const u=Math.min(1,f.t/f.T),w=6.283185*u;ROT={x:P.x,y:P.y,z:5,m:rotM(w*f.rx,w*f.ry,w*f.rz)}}   // whole turns only: lands upright
+    drawTank(P.x,P.y,hullA,aimA,1,CYAN,hurt>0&&Math.floor(t*30)%2===0,trkPh(P,P.x,P.y,hullA));
+    ROT=null;
+    if(pw.B>0)drawBarrier();
+    ZO=0;
+  }
   ctx.restore();
   if(hurt>0){ctx.fillStyle='rgba(255,0,0,'+(hurt*.5)+')';ctx.fillRect(0,0,W,H)}
   if(flashT>0){ctx.fillStyle='rgba(255,255,255,'+Math.min(1,flashT)+')';ctx.fillRect(0,0,W,H)}
@@ -1280,6 +1334,17 @@ function mkStick(id,cb){
 }
 // MOVE / FIRE stick: a TAP fires, a DRAG moves
 let sm0=null,smDrag=false;
+// VIEW bar: drag up = higher camera
+{
+  const vb=document.getElementById('vb'),vk=document.getElementById('vk');let vid=null;
+  const show=()=>{vk.style.top='calc(9px + (1 - '+viewT+') * (100% - 18px))'};   // knob stays inside the frame
+  const upd=e=>{const r=vb.getBoundingClientRect();setView(1-(e.clientY-r.top-9)/(r.height-18));show()};
+  setView(viewT);show();
+  const el=document.getElementById('vw');
+  el.addEventListener('pointerdown',e=>{e.preventDefault();vid=e.pointerId;try{el.setPointerCapture(e.pointerId)}catch(_){}upd(e)});
+  el.addEventListener('pointermove',e=>{if(e.pointerId===vid)upd(e)});
+  ['pointerup','pointercancel'].forEach(n=>el.addEventListener(n,e=>{if(e.pointerId===vid)vid=null}));
+}
 mkStick('sm',(x,y,on)=>{
   if(on){
     if(!sm0){sm0=[x,y];smDrag=false}
