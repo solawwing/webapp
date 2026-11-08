@@ -602,7 +602,7 @@ function drawHeli0(row,lift,e){
   ctx.beginPath();for(const u of[-0.62,-0.2,0.2,0.62])cv2(u);ctx.stroke();
   env();ctx.stroke();
   ctx.restore();
-  const hy=wy((P.dhl>P.dhr?P.dhl:P.dhr)+0.667+lift),ty=y+(ykb-y)*1.8,ye=ty+(hy-ty)*e;
+  const hy=wy((P.dhl>P.dhr?P.dhl:P.dhr)+0.667+lift),ty=y+(ykb-y)*1.8,ye=ty+30*e;
   if(ye>ty){
     const rw=Math.max(3,cs*0.09);
     ctx.lineCap='butt';
@@ -748,20 +748,22 @@ function overlay(){
   }else if(state==='clear'){
     hudOL=true;txt('STAGE '+stage+' CLEAR!',W/2,playH*0.3,14*4/3,'#ffd83a');hudOL=false;
   }
-  const bubble=(msg,col,up)=>{
-    const bs=cs*0.34,bx=wx(P.dc+1)+cs*0.3;
+  const bubble=(msg,col,up,flip)=>{
+    const bs=cs*0.34,bx=wx(P.dc+1)+(flip?-1:1)*cs*0.3;
     ctx.font='700 '+bs+'px Open Sans, sans-serif';
     const bw=ctx.measureText(msg).width+bs*1.2,bh=bs*1.9,by=wy((P.dhl+P.dhr)/2+0.85+(up||0))-bs*0.7-bh/2+5,x0=Math.max(4,Math.min(W-bw-4,bx-bs*0.9)),y0=by-bh/2;
+    ctx.save();if(flip){ctx.translate(2*bx,0);ctx.scale(-1,1);}
     bubblePath(x0,y0,bw,bh,bx,bs);
     ctx.fillStyle='rgba(255,255,255,0.95)';ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.stroke();
-    ctx.font='700 '+(bs-8/3)+'px Open Sans, sans-serif';ctx.fillStyle='#000000';ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillText(msg,x0+bw/2,by+(bs-8/3)*0.36);
+    ctx.restore();
+    ctx.font='700 '+(bs-8/3)+'px Open Sans, sans-serif';ctx.fillStyle='#000000';ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillText(msg,flip?2*bx-(x0+bw/2):x0+bw/2,by+(bs-8/3)*0.36);
   };
   if(state==='play'||state==='intro'){
     if(state==='play'&&guardT>0)bubble(guardMsg,'#8c8c8c');
     else if(sayT>0)bubble("Let's Go!",'#8c8c8c');
   }
   if(state==='fall')bubble('What happened?','#8c8c8c',fy);
-  if(state==='clear'&&clearT>=1.8)bubble('I did it!','#8c8c8c',(clearT-1.8)*1.8);
+  if(state==='clear'&&clearT>=1.8)bubble('I did it!','#8c8c8c',(clearT-1.8)*1.8,!(P.dhl>P.dhr));
   if(flash>0){ctx.fillStyle='rgba(255,255,255,'+(flash*1.6)+')';ctx.fillRect(0,0,W,playH);}
 }
 function bubblePath(x0,y0,bw,bh,bx,bs){
@@ -835,7 +837,7 @@ function draw(){
   }else if(state==='clear'){
     const lift=clearT>1.8?(clearT-1.8)*1.8:0;
     const e=Math.min(clearT/1.8,1);
-    const heliRow=ROWS+6-(3.4*e)+lift;
+    const heliRow=(P.dhl>P.dhr?P.dhl:P.dhr)+0.667+lift+(30+cs*1.872)/cs+3.4*(1-e);
     drawHeli(heliRow,lift,e);
     ropeGrip=true;drawClimber(lift,0);ropeGrip=false;
   }else if(state==='title'){
