@@ -265,14 +265,14 @@ function push(o,r){
   }
   o.x=clamp(o.x,r,WS-r);o.y=clamp(o.y,r,WS-r);
 }
-function boom(x,y,r){fx.push({x,y,t:0,d:.45,r,rot:Math.random()*6.28})}
+function boom(x,y,r,d){fx.push({x,y,t:0,d:d||.45,r,rot:Math.random()*6.28})}
 function addScore(n){score+=n;if(score>hi){hi=score;try{localStorage.setItem('wtHi',String(hi))}catch(_){}}}   // score = damage dealt x10, high score updates live
 const fmt=n=>Math.round(n).toLocaleString('en-US');
 let debris=[];
 const DB={inf:[3,5],sm:[6,8],tr:[6,8],jp:[5,7],lg:[10,11],xl:[14,14],fort:[24,20]};   // [pieces, triangle size] by enemy size
 function spawnDebris(e){
   const K=DB[e.k]||[4,6];
-  for(let i=0;i<K[0]&&debris.length<180;i++){
+  for(let i=0;i<K[0]*10&&debris.length<1800;i++){   // 10x debris (cap 1800)
     const a=rnd(0,6.283),sp=rnd(40,150)*(e.k==='fort'?1.4:1);
     debris.push({x:e.x+rnd(-8,8),y:e.y+rnd(-8,8),z:rnd(8,26),vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,vz:rnd(130,300),
       s:K[1]*rnd(.7,1.2),ax:rnd(0,6.28),ay:rnd(0,6.28),az:rnd(0,6.28),wx:rnd(-9,9),wy:rnd(-9,9),wz:rnd(-9,9),land:0,lt:0});
@@ -304,9 +304,11 @@ const KN={inf:'INFANTRY',sm:'SMALL TANK',tr:'TURRET',lg:'LARGE TANK',xl:'HEAVY T
 function killE(e){
   if(!e.dead){kills[e.k]=(kills[e.k]||0)+1;tot[e.k]=(tot[e.k]||0)+1}
   e.dead=1;
-  if(e.k==='fort')for(let i=0;i<8;i++)boom(e.x+rnd(-80,80),e.y+rnd(-80,80),rnd(40,80));
+  if(e.k==='fort')for(let i=0;i<8;i++)boom(e.x+rnd(-160,160),e.y+rnd(-160,160),rnd(40,80)*5,.9);
   spawnDebris(e);
-  boom(e.x,e.y,e.k==='fort'?200:e.k==='xl'?130:e.k==='lg'?90:(e.k==='sm'||e.k==='tr')?60:e.k==='jp'?45:30);
+  // fortress / tanks / jeep explode 5x bigger (and a little slower)
+  const big=e.k==='fort'?200:e.k==='xl'?130:e.k==='lg'?90:e.k==='sm'?60:e.k==='jp'?45:0;
+  if(big)boom(e.x,e.y,big*5,.9);else boom(e.x,e.y,e.k==='tr'?60:30);
 }
 function blast(x,y,r,own,dmg,od){
   boom(x,y,r);
