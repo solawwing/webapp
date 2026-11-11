@@ -399,7 +399,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-03 19:50';
+const LAST_UPDATED = '2026-11-12 00:10';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -2452,6 +2452,7 @@ function splitAsteroid(a, i) {
 function splitByDamage(target) {
   const idx = asteroids.indexOf(target);
   if (idx === -1) return;
+  playKillSound(target.isCrystal ? 'crystal' : 'rock'); // a rock / crystal was broken by damage
   asteroids.splice(idx, 1);
   if ((target.splitStage || 0) >= 2) {
     // already twice-split (smallest) pieces don't just vanish — they split apart one more
@@ -3095,6 +3096,10 @@ function updateEnemies(dt) {
       e.def.r = e.def.baseR; // no longer shrinks as it takes damage
       if (e.revived && e.reviveT < 2) { e.reviveT += fullDt; e.def.r *= Math.max(0.1, Math.min(1, e.reviveT / 2)); }
       updateMiniBossDrift(e, fullDt);
+      if (e.miniBossHp) { // sound when a mini-boss is destroyed (its HP just fell to 0)
+        e.mbWas = e.mbWas || [];
+        e.miniBossHp.forEach((h, vk) => { const alive = h > 0; if (e.mbWas[vk] && !alive) playKillSound('mini'); e.mbWas[vk] = alive; });
+      }
     }
     const ox = e.x, oy = e.y;
     // GRAVITY shockwave slow effect: enemies inside an active shockwave move/act at half speed
@@ -3237,6 +3242,8 @@ canvas.addEventListener('pointerdown', e => {
   if (state === STATE.TITLE) return; // waiting on an equipment tap, ignore other taps
   if (state === STATE.GAMEOVER) { goToTitle(); return; }
   if (state === STATE.PLAYING) {
+    const sp = pointerToXY(e.clientX, e.clientY), sb = soundButtonRect();
+    if (sp.x >= sb.x && sp.x <= sb.x + sb.w && sp.y >= sb.y && sp.y <= sb.y + sb.h) { toggleSound(); lastPlayingTapTime = 0; return; } // sound ON/OFF button
     const now = Date.now();
     if (now - lastPlayingTapTime < 300) {
       paused = !paused;
@@ -5134,7 +5141,39 @@ function updateBullets(dt) {
   }
 }
 
+// ---- sound: a crisp "pari" crack when a target is destroyed (synthesised with Web Audio; no audio files) ----
+let audioCtx = null, noiseBuf = null, lastKillSnd = 0;
+let soundOn = true; // toggled by the music-note button above the bottom-right damage readout
+try { if (localStorage.getItem('galax26_sound') === 'off') soundOn = false; } catch (err) { /* storage may be unavailable */ }
+function soundButtonRect() { return { x: W - 56, y: H - 84, w: 56, h: 52 }; } // tap area (game coordinates)
+function toggleSound() { soundOn = !soundOn; try { localStorage.setItem('galax26_sound', soundOn ? 'on' : 'off'); } catch (err) { /* ignore */ } }
+function unlockAudio() { // browsers only allow sound after a tap / key press
+  try {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      audioCtx = new AC();
+      noiseBuf = audioCtx.createBuffer(1, Math.floor(audioCtx.sampleRate * 0.12), audioCtx.sampleRate);
+      const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch (err) { /* sound is optional */ }
+}
+['pointerdown', 'touchstart', 'keydown', 'mousedown'].forEach(ev => window.addEventListener(ev, unlockAudio, { passive: true }));
+function playKillSound(kind) { // a short "pi!" beep: enemy / rock / crystal / mini / boss (bigger targets: lower pitch, a bit longer)
+  try {
+    if (!soundOn || !audioCtx || audioCtx.state !== 'running') return;
+    const now = audioCtx.currentTime;
+    if (now - lastKillSnd < 0.03) return; // at most ~30 per second so a mass kill doesn't turn into a roar
+    lastKillSnd = now;
+    const P = { enemy: [1800, 0.045, 0.12], rock: [2400, 0.035, 0.10], crystal: [2000, 0.045, 0.12], mini: [1300, 0.06, 0.14], boss: [850, 0.1, 0.16] }[kind] || [2400, 0.07, 0.10];
+    const f = P[0] * (1 + (Math.random() - 0.5) * 0.04), dur = P[1], vol = P[2];
+    const o = audioCtx.createOscillator(); o.type = 'square'; o.frequency.setValueAtTime(f, now); o.frequency.setValueAtTime(f * 1.06, now + 0.012);
+    const g = audioCtx.createGain(); g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(vol, now + 0.003); g.gain.setValueAtTime(vol, now + dur * 0.4); g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    o.connect(g); g.connect(audioCtx.destination); o.start(now); o.stop(now + dur + 0.02);
+  } catch (err) { /* sound is optional */ }
+}
 function handleEnemyDeath(e) {
+  playKillSound(e.type === 'GIANTBOSS' ? 'boss' : 'enemy');
   const feverMul = threeJackpot() ? 10 : 1; // 7THREE: while the reels are matched, kill points are x10
   if (e.type === 'GIANTBOSS') {
     score += scoreMultiplier * wave * 10000 * feverMul;
@@ -8695,6 +8734,14 @@ function drawHUD() {
     ctx.fillText(String(lastHitDamage), W - 12, H - 14); // bottom-right
     ctx.fillStyle = '#7CFFF0';
   }
+  // sound ON/OFF button: a music note above the damage readout (dimmed with a slash when OFF)
+  { const sb = soundButtonRect(), fm = ctx.font.match(/(\d+(?:\.\d+)?)px/), fs = fm ? parseFloat(fm[1]) : 10; // same size as the damage number below
+    const cx = W - 12 - fs * 0.4, cy = H - 14 - fs - 14;
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = fs + 'px sans-serif';
+    ctx.globalAlpha = soundOn ? 0.9 : 0.4; ctx.fillStyle = '#7CFFF0'; ctx.strokeStyle = '#7CFFF0'; ctx.lineWidth = 2;
+    ctx.fillText('\u2669', cx, cy);
+    if (!soundOn) { ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx - fs * 0.45, cy + fs * 0.5); ctx.lineTo(cx + fs * 0.45, cy - fs * 0.5); ctx.stroke(); }
+    ctx.restore(); }
   ctx.textAlign = 'left';
 
   // LIVES: triangle icons only, right-aligned (slightly smaller, matching the item display)
