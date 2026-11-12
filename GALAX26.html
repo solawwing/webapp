@@ -399,7 +399,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-12 00:10';
+const LAST_UPDATED = '2026-11-13 08:10';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -5143,8 +5143,8 @@ function updateBullets(dt) {
 
 // ---- sound: a crisp "pari" crack when a target is destroyed (synthesised with Web Audio; no audio files) ----
 let audioCtx = null, noiseBuf = null, lastKillSnd = 0;
-let soundOn = true; // toggled by the music-note button above the bottom-right damage readout
-try { if (localStorage.getItem('galax26_sound') === 'off') soundOn = false; } catch (err) { /* storage may be unavailable */ }
+let soundOn = false; // OFF by default; toggled by the music-note button above the bottom-right damage readout
+try { if (localStorage.getItem('galax26_sound') === 'on') soundOn = true; } catch (err) { /* storage may be unavailable */ }
 function soundButtonRect() { return { x: W - 56, y: H - 84, w: 56, h: 52 }; } // tap area (game coordinates)
 function toggleSound() { soundOn = !soundOn; try { localStorage.setItem('galax26_sound', soundOn ? 'on' : 'off'); } catch (err) { /* ignore */ } }
 function unlockAudio() { // browsers only allow sound after a tap / key press
