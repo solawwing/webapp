@@ -399,7 +399,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-13 08:10';
+const LAST_UPDATED = '2026-11-13 21:00';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -8737,10 +8737,11 @@ function drawHUD() {
   // sound ON/OFF button: a music note above the damage readout (dimmed with a slash when OFF)
   { const sb = soundButtonRect(), fm = ctx.font.match(/(\d+(?:\.\d+)?)px/), fs = fm ? parseFloat(fm[1]) : 10; // same size as the damage number below
     const cx = W - 12 - fs * 0.4, cy = H - 14 - fs - 14;
-    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = fs + 'px sans-serif';
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const nfs = 20; // the note is 20px
+    ctx.font = nfs + 'px sans-serif';
     ctx.globalAlpha = soundOn ? 0.9 : 0.4; ctx.fillStyle = '#7CFFF0'; ctx.strokeStyle = '#7CFFF0'; ctx.lineWidth = 2;
     ctx.fillText('\u2669', cx, cy);
-    if (!soundOn) { ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx - fs * 0.45, cy + fs * 0.5); ctx.lineTo(cx + fs * 0.45, cy - fs * 0.5); ctx.stroke(); }
+    if (!soundOn) { ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx - nfs * 0.45, cy + nfs * 0.5); ctx.lineTo(cx + nfs * 0.45, cy - nfs * 0.5); ctx.stroke(); }
     ctx.restore(); }
   ctx.textAlign = 'left';
 
