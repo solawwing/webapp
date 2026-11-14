@@ -284,6 +284,14 @@
         <div class="item-header"><span class="item-icon">Z</span><span class="item-name">ZAPPER</span></div>
         <div class="item-desc">Drones dash in, zap, then return.</div>
       </div>
+      <div class="item-entry" data-weapon="3RIANGL">
+        <div class="item-header"><span class="item-icon">3</span><span class="item-name">3RIANGL</span></div>
+        <div class="item-desc">Spinning triangles drop onto every foe near the ship, lock on, and green homing lasers destroy them.</div>
+      </div>
+      <div class="item-entry" data-weapon="4ORCE">
+        <div class="item-header"><span class="item-icon">4</span><span class="item-name">4ORCE</span></div>
+        <div class="item-desc">Tiny purple balls fly out in 8 directions around the ship (more with every level).</div>
+      </div>
       <div class="item-entry" data-weapon="5ATELLITE">
         <div class="item-header"><span class="item-icon">5</span><span class="item-name">5ATELLITE</span></div>
         <div class="item-desc">A big ring with a small satellite orbiting it, drifting slowly up through foes.</div>
@@ -399,7 +407,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-13 21:00';
+const LAST_UPDATED = '2026-11-15 02:20';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -468,7 +476,7 @@ function reportDamage(d) { if (d > 0) { lastHitDamage = Math.round(d * 10) / 10;
 function unleashPulseTime() { return Math.max(0.5, 1.3 - (player.rapidLevel || 0) * 0.1); }
 function weaponMaxLevel(type) {
   // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL/ZAPPER/XCROSS/KURU2/ARROW/QIX/EARTH/WHIPS/INFINITY/FUNNEL uniquely level up to 7, every other weapon caps at 5
-  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS' || type === 'INFINITY' || type === 'FUNNEL' || type === 'UNLEASH' || type === 'YARELY' || type === 'NORMAL' || type === 'JAVELIN' || type === '9SHOT' || type === '5ATELLITE' || type === '6OARD' || type === '7THREE') ? 7 : 5;
+  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS' || type === 'INFINITY' || type === 'FUNNEL' || type === 'UNLEASH' || type === 'YARELY' || type === 'NORMAL' || type === 'JAVELIN' || type === '9SHOT' || type === '3RIANGL' || type === '4ORCE' || type === '5ATELLITE' || type === '6OARD' || type === '7THREE') ? 7 : 5;
 }
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function formatScore(n) { return Math.round(n).toLocaleString('en-US'); }
@@ -533,9 +541,9 @@ function resetPlayer() {
 }
 
 // ---------- items ----------
-const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL', 'UNLEASH', 'YARELY', 'NORMAL', 'JAVELIN', '9SHOT', '5ATELLITE', '6OARD', '7THREE'];
+const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL', 'UNLEASH', 'YARELY', 'NORMAL', 'JAVELIN', '9SHOT', '3RIANGL', '4ORCE', '5ATELLITE', '6OARD', '7THREE'];
 document.getElementById('versionLine').textContent = 'version 5.0 (' + ITEM_TYPES.length + ' items)'; // item count follows the item list automatically
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff7a1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff', UNLEASH: '#ff2fd4', YARELY: '#f4ff2e', NORMAL: '#ffffff', JAVELIN: '#9a9a9a', '9SHOT': '#ff3b3b', '5ATELLITE': '#00e5ff', '6OARD': '#ffffff', '7THREE': '#ff10f0' };
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff7a1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff', UNLEASH: '#ff2fd4', YARELY: '#f4ff2e', NORMAL: '#ffffff', JAVELIN: '#9a9a9a', '9SHOT': '#ff3b3b', '3RIANGL': '#39ff14', '4ORCE': '#bf00ff', '5ATELLITE': '#00e5ff', '6OARD': '#ffffff', '7THREE': '#ff10f0' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -808,7 +816,7 @@ function updateItems(dt) {
     }
   }
 }
-const ITEM_GLYPHS = { LIFE: '+', DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E', WHIPS: 'W', INFINITY: 'I', FUNNEL: 'F', UNLEASH: 'U', YARELY: 'Y', NORMAL: 'N', JAVELIN: 'J', '9SHOT': '9', '5ATELLITE': '5', '6OARD': '6', '7THREE': '7' };
+const ITEM_GLYPHS = { LIFE: '+', DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E', WHIPS: 'W', INFINITY: 'I', FUNNEL: 'F', UNLEASH: 'U', YARELY: 'Y', NORMAL: 'N', JAVELIN: 'J', '9SHOT': '9', '3RIANGL': '3', '4ORCE': '4', '5ATELLITE': '5', '6OARD': '6', '7THREE': '7' };
 function drawItems() {
   ctx.lineWidth = 1;
   items.forEach(it => {
@@ -1215,7 +1223,7 @@ const SPARK_COOLDOWNS = [0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]; // fixed 0.5s re
 // "wait until the screen is clear of your own bullets" gate for these weapons
 const WEAPON_FIRE_COOLDOWNS = {
   NORMAL: 0.2, DOUBLE: 0.5, MISSILE: 1.0, HOMING: 0.3, LASER: 1.0,
-  GRAVITY: 0.3, BUBBLE: 0.3, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4, QIX: 0.4, INFINITY: 1.0, YARELY: 0.4, JAVELIN: 0.4, '9SHOT': 0.05, '5ATELLITE': 1.5, '6OARD': 0.5, '7THREE': 0.5,
+  GRAVITY: 0.3, BUBBLE: 0.3, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4, QIX: 0.4, INFINITY: 1.0, YARELY: 0.4, JAVELIN: 0.4, '9SHOT': 0.05, '3RIANGL': 0.5, '4ORCE': 0.5, '5ATELLITE': 1.5, '6OARD': 0.5, '7THREE': 0.5,
 };
 const LASER_SPECS = [null,
   { length: 200, pierce: 5, speed: 300 },
@@ -1519,7 +1527,7 @@ function fireWeapon() {
       // spawns 20px from ship center in the firing direction, then flies straight for
       // 200px before it starts homing in on its target
       const hx = player.x + Math.sin(rad) * 20, hy = player.y - Math.cos(rad) * 20;
-      playerBullets.push({ x: hx, y: hy, vx: Math.sin(rad) * 150, vy: -Math.cos(rad) * 150, r: 3, homing: true, target, power: 5, homingLevel: lvl, speed: 150, maxSpeed: 750, homingAge: 0, straightDist: 200, homingTraveled: 0 });
+      playerBullets.push({ x: hx, y: hy, vx: Math.sin(rad) * 150, vy: -Math.cos(rad) * 150, r: 3, homing: true, target, power: 3 + (lvl - 1), homingLevel: lvl, speed: 150, maxSpeed: 750, homingAge: 0, straightDist: 200, homingTraveled: 0 });
     });
   } else if (player.weapon === 'LASER') {
     // a long, clean, straight beam that pierces every enemy in its path with no
@@ -1686,6 +1694,15 @@ function fireWeapon() {
     // one 100px ring (with an orbiting 10px satellite) straight up; it drifts slowly up, piercing foes until it has hit (2 + level) of them
     playerBullets.push({ x: player.x, y: player.y - player.r - 5, vx: 0, vy: -200, r: 50, power: 2, ball: true, n: lvl, sats: Array.from({ length: lvl }, (_, k) => -Math.PI / 2 + k * Math.PI * 2 / lvl), // satellites evenly spaced around the ring, first one at the top
        left: 2 + lvl, hitSet: new Set(), life: 0 });
+  } else if (player.weapon === '4ORCE') {
+    // 4x4px balls (speed 50, accelerating, bouncing off foes and walls) fired evenly all around the ship: 8 directions at Lv1, +4 per level (12, 16 ... 32 at Lv7)
+    const n = 8 + 4 * (Math.max(1, Math.min(7, lvl)) - 1);
+    for (let k = 0; k < n; k++) {
+      const a = -Math.PI / 2 + k * Math.PI * 2 / n;
+      playerBullets.push({ x: player.x + Math.cos(a) * 20, y: player.y + Math.sin(a) * 20, vx: Math.cos(a) * 50, vy: Math.sin(a) * 50, dx: Math.cos(a), dy: Math.sin(a), age: 0, r: 2, power: 5 + (player.rapidLevel || 0), force: true, noTrail: true });
+    }
+  } else if (player.weapon === '3RIANGL') {
+    // nothing is fired here: updateTriMarks() locks triangles onto foes in range and launches the homing lasers
   } else if (player.weapon === '7THREE') {
     // three lasers straight up from -20 / 0 / +20px; each one's damage is its reel's value (x10 on a non-zero triple); a 0 laser isn't fired
     const dm = threeDamages(), jack = threeJackpot(); // three of a kind: eleven lasers instead of three
@@ -3035,7 +3052,7 @@ function checkMiniBossHits(e) {
       if (b.kuru2) continue; // KURU2 has its own dedicated mini-boss handling elsewhere
       if (b.arrow) continue; // ARROW has its own dedicated mini-boss handling elsewhere
       if (b.javelin) continue; // JAVELIN has its own mini-boss handling in handleCollisions
-      if (b.nineShot || b.ball || b.satLaser || b.board || b.three) continue; // 9SHOT / 5ATELLITE do their own hit handling in updateBullets
+      if (b.nineShot || b.ball || b.satLaser || b.board || b.three || b.tri || b.force) continue; // 9SHOT / 5ATELLITE do their own hit handling in updateBullets
       if (b.earthLaser) continue; // EARTH has its own dedicated mini-boss handling elsewhere
       if (b.funnelLaser) continue; // FUNNEL has its own dedicated mini-boss handling elsewhere
       if (b.qix) continue; // QIX has its own dedicated mini-boss handling elsewhere
@@ -3265,7 +3282,7 @@ let debugStartAtBoss = false; // set via tapping the tier-A icon on the title sc
 let debugSkipEnemyWaves = false; // set via tapping the tier-C icon on the title screen — only ASTEROID/CRYSTAL/BOSS cycle positions play, ENEMY positions are silently skipped
 let debugWallBossOnly = false; // set via double-tapping the tier-D (green) icon on the title screen — only cycle positions 2, 6, 10 (wall stages) and the BOSS play, weapon starts at Lv3
 let debugStartMaxLevel = false; // set via tapping the tier-E icon on the title screen
-const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'JAVELIN', 'KURU2', 'LASER', 'MISSILE', 'NORMAL', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'UNLEASH', 'VULCAN', 'WHIPS', 'XCROSS', 'YARELY', 'ZAPPER', '5ATELLITE', '6OARD', '7THREE', '9SHOT']; // no NORMAL — alphabetical order
+const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'JAVELIN', 'KURU2', 'LASER', 'MISSILE', 'NORMAL', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'UNLEASH', 'VULCAN', 'WHIPS', 'XCROSS', 'YARELY', 'ZAPPER', '3RIANGL', '4ORCE', '5ATELLITE', '6OARD', '7THREE', '9SHOT']; // no NORMAL — alphabetical order
 function showEquipSelect() {
   showingEquip = true;
   titleScreen.classList.add('hidden');
@@ -3290,7 +3307,7 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["1 funnel/side.", "2 funnels/side.", "3 funnels/side.", "4 funnels/side.", "5 funnels/side.", "6 funnels/side.", "7 funnels/side."] },
   MISSILE: { intro: "Orange missile pairs launch backward from the rear corners, loop into forward flight, climb, then split into two diagonal fragments. Each level adds a pair. Levels to 7.",
     levels: ["2 missiles.", "4 missiles.", "6 missiles.", "8 missiles.", "10 missiles.", "12 missiles.", "14 missiles, screen-filling swarm."] },
-  HOMING: { intro: "Each shot locks a distinct target (enemy, asteroid or crystal), flies 200px straight while accelerating, then curves in. Levels add shots and widen launch angles. Levels to 7.",
+  HOMING: { intro: "Power 3, +1 per level. Each shot locks a distinct target (enemy, asteroid or crystal), flies 200px straight while accelerating, then curves in. Levels add shots and widen launch angles. Levels to 7.",
     levels: ["2 shots at ±10°.", "4 shots, up to ±40°.", "6 shots, up to ±70°.", "8 shots, up to ±100°.", "10 shots, up to ±130°.", "12 shots, up to ±160°.", "14 shots, up to ±180°."] },
   INFINITY: { intro: "Points trace a wide ∞ behind the ship, each firing a bullet every 0.05s at a random on-screen target. One hit destroys, no piercing or splitting. Each level adds 10 points. Levels to 7.",
     levels: ["10 squares.", "20 squares.", "30 squares.", "40 squares.", "50 squares.", "60 squares.", "70 squares."] },
@@ -3324,6 +3341,10 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["100px reach.", "200px reach.", "300px reach.", "400px reach.", "500px reach.", "600px reach.", "700px reach, screen-spanning."] },
   '9SHOT': { intro: "Laser bolts fly straight at the nearest foe, then the next nearest, never hitting one twice, up to 9 targets. Each level launches one more bolt, each locking a different foe.",
     levels: ["1 bolt.", "2 bolts.", "3 bolts.", "4 bolts.", "5 bolts.", "6 bolts.", "7 bolts, up to 63 hits."] },
+  '3RIANGL': { intro: "Every foe (enemy, asteroid, crystal, mini-boss, boss) inside a circle around the ship (radius 200px, +25px per level) gets a spinning triangle dropped onto it. Once locked, fluorescent-green homing lasers keep flying at it until it is destroyed.",
+    levels: ["Radius 200.", "Radius 225.", "Radius 250.", "Radius 275.", "Radius 300.", "Radius 325.", "Radius 350."] },
+  '4ORCE': { intro: "Fires 4x4px fluorescent-purple balls evenly in all directions around the ship: 8 at Lv1, +4 per level. They speed up and bounce off targets and corridor walls (not the screen edges).",
+    levels: ["8 directions.", "12 directions.", "16 directions.", "20 directions.", "24 directions.", "28 directions.", "32 directions."] },
   '5ATELLITE': { intro: "A 100px planet with a 10px satellite circling its edge drifts slowly upward through foes; the planet and its satellites pierce foes, each ticking 1 damage every 0.1s while overlapping them; the satellites also fire homing laser bolts outward that tick 1 damage every 0.05s. Each level adds one satellite. Levels to 7.",
     levels: ["1 satellite.", "2 satellites.", "3 satellites.", "4 satellites.", "5 satellites.", "6 satellites.", "7 satellites."] },
   '6OARD': { intro: "A 50x100px board (1.2x bigger with every level) flies straight up, spinning about its own horizontal axis, and pierces everything in its way, ticking 1 damage every 0.05s while overlapping a foe; while piercing a foe it slows to speed 5, then speeds back up. Each level makes the board 1.2x bigger. Levels to 7.",
@@ -3381,7 +3402,7 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 2000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['NORMAL', 'UNLEASH', 'YARELY', 'INFINITY', 'JAVELIN', 'SPARK', '9SHOT', '5ATELLITE', '6OARD', '7THREE']; // shows "NEW"
+const EQUIP_UPDATED = ['NORMAL', 'UNLEASH', 'YARELY', 'INFINITY', 'JAVELIN', 'SPARK', '9SHOT', '5ATELLITE', '6OARD', '7THREE', '3RIANGL', '4ORCE']; // shows "NEW"
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -4448,20 +4469,122 @@ function updatePlayer(dt) {
     if (player.alive && player.weaponFireCooldown <= 0) {
       fireWeapon();
       player.weaponFireCooldown = player.weapon === 'NORMAL' ? 0.2 : player.weapon === 'YARELY' ? 1.0 - 0.05 * (player.weaponLevel || 1) : (player.weapon === '7THREE' && threeJackpot() ? 0.25 : (WEAPON_FIRE_COOLDOWNS[player.weapon] || 0.3)); // 7THREE FEVER: twice the fire rate; YARELY: 1.0s - 0.05s x level
-      const rapidCount = (player.weapon === 'YARELY' || player.weapon === '6OARD') ? 1 : (player.rapidLevel === 1 ? 2 : player.rapidLevel === 2 ? 3 : player.rapidLevel === 3 ? 5 : 1); // YARELY never burst-fires; 6OARD uses RAPID as a damage bonus instead
+      const rapidCount = (player.weapon === 'YARELY' || player.weapon === '6OARD' || player.weapon === '3RIANGL' || player.weapon === '4ORCE') ? 1 : (player.rapidLevel === 1 ? 2 : player.rapidLevel === 2 ? 3 : player.rapidLevel === 3 ? 5 : 1); // YARELY never burst-fires; 6OARD uses RAPID as a damage bonus instead
       player.burstRemaining = rapidCount - 1;
       player.burstTimer = 0.25; // brief delay before the rapid burst kicks in
     }
   }
 }
 
+// ---- 3RIANGL: triangles lock onto foes in range, homing lasers kill them ----
+const triMarks = [];
+function triRadius() { return 200 + (Math.max(1, player.weaponLevel || 1) - 1) * 25; }
+function updateTriMarks(dt) {
+  if (player.weapon !== '3RIANGL' || !player.alive || player.warping) { triMarks.length = 0; return; }
+  const R = triRadius(), live = new Map();
+  eachFoe((key, pos, rad) => {
+    if (pos.x < -20 || pos.x > W + 20 || pos.y < -20 || pos.y > H + 20) return;
+    live.set(key, { pos, rad, d: Math.hypot(pos.x - player.x, pos.y - player.y) });
+  });
+  for (let i = triMarks.length - 1; i >= 0; i--) {
+    const m = triMarks[i], f = live.get(m.key);
+    if (!f || f.d > R * 1.3) { triMarks.splice(i, 1); continue; }
+    m.x = f.pos.x; m.y = f.pos.y; m.rad = f.rad; m.t += dt; m.rot += dt * (m.t < 0.4 ? 1.5 : 8); // slow while closing in, fast once locked on
+    if (m.t >= 0.45 && m.laser && (m.laser.dead || playerBullets.indexOf(m.laser) < 0)) m.laser = null;
+    if (m.t >= 0.45) {
+      m.cd -= dt;
+      if (!m.laser && m.cd <= 0) {
+        const a = Math.PI / 2 + (Math.random() - 0.5) * 1.2; // launched downward, then curves round to the target
+        m.laser = { tri: true, x: player.x, y: player.y + player.r + 5, vx: Math.cos(a) * 1200, vy: Math.sin(a) * 1200, r: 3, power: 1 + (player.rapidLevel || 0), target: m.key, trail: [], life: 0, cd: 0, dead: false };
+        playerBullets.push(m.laser); m.cd = 0.2;
+      }
+    }
+  }
+  if (triMarks.length < 24) {
+    const have = new Set(triMarks.map(m => m.key));
+    live.forEach((f, key) => { if (f.d <= R && !have.has(key) && triMarks.length < 24) triMarks.push({ key, x: f.pos.x, y: f.pos.y, rad: f.rad, t: 0, rot: Math.random() * 6, cd: 0, laser: null }); });
+  }
+}
+function updateTriLaser(b, i, dt) {
+  // homing laser: turns toward its target (3rd-gen: fast turn), damages it every 0.05s once touching, dies with the target
+  b.life += dt;
+  let tp = null, rad = 0;
+  eachFoe((key, pos, r) => { if (key === b.target) { tp = pos; rad = r; } });
+  if (!tp) { b.dead = true; playerBullets.splice(i, 1); return; }
+  const want = Math.atan2(tp.y - b.y, tp.x - b.x), cur = Math.atan2(b.vy, b.vx);
+  let da = want - cur; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
+  const sp = 1200, dNow = Math.hypot(tp.x - b.x, tp.y - b.y), tr = Math.max(9, sp / Math.max(dNow * 0.4, 1)) * dt; // turn rate grows near the target so it can't orbit it
+  const turn = Math.max(-tr, Math.min(tr, da)), na = cur + turn;
+  b.vx = Math.cos(na) * sp; b.vy = Math.sin(na) * sp;
+  const d0 = Math.hypot(tp.x - b.x, tp.y - b.y);
+  if (d0 > rad) { const st = Math.min(sp * dt, d0 - rad * 0.5); b.x += Math.cos(na) * st; b.y += Math.sin(na) * st; }
+  else { b.x += (tp.x - b.x) * Math.min(1, dt * 30); b.y += (tp.y - b.y) * Math.min(1, dt * 30); }
+  b.trail.push({ x: b.x, y: b.y }); if (b.trail.length > 14) b.trail.shift();
+  if (Math.hypot(tp.x - b.x, tp.y - b.y) <= rad + 4) {
+    b.cd -= dt; // keeps damaging (1 + RAPID level, every 0.08s) until the target is destroyed
+    if (b.cd <= 0) { b.cd = 0.08; nineShotDamage(b.target, b.power, true); }
+  }
+}
+function drawTriMarks() {
+  if (player.weapon === '3RIANGL' && player.alive && !player.warping) { // range circle: slow fade in / out
+    ctx.save(); ctx.globalAlpha = 0.08 + 0.32 * (0.5 + 0.5 * Math.sin(performance.now() / 1000 * 1.2));
+    ctx.strokeStyle = '#39ff14'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(player.x, player.y, triRadius(), 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  }
+  if (!triMarks.length) return;
+  ctx.save(); ctx.lineJoin = 'round'; ctx.lineWidth = 1;
+  for (const m of triMarks) {
+    const fall = Math.min(1, m.t / 0.4), e = fall * fall; // accelerating drop from above
+    const base = (14 + m.rad * 0.6) * 1.5, size = base, cy = m.y, locked = m.t >= 0.4; // big triangle shrinks onto the foe while spinning
+    const pulse = locked ? 1 + 0.08 * Math.sin(m.t * 20) : 1 + (1 - e) * 4;
+    ctx.globalAlpha = 0.3 + 0.7 * Math.min(1, m.t / 0.15);
+    ctx.strokeStyle = '#39ff14'; ctx.shadowColor = '#39ff14'; ctx.shadowBlur = 8;
+    ctx.beginPath();
+    for (let k = 0; k < 3; k++) { const a = m.rot + k * Math.PI * 2 / 3, px = m.x + Math.cos(a) * size * pulse, py = cy + Math.sin(a) * size * pulse; k ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+    ctx.closePath(); ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawTriLaser(b) {
+  // LASER-style: opaque, bright head fading to a dull tail, 1px at the bottom of the screen widening to 3px at the top
+  const tr = b.trail; if (tr.length < 2) return;
+  ctx.save(); ctx.lineCap = 'butt';
+  for (let k = 1; k < tr.length; k++) {
+    const f = k / (tr.length - 1), yy = tr[k].y;
+    ctx.strokeStyle = f > 0.6 ? '#39ff14' : darkenColor('#39ff14', 0.7);
+    ctx.lineWidth = 1 + 2 * Math.max(0, Math.min(1, 1 - yy / H));
+    ctx.beginPath(); ctx.moveTo(tr[k - 1].x, tr[k - 1].y); ctx.lineTo(tr[k].x, tr[k].y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function updateBullets(dt) {
+  updateTriMarks(dt);
   for (let i = playerBullets.length - 1; i >= 0; i--) {
     const b = playerBullets[i];
     if (b.spawnDelay > 0) {
       b.spawnDelay -= dt;
       continue; // held back, not yet fired
     }
+    if (b.force) {
+      // 4ORCE: starts at 50 and speeds up (max 800); bounces off foes (damaging them) and the corridor walls, leaves through the screen edges, gone after 8s
+      b.age += dt; const fsp = Math.min(800, 50 + 500 * b.age * b.age);
+      b.x += b.dx * fsp * dt; b.y += b.dy * fsp * dt;
+      if (wallK > 0.5) { const wb = wallBounds(b.y, b.y); if (b.x < wb.l) { b.x = wb.l; b.dx = Math.abs(b.dx); } else if (b.x > wb.r) { b.x = wb.r; b.dx = -Math.abs(b.dx); } }
+      b.cd = b.cd || new Map();
+      eachFoe((key, pos, rad) => {
+        const ddx = b.x - pos.x, ddy = b.y - pos.y, dd = Math.hypot(ddx, ddy);
+        if (dd > rad + b.r) return;
+        const nx = dd > 0.001 ? ddx / dd : 0, ny = dd > 0.001 ? ddy / dd : -1, dot = b.dx * nx + b.dy * ny;
+        if (dot < 0) { b.dx -= 2 * dot * nx; b.dy -= 2 * dot * ny; } // bounce off the target
+        b.x = pos.x + nx * (rad + b.r + 1); b.y = pos.y + ny * (rad + b.r + 1);
+        const last = b.cd.get(key);
+        if (last === undefined || b.age - last >= 0.1) { b.cd.set(key, b.age); nineShotDamage(key, b.power, true); }
+      });
+      b.vx = b.dx * fsp; b.vy = b.dy * fsp;
+      if (b.age > 8 || b.x < -20 || b.x > W + 20 || b.y < -20 || b.y > H + 20) playerBullets.splice(i, 1);
+      continue;
+    }
+    if (b.tri) { updateTriLaser(b, i, dt); continue; }
     if (b.three) {
       // 7THREE laser (LASER-style long beam growing out of the muzzle): pierces everything, damaging each foe it overlaps every 0.1s (damage = its reel value)
       if (b.dying) { b.dyingT += dt; if (b.dyingT >= 0.3) playerBullets.splice(i, 1); continue; }
@@ -4655,7 +4778,7 @@ function updateBullets(dt) {
     if (!b.bubble && !b.noTrail) {
       if (!b.trail) b.trail = [];
       b.trail.push({ x: b.x, y: b.y, rot: b.angle !== undefined ? b.angle : b.rot, traveled: b.traveled });
-      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.missile ? 10 : b.orbitalBolt ? 24 : b.earthShipLaser ? 8 : (b.spark && !b.burst) ? 30 : (b.earthLaser || b.funnelLaser) ? 32 : (b.double || b.nsplit) ? 32 : b.javelin ? 48 : b.vulcanLine ? 5 : (b.homing || b.gravity || b.lenMul) ? 7 : 14;
+      const maxTrail = (b.laser || b.thunder) ? 40 : b.sparkFrag ? 10 : b.missile ? 10 : b.orbitalBolt ? 24 : b.earthShipLaser ? 8 : (b.spark && !b.burst) ? 30 : (b.earthLaser || b.funnelLaser) ? 32 : (b.double || b.nsplit) ? 32 : b.javelin ? 48 : b.vulcanLine ? 5 : b.homing ? 16 : (b.gravity || b.lenMul) ? 7 : 14;
       if (b.trail.length > maxTrail) b.trail.shift();
     }
     if (b.homing) {
@@ -5165,6 +5288,18 @@ function playKillSound(kind) { // a short "pi!" beep: enemy / rock / crystal / m
     const now = audioCtx.currentTime;
     if (now - lastKillSnd < 0.03) return; // at most ~30 per second so a mass kill doesn't turn into a roar
     lastKillSnd = now;
+    { // sample #76 "ZOWA 4" for every target: a sawtooth sweeping 4000 -> 300 Hz plus a low-passed noise burst, 0.2s
+      const so = audioCtx.createOscillator(); so.type = 'sawtooth'; so.frequency.setValueAtTime(4000, now); so.frequency.exponentialRampToValueAtTime(300, now + 0.2);
+      const sg = audioCtx.createGain(); sg.gain.setValueAtTime(0.0001, now); sg.gain.exponentialRampToValueAtTime(0.07, now + 0.004); sg.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+      so.connect(sg); sg.connect(audioCtx.destination); so.start(now); so.stop(now + 0.22);
+      const nb = audioCtx.createBufferSource();
+      if (!window.__zowaBuf) { const bb = audioCtx.createBuffer(1, Math.floor(audioCtx.sampleRate * 0.4), audioCtx.sampleRate); const d = bb.getChannelData(0); for (let k = 0; k < d.length; k++) d[k] = Math.random() * 2 - 1; window.__zowaBuf = bb; }
+      nb.buffer = window.__zowaBuf;
+      const lp = audioCtx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(3000, now); lp.frequency.exponentialRampToValueAtTime(200, now + 0.2);
+      const ng = audioCtx.createGain(); ng.gain.setValueAtTime(0.0001, now); ng.gain.exponentialRampToValueAtTime(0.08, now + 0.004); ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+      nb.connect(lp); lp.connect(ng); ng.connect(audioCtx.destination); nb.start(now); nb.stop(now + 0.22);
+      return;
+    }
     const P = { enemy: [1800, 0.045, 0.12], rock: [2400, 0.035, 0.10], crystal: [2000, 0.045, 0.12], mini: [1300, 0.06, 0.14], boss: [850, 0.1, 0.16] }[kind] || [2400, 0.07, 0.10];
     const f = P[0] * (1 + (Math.random() - 0.5) * 0.04), dur = P[1], vol = P[2];
     const o = audioCtx.createOscillator(); o.type = 'square'; o.frequency.setValueAtTime(f, now); o.frequency.setValueAtTime(f * 1.06, now + 0.012);
@@ -5745,7 +5880,7 @@ function handleCollisions() {
       if (stop) playerBullets.splice(j, 1);
       continue;
     }
-    if (b.nineShot || b.ball || b.satLaser || b.board || b.three) continue; // 9SHOT / 5ATELLITE do their own hit handling in updateBullets
+    if (b.nineShot || b.ball || b.satLaser || b.board || b.three || b.tri || b.force) continue; // 9SHOT / 5ATELLITE do their own hit handling in updateBullets
     if (b.chaining) continue; // thunder: handled entirely in updateBullets once chaining starts
     if (b.javelin) {
       // phase 1 (gray): pierce enemies / boss / mini-boss vertices without damage, permanently halving
@@ -7229,7 +7364,7 @@ function handleAsteroidCollisions() {
       }
       continue;
     }
-    if (b.nineShot || b.ball || b.satLaser || b.board || b.three) continue;
+    if (b.nineShot || b.ball || b.satLaser || b.board || b.three || b.tri || b.force) continue;
     if (b.chaining) continue; // thunder: handled entirely in updateBullets once chaining starts
     if (b.javelin) {
       if (b.phase === 1) for (let i = 0; i < asteroids.length; i++) javelinSlowTarget(b, asteroids[i], { x: asteroids[i].x, y: asteroids[i].y });
@@ -7745,6 +7880,8 @@ function drawBullets() {
       ctx.restore();
       return;
     }
+    if (b.force) { ctx.save(); ctx.globalAlpha = 0.8; ctx.fillStyle = '#bf00ff'; ctx.shadowColor = '#bf00ff'; ctx.shadowBlur = 6; ctx.fillRect(b.x - 2, b.y - 2, 4, 4); ctx.restore(); return; } // 20% transparent = 80% opaque
+    if (b.tri) { drawTriLaser(b); return; }
     if (b.three) {
       // LASER-style beam: bright head, dull tail, 1px at the bottom edge widening to 3px at the top; fades out over 0.3s once it leaves the screen
       const tailY = b.y + Math.min(b.length, Math.max(0, b.spawnY - b.y));
@@ -8218,7 +8355,7 @@ function drawBullets() {
       ctx.lineWidth = 1;
       if (b.trail) {
         b.trail.forEach((p, idx) => {
-          const alpha = ((idx + 1) / (b.trail.length + 1)) * 0.15;
+          const alpha = ((idx + 1) / (b.trail.length + 1)) * 0.3; // faint afterimage
           ctx.strokeStyle = `rgba(186,255,201,${alpha})`;
           ctx.save();
           ctx.translate(p.x, p.y);
@@ -8740,7 +8877,7 @@ function drawHUD() {
     ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const nfs = 20; // the note is 20px
     ctx.font = nfs + 'px sans-serif';
     ctx.globalAlpha = soundOn ? 0.9 : 0.4; ctx.fillStyle = '#7CFFF0'; ctx.strokeStyle = '#7CFFF0'; ctx.lineWidth = 2;
-    ctx.fillText('\u2669', cx, cy);
+    ctx.fillText('\u266A', cx, cy);
     if (!soundOn) { ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx - nfs * 0.45, cy + nfs * 0.5); ctx.lineTo(cx + nfs * 0.45, cy - nfs * 0.5); ctx.stroke(); }
     ctx.restore(); }
   ctx.textAlign = 'left';
@@ -8836,7 +8973,7 @@ function frameBody(now) {
   drawShockwaves();
   drawPhantomFlashes();
   drawXCrossFlashes();
-  if (state === STATE.PLAYING) { drawNineShotRipples(); drawPlayer(); }
+  if (state === STATE.PLAYING) { drawNineShotRipples(); drawTriMarks(); drawPlayer(); }
   drawPickupTexts();
   drawHUD();
   if (state === STATE.PLAYING) { drawWaveAnnounce(); }
