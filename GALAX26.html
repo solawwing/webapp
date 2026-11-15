@@ -290,7 +290,7 @@
       </div>
       <div class="item-entry" data-weapon="1SHOCKS">
         <div class="item-header"><span class="item-icon">1</span><span class="item-name">1SHOCKS</span></div>
-        <div class="item-desc">Tiny cyan balls fly out in 8 directions around the ship (more with every level), slowing down to a stop.</div>
+        <div class="item-desc">Tiny cyan balls fly out in 6 directions around the ship (more with every level), slowing down to a stop.</div>
       </div>
       <div class="item-entry" data-weapon="3RIANGL">
         <div class="item-header"><span class="item-icon">3</span><span class="item-name">3RIANGL</span></div>
@@ -415,7 +415,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-15 23:40';
+const LAST_UPDATED = '2026-11-16 00:40';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -1231,7 +1231,7 @@ const SPARK_COOLDOWNS = [0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]; // fixed 0.5s re
 // "wait until the screen is clear of your own bullets" gate for these weapons
 const WEAPON_FIRE_COOLDOWNS = {
   NORMAL: 0.2, DOUBLE: 0.5, MISSILE: 1.0, HOMING: 0.3, LASER: 1.0,
-  GRAVITY: 0.3, BUBBLE: 0.3, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4, QIX: 0.4, INFINITY: 1.0, YARELY: 0.4, JAVELIN: 0.4, '9SHOT': 0.05, '1SHOCKS': 0.5, '3RIANGL': 0.5, '4ORCE': 0.5, '5ATELLITE': 1.5, '6OARD': 0.5, '7THREE': 0.5,
+  GRAVITY: 0.3, BUBBLE: 0.3, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4, QIX: 0.4, INFINITY: 1.0, YARELY: 0.4, JAVELIN: 0.4, '9SHOT': 0.05, '1SHOCKS': 1.0, '3RIANGL': 0.5, '4ORCE': 0.5, '5ATELLITE': 1.5, '6OARD': 0.5, '7THREE': 0.5,
 };
 const LASER_SPECS = [null,
   { length: 200, pierce: 5, speed: 300 },
@@ -1703,11 +1703,11 @@ function fireWeapon() {
     playerBullets.push({ x: player.x, y: player.y - player.r - 5, vx: 0, vy: -200, r: 50, power: 2, ball: true, n: lvl, sats: Array.from({ length: lvl }, (_, k) => -Math.PI / 2 + k * Math.PI * 2 / lvl), // satellites evenly spaced around the ring, first one at the top
        left: 2 + lvl, hitSet: new Set(), life: 0 });
   } else if (player.weapon === '1SHOCKS') {
-    // copy of 4ORCE without the bounce: 4x4px fluorescent-cyan balls fired evenly all around the ship (8 at Lv1, +4 per level); each is used up by the first target (or wall) it hits
-    const n = 8 + 4 * (Math.max(1, Math.min(7, lvl)) - 1);
+    // copy of 4ORCE without the bounce: 4x4px fluorescent-cyan balls fired evenly all around the ship (6 at Lv1, +1 per level: 7 ... 12 at Lv7); each is used up by the first target (or wall) it hits
+    const n = 6 + (Math.max(1, Math.min(7, lvl)) - 1);
     for (let k = 0; k < n; k++) {
       const a = -Math.PI / 2 + k * Math.PI * 2 / n;
-      playerBullets.push({ x: player.x + Math.cos(a) * 20, y: player.y + Math.sin(a) * 20, vx: Math.cos(a) * 345, vy: Math.sin(a) * 345, dx: Math.cos(a), dy: Math.sin(a), age: 0, r: 2, power: 1 + (player.rapidLevel || 0), force: true, nb: true, rr: 200 + 10 * (Math.max(1, Math.min(7, lvl)) - 1), col: '#00f5ff', noTrail: true });
+      playerBullets.push({ x: player.x + Math.cos(a) * 20, y: player.y + Math.sin(a) * 20, vx: Math.cos(a) * 345, vy: Math.sin(a) * 345, dx: Math.cos(a), dy: Math.sin(a), age: 0, r: 2, power: 1 + (player.rapidLevel || 0), force: true, nb: true, w: 1.5 + Math.random(), rr: 150 + 10 * (Math.max(1, Math.min(7, lvl)) - 1), col: '#00f5ff', noTrail: true });
     }
   } else if (player.weapon === '4ORCE') {
     // 4x4px balls (speed 50, accelerating, bouncing off foes and walls) fired evenly all around the ship: 8 directions at Lv1, +4 per level (12, 16 ... 32 at Lv7)
@@ -3356,8 +3356,8 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["100px reach.", "200px reach.", "300px reach.", "400px reach.", "500px reach.", "600px reach.", "700px reach, screen-spanning."] },
   '9SHOT': { intro: "Laser bolts fly straight at the nearest foe, then the next nearest, never hitting one twice, up to 9 targets. Each level launches one more bolt, each locking a different foe.",
     levels: ["1 bolt.", "2 bolts.", "3 bolts.", "4 bolts.", "5 bolts.", "6 bolts.", "7 bolts, up to 63 hits."] },
-  '1SHOCKS': { intro: "Fires 4x4px fluorescent-cyan balls evenly in all directions around the ship: 8 at Lv1, +4 per level. They start fast, slow down to a stop after 2s; 2s later each bursts into a ring that grows to 200px (+10px per level) while fading out and damages every target inside it every 0.1s (piercing walls and foes). The balls pass through everything and deal no contact damage.",
-    levels: ["8 directions.", "12 directions.", "16 directions.", "20 directions.", "24 directions.", "28 directions.", "32 directions."] },
+  '1SHOCKS': { intro: "Fires 4x4px fluorescent-cyan balls evenly in all directions around the ship: 6 at Lv1, +1 per level. They start fast, slow down to a stop after 2s; a random 1.5-2.5s later each bursts into a ring that grows to 150px (+10px per level) while fading out and damages every target inside it every 0.1s (piercing walls and foes). The balls pass through everything and deal no contact damage.",
+    levels: ["6 directions.", "7 directions.", "8 directions.", "9 directions.", "10 directions.", "11 directions.", "12 directions."] },
   '3RIANGL': { intro: "Every foe (enemy, asteroid, crystal, mini-boss, boss) inside a circle around the ship (radius 200px, +25px per level) gets a spinning triangle dropped onto it. Once locked, fluorescent-green homing lasers keep flying at it until it is destroyed.",
     levels: ["Radius 200.", "Radius 225.", "Radius 250.", "Radius 275.", "Radius 300.", "Radius 325.", "Radius 350."] },
   '4ORCE': { intro: "Fires 4x4px fluorescent-purple balls evenly in all directions around the ship: 8 at Lv1, +4 per level. They speed up and bounce off targets and corridor walls (not the screen edges).",
@@ -4585,10 +4585,10 @@ function updateBullets(dt) {
     if (b.force) {
       // 4ORCE: starts at 50 and speeds up (max 800); bounces off foes (damaging them) and the corridor walls, leaves through the screen edges, gone after 8s
       b.age += dt; const fsp = b.nb ? 345 * Math.pow(Math.max(0, 1 - b.age / 2), 2) : Math.min(800, 50 + 500 * b.age * b.age); // 1SHOCKS: starts at 345 and slows to 0 after 2s (stops 250px from the ship: 20 + 345*2/3)
-      if (b.nb && b.age >= 4) { // stopped for 2s: a ring grows to 200px (0.5s) while fading out, damaging each target inside it every 0.1s 
-        b.bt = (b.bt || 0) + dt; const R = b.rr * Math.min(1, b.bt / 0.5); b.bh = b.bh || new Map();
+      if (b.nb && b.age >= 2 + b.w) { // stopped for 2s: a ring grows to 150px (2s) while fading out, damaging each target inside it every 0.1s 
+        b.bt = (b.bt || 0) + dt; const R = b.rr * Math.min(1, b.bt / 2); b.bh = b.bh || new Map();
         eachFoe((key, pos, rad) => { if (Math.hypot(pos.x - b.x, pos.y - b.y) > R + rad) return; const lt = b.bh.get(key); if (lt === undefined || b.bt - lt >= 0.1) { b.bh.set(key, b.bt); nineShotDamage(key, b.power, true); } }); // pierces walls and foes, 0.1s ticks
-        if (b.bt >= 0.5) playerBullets.splice(i, 1);
+        if (b.bt >= 2) playerBullets.splice(i, 1);
         continue;
       }
       b.x += b.dx * fsp * dt; b.y += b.dy * fsp * dt;
@@ -7905,10 +7905,10 @@ function drawBullets() {
       return;
     }
     if (b.force && b.bt !== undefined) { // 1SHOCKS burst ring
-      ctx.save(); ctx.globalAlpha = 0.8 * Math.max(0, 1 - b.bt / 0.5); ctx.strokeStyle = b.col; ctx.shadowColor = b.col; ctx.shadowBlur = 6; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(b.x, b.y, b.rr * Math.min(1, b.bt / 0.5), 0, Math.PI * 2); ctx.stroke(); ctx.restore(); return;
+      ctx.save(); ctx.globalAlpha = 0.8 * Math.max(0, 1 - b.bt / 2); ctx.strokeStyle = b.col; ctx.shadowColor = b.col; ctx.shadowBlur = 6; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.rr * Math.min(1, b.bt / 2), 0, Math.PI * 2); ctx.stroke(); ctx.restore(); return;
     }
-    if (b.force) { ctx.save(); ctx.globalAlpha = 0.8 * (b.nb ? Math.max(0, 1 - Math.max(0, b.age - 2) / 2) * (b.age > 2 && Math.floor(b.age * 10) % 2 === 1 ? 0.2 : 1) : 1); // 1SHOCKS: once stopped, blinks (5Hz) while fading out over 2s
+    if (b.force) { ctx.save(); ctx.globalAlpha = 0.8 * (b.nb ? Math.max(0, 1 - Math.max(0, b.age - 2) / b.w) * (b.age > 2 && Math.floor(b.age * 10) % 2 === 1 ? 0.2 : 1) : 1); // 1SHOCKS: once stopped, blinks (5Hz) while fading out over its 1.5-2.5s wait (b.w)
       if (b.nb) { ctx.fillStyle = b.col; ctx.shadowColor = b.col; ctx.shadowBlur = 6; ctx.fillRect(b.x - 2, b.y - 2, 4, 4); ctx.restore(); return; }
      ctx.globalAlpha = 0.8; ctx.fillStyle = b.col || '#bf00ff'; ctx.shadowColor = b.col || '#bf00ff'; ctx.shadowBlur = 6; ctx.fillRect(b.x - 2, b.y - 2, 4, 4); ctx.restore(); return; } // 20% transparent = 80% opaque
     if (b.tri) { drawTriLaser(b); return; }
