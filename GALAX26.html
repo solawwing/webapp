@@ -415,7 +415,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-16 21:40';
+const LAST_UPDATED = '2026-11-16 22:00';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -2799,8 +2799,8 @@ function drawSpacedText(text, cx, cy, fontPx, spacing) {
   });
 }
 function drawWaveNumberText(text, cx, cy, fontPx, spacing) {
-  // like drawSpacedText, but digit characters render 4px larger, all bottom-aligned
-  const bigFontPx = fontPx + 4;
+  // like drawSpacedText, but digit characters render 4px larger (then 1.5x), all bottom-aligned
+  const bigFontPx = (fontPx + 4) * 1.5; // digits: 1.5x the previous size
   const bottomY = cy + fontPx * 0.5;
   const chars = text.split('');
   const isDigit = c => /[0-9]/.test(c);
