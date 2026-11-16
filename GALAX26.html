@@ -415,7 +415,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-16 00:40';
+const LAST_UPDATED = '2026-11-16 21:40';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -777,7 +777,7 @@ function updateItems(dt) {
   for (let i = items.length - 1; i >= 0; i--) {
     const it = items[i];
     it.y += it.vy * dt;
-    it.angle += it.spin * dt;
+    it.angle += it.spin * dt * 1.5; // item squares spin 1.5x as fast
     if (it.y > H + 20) { items.splice(i, 1); continue; }
     const rr = (player.r + it.r) * (player.r + it.r);
     if (player.alive && !player.warping && dist2(player.x, player.y, it.x, it.y) < rr) {
@@ -844,7 +844,7 @@ function drawItems() {
     ctx.translate(it.x, it.y);
     ctx.rotate(it.angle);
     ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-    ctx.strokeRect(-7.84, -7.84, 15.68, 15.68);
+    ctx.strokeRect(-11.76, -11.76, 23.52, 23.52);
     ctx.restore();
     // glyph stays upright even while the square rotates
     ctx.fillStyle = '#ffffff';
@@ -1223,14 +1223,14 @@ function xOffsets(n, spacing) {
 }
 const DOUBLE_COUNTS = [0, 2, 4, 6, 8, 10];
 const HOMING_COUNTS = [0, 1, 2, 3, 4, 5];
-const BUBBLE_COUNTS = [0, 3, 6, 9, 12, 15, 18, 21]; // linear, +3 per level
+const BUBBLE_COUNTS = [0, 2, 3, 4, 5, 6, 7, 8]; // linear, 2 at Lv1, +1 per level
 const VULCAN_COUNTS = [0, 2, 4, 6, 8, 10, 12, 14]; // +2 shots per level, up to Lv7
 const PHANTOM_COOLDOWNS = [0, 1.0, 0.8, 0.6, 0.4, 0.2, 0.15, 0.1]; // -0.2s/level up to Lv5, then finer steps
 const SPARK_COOLDOWNS = [0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]; // fixed 0.5s regardless of level
 // per-weapon fire cooldown (seconds between shots), replacing the old one-size-fits-all
 // "wait until the screen is clear of your own bullets" gate for these weapons
 const WEAPON_FIRE_COOLDOWNS = {
-  NORMAL: 0.2, DOUBLE: 0.5, MISSILE: 1.0, HOMING: 0.3, LASER: 1.0,
+  NORMAL: 0.2, DOUBLE: 0.5, MISSILE: 1.0, HOMING: 0.7, LASER: 1.0,
   GRAVITY: 0.3, BUBBLE: 0.3, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4, QIX: 0.4, INFINITY: 1.0, YARELY: 0.4, JAVELIN: 0.4, '9SHOT': 0.05, '1SHOCKS': 1.0, '3RIANGL': 0.5, '4ORCE': 0.5, '5ATELLITE': 1.5, '6OARD': 0.5, '7THREE': 0.5,
 };
 const LASER_SPECS = [null,
@@ -1535,7 +1535,7 @@ function fireWeapon() {
       // spawns 20px from ship center in the firing direction, then flies straight for
       // 200px before it starts homing in on its target
       const hx = player.x + Math.sin(rad) * 20, hy = player.y - Math.cos(rad) * 20;
-      playerBullets.push({ x: hx, y: hy, vx: Math.sin(rad) * 150, vy: -Math.cos(rad) * 150, r: 3, homing: true, target, power: 3 + (lvl - 1), homingLevel: lvl, speed: 150, maxSpeed: 750, homingAge: 0, straightDist: 200, homingTraveled: 0 });
+      playerBullets.push({ x: hx, y: hy, vx: Math.sin(rad) * 90, vy: -Math.cos(rad) * 90, r: 3, homing: true, target, power: 3 + (lvl - 1), homingLevel: lvl, speed: 90, maxSpeed: 450, homingAge: 0, straightDist: 200, homingTraveled: 0 });
     });
   } else if (player.weapon === 'LASER') {
     // a long, clean, straight beam that pierces every enemy in its path with no
@@ -1570,7 +1570,7 @@ function fireWeapon() {
     const spd = 300; // slow-moving (1.5x of the original 200)
     const maxTravelByAlpha = { 0.2: 200, 0.3: 200, 0.4: 200, 0.5: 300, 0.6: 300, 0.7: 300, 0.8: 400, 0.9: 500, 1.0: Infinity };
     const bubbleDamageByAlpha = { 0.2: 2.0, 0.3: 2.0, 0.4: 2.0, 0.5: 4.0, 0.6: 4.0, 0.7: 4.0, 0.8: 6.0, 0.9: 8.0, 1.0: 10.0 };
-    const coneAngle = 120 - (lvl - 1) * 10; // narrows by 10 degrees per level, Lv1=120 down to Lv7=60
+    const coneAngle = 10 + (lvl - 1) * 10; // widens by 10 degrees per level, Lv1=10 up to Lv7=70
     const halfCone = coneAngle / 2;
     for (let k = 0; k < n; k++) {
       const rad = rand(-halfCone, halfCone) * Math.PI / 180; // random angle within the level's forward cone
@@ -3330,7 +3330,7 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["200px, pierces 5, 2px thick.", "250px, pierces 5, 3px thick.", "300px, pierces 5, 4px thick.", "400px, pierces 10, 5px thick.", "500px, pierces 10, 6px thick.", "600px, pierces 10, 8px thick.", "700px, pierces 10, 10px thick."] },
   GRAVITY: { intro: "Splash damage on every hit, leaving a shockwave ring that expands, holds, then fades; targets inside take repeated damage and move at one third speed. Radius grows with level. Levels to 7.",
     levels: ["50px splash radius.", "100px radius.", "150px radius.", "200px radius.", "250px radius.", "300px radius.", "350px radius, biggest shockwave."] },
-  BUBBLE: { intro: "Fires a cone of pink orbs that grow as they fly; random brightness sets range and damage. The cone narrows as orb count rises with level. Drawn 20% transparent. Levels to 7.",
+  BUBBLE: { intro: "Fires a cone of pink orbs that grow as they fly; random brightness sets range and damage. The cone widens as the level rises (10 degrees at Lv1, +10 per level). Drawn 20% transparent. Levels to 7.",
     levels: ["6 orbs, 120° cone.", "10 orbs, 110° cone.", "14 orbs, 100° cone.", "18 orbs, 90° cone.", "22 orbs, 80° cone.", "26 orbs, 70° cone.", "30 orbs, 60° cone, tightest and densest."] },
   VULCAN: { intro: "A rapid burst of orange bolts from the ship's tip, always done within 0.5s. Each level adds bolts and repeats each bolt once more, with almost no delay. Works with RAPID. Levels to 7.",
     levels: ["2-shot burst, 1x repeat.", "4-shot burst, 2x repeat.", "6-shot burst, 3x repeat.", "8-shot burst, 4x repeat.", "10-shot burst, 5x repeat.", "12-shot burst, 6x repeat.", "14-shot burst, 7x repeat, same 0.5s window."] },
@@ -4809,7 +4809,7 @@ function updateBullets(dt) {
       // gradually accelerates from its spawn speed up to maxSpeed over ~0.6s
       if (b.maxSpeed) {
         b.homingAge = (b.homingAge || 0) + dt;
-        b.speed = Math.min(b.maxSpeed, 90 + (b.maxSpeed - 90) * Math.min(1, b.homingAge / 0.6));
+        b.speed = Math.min(b.maxSpeed, 54 + (b.maxSpeed - 54) * Math.min(1, b.homingAge / 0.6));
       }
       b.homingTraveled = (b.homingTraveled || 0) + Math.hypot(b.vx, b.vy) * dt;
       if (b.homingTraveled < (b.straightDist || 0)) {
@@ -8276,10 +8276,11 @@ function drawBullets() {
       if (b.dying) ctx.restore();
     } else if (b.bubble) {
       // circle bullet, no afterimage trail, random opacity
-      ctx.strokeStyle = hexToRgba('#fc0fc0', 0.8); // drawn at a fixed 20% transparency (b.alpha still drives damage/range)
+      ctx.save(); // brighter: a slightly lighter pink at 90% opacity with a faint glow (b.alpha still drives damage/range)
+      ctx.globalAlpha = 0.9; ctx.strokeStyle = '#f945d0'; ctx.shadowColor = '#fc0fc0'; ctx.shadowBlur = 3;
       ctx.beginPath();
       ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.stroke(); ctx.restore();
     } else if (b.thunder) {
       if (b.chaining || b.dying || b.finished) {
         // chain lightning path from the first hit onward, erased from the origin when done;
