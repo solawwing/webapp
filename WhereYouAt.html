@@ -2115,7 +2115,7 @@
     const icon = L.divIcon({
       className: '',
       iconSize: [0, 0],
-      html: `<div style="position:absolute; left:0; bottom:14px; transform:translateX(-50%); white-space:nowrap; background:#fff; color:#111; font-family:var(--mono); font-size:11px; padding:3px 8px; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,.6);">${text}<span style="position:absolute; left:50%; bottom:-5px; margin-left:-5px; border:5px solid transparent; border-bottom:0; border-top-color:#fff;"></span></div>`
+      html: `<div style="position:absolute; left:0; bottom:14px; transform:translateX(-50%); white-space:nowrap; background:#fff; color:#111; font-family:var(--mono); font-size:11px; padding:3px 8px; border-radius:8px; text-shadow:-1px -1px 0 #555,1px -1px 0 #555,-1px 1px 0 #555,1px 1px 0 #555,0 -1px 0 #555,0 1px 0 #555,-1px 0 0 #555,1px 0 0 #555; filter:drop-shadow(2px 3px 3px rgba(0,0,0,.75));">${text}<span style="position:absolute; left:50%; bottom:-5px; margin-left:-5px; border:5px solid transparent; border-bottom:0; border-top-color:#fff;"></span></div>`
     });
     const m = L.marker([st.lat, st.lng], { icon, interactive:false, zIndexOffset:1500 }).addTo(map);
     setTimeout(()=>{ try{ map.removeLayer(m); }catch(e){} }, ACQUIRED_BUBBLE_MS);
