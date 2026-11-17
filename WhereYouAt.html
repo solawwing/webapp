@@ -185,7 +185,7 @@
   .fetchStatusLabel{
     flex:1 1 auto;
     min-width:0;
-    font-size:9px; letter-spacing:.02em;
+    font-size:10px; letter-spacing:.02em;
     color:#39FF14;
     font-family: var(--mono);
     text-align:right;
@@ -2038,7 +2038,10 @@
     'https://overpass-api.de/api/interpreter',
     'https://overpass.private.coffee/api/interpreter', // 旧 overpass.kumi.systems(移転済み)
     'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
-    'https://overpass.kumi.systems/api/interpreter' // 旧URL(最後の予備)
+    'https://overpass.kumi.systems/api/interpreter', // 旧URL(予備)
+    'https://z.overpass-api.de/api/interpreter',     // overpass-api.deの別バックエンド
+    'https://lz4.overpass-api.de/api/interpreter',   // overpass-api.deの別バックエンド
+    'https://overpass.openstreetmap.fr/api/interpreter'
   ];
 
   function fetchWithTimeout(url, ms){
@@ -2067,9 +2070,15 @@
       controllers.forEach(c => { try{ c.abort(); }catch(e){} });
       return r;
     }, agg => {
+      // どのサーバーがどう失敗したかを短くまとめる(例: "de:timeout / coffee:HTTP 429")
       const errs = agg && agg.errors ? agg.errors : [];
-      const e = errs.find(x => x && x.name !== 'AbortError') || errs[0] || new Error('all endpoints failed');
-      throw e;
+      const summary = errs.map((x, i)=>{
+        let host = '';
+        try{ host = new URL(OVERPASS_ENDPOINTS[i]).hostname.replace(/^(overpass\.|www\.)/, '').split('.')[0]; }catch(_){ host = String(i); }
+        const why = !x ? '?' : (x.name === 'AbortError' ? 'timeout' : (x.message || x.name));
+        return host + ':' + why;
+      }).join(' / ');
+      throw new Error(summary || 'all endpoints failed');
     });
   }
 
