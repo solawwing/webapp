@@ -1370,6 +1370,7 @@
     lastStationCenter = null;
     hasFetchedLines = false;
     hasFetchedExtended = false;
+    extRingDone = [false, false]; lines4Done = false; extCenter = null; linesCenter = null;
     stationFetchAttempted = false;
     lastTickerKey = null;
     if(tickerTrack){
@@ -2081,6 +2082,11 @@
   let isFetchingExtended = false; // 拡張取得(10km圏)・路線名取得の重複実行を防ぐフラグ(Overpassの同時実行制限対策)
   let hasFetchedLines = false; // 路線名取得(fetchStationLines)が一度でも何らかの路線名を反映できたか
   let hasFetchedExtended = false; // 拡張取得(2〜10km圏)が一度でも成功したか
+  let extRingDone = [false, false]; // 拡張取得を2段階(2〜5km / 5〜10km)に分けて、段階ごとに成功を記録する
+  let lines4Done = false;           // 路線名取得の第1段階(4km圏)の成功
+  let extCenter = null;             // 拡張取得が完了した中心(この近くを移動している間は再取得しない)
+  let linesCenter = null;           // 路線名取得が完了した中心
+  const COVERAGE_REUSE_DIST = 3000; // 完了済み中心からこの距離以内なら、拡張・路線名は再取得せず蓄積データを使う [m]
   let stationFetchAttempted = false; // 一度でも駅取得を開始したか(最初の駅取得より前に住所取得が走らないようにする)
 
   // --- 駅情報のローカル蓄積(通信削減): 一度取得した駅は端末に保存し、同じ場所を再訪した際や
@@ -2703,69 +2709,68 @@
     return preferred ? [preferred, ...list] : list;
   }
 
-  // 2km〜10km圏の駅は失敗しても基本表示(1km/2km圏)に影響しないよう、別途ベストエフォートで取得
+  // 2km〜10km圏の駅は失敗しても基本表示(1km/2km圏)に影響しないよう、別途ベストエフォートで取得する。
+  // 1回の問い合わせを軽くして成功率を上げるため、2〜5km圏 → 5〜10km圏の2段階に分け、成功した段階は記録して再実行しない。
+  const EXT_RINGS = [[STATION_RADIUS_FAR, 5000], [5000, STATION_RADIUS_XFAR]];
   async function fetchExtendedStations(origin){
-    // サーバー側で「10km圏 - 2km圏」の差分だけを取得し、レスポンスを軽量化する
-    const query = `[out:json][timeout:30];
-      (
-        node["railway"="station"](around:${STATION_RADIUS_XFAR},${origin.lat},${origin.lng});
-        -
-        node["railway"="station"](around:${STATION_RADIUS_FAR},${origin.lat},${origin.lng});
-      );
-      out body;`;
-
-    for(const endpoint of ['race']){ // 全サーバーへ同時に問い合わせ、最初に成功した応答を採用
+    for(let r = 0; r < EXT_RINGS.length; r++){
+      if(extRingDone[r]) continue;
+      const [lo, hi] = EXT_RINGS[r];
+      const query = `[out:json][timeout:25];
+        (
+          node["railway"="station"](around:${hi},${origin.lat},${origin.lng});
+          -
+          node["railway"="station"](around:${lo},${origin.lat},${origin.lng});
+        );
+        out body;`;
       try{
-        const data = (await overpassRace(query, 35000)).data;
+        const data = (await overpassRace(query, 30000)).data;
         const stationNodes = (data.elements || []).filter(el => el.type === 'node' && el.tags && el.tags.railway === 'station');
-        if(stationNodes.length === 0){
-          hasFetchedExtended = true; // クエリ自体は成功(該当範囲に駅が無かっただけ)
-          return;
-        }
-
-        // 基本取得(cachedStations)に、まだ含まれていない駅だけ追加する
-        const existingIds = new Set(cachedStations.map(s => s.id));
+        const storedById = new Map(loadStoredStations().map(x => [x.id, x]));
+        const existingIds = new Set(cachedStations.map(x => x.id));
         let addedCount = 0;
         stationNodes.forEach(el=>{
-          if(existingIds.has(el.id)) return; // 既に基本取得(2km圏)で描画済み
+          if(existingIds.has(el.id)) return;
           const name = getLocalizedName(el.tags);
           if(!name) return;
           const dist = origin.distanceTo([el.lat, el.lon]);
-          if(dist > STATION_RADIUS_XFAR) return; // 念のための保険(サーバー側で既に絞り込み済み)
-          // networkタグは日本語の事業者名(例:"都営地下鉄")であることが多く、英語モードでフォールバック
-          // 表示すると分かりにくいため、日本語モードのときだけ暫定の路線名として使う
+          if(dist > STATION_RADIUS_XFAR) return;
           const lines = (currentLang === 'ja' && el.tags.network) ? [el.tags.network] : [];
+          const st = storedById.get(el.id);
+          if(st && st.lines) st.lines.forEach(l => { if(!lines.includes(l)) lines.push(l); });
           cachedStations.push({ name, lat: el.lat, lng: el.lon, lines, id: el.id });
-          const color = colorForStationDistance(dist);
-          const m = L.marker([el.lat, el.lon], { icon: stationIcon(name, color, lines), interactive:false }).addTo(map);
+          const m = L.marker([el.lat, el.lon], { icon: stationIcon(name, colorForStationDistance(dist), lines), interactive:false }).addTo(map);
           stationMarkers.push(m);
           addedCount++;
         });
         if(addedCount > 0){
           mapOverlay.textContent = t('stationCount', cachedStations.length);
-          saveStoredStations(cachedStations); // 通信削減のため端末に蓄積しておく
-          renderStoredStationsOnMap(origin); // 保存済み駅(10km超も含め全件)を地図上に表示
+          saveStoredStations(cachedStations);
+          renderStoredStationsOnMap(origin);
           try{ refreshTickerDistances(); }catch(e){ console.warn('refreshTickerDistances failed (non-critical):', e); }
         }
-        hasFetchedExtended = true; // 拡張取得(2〜10km圏)に成功
-        return; // 成功したらそこで終了(他のエンドポイントは試さない)
+        extRingDone[r] = true; // この段階は成功(該当駅が無かっただけでも成功)
       }catch(e){
-        console.warn('fetchExtendedStations endpoint failed (non-critical):', endpoint, e);
+        console.warn('fetchExtendedStations ring failed (non-critical):', r, e);
+        break; // 失敗したらそこで中断(次回、失敗した段階から再開)
       }
     }
+    hasFetchedExtended = extRingDone.every(Boolean);
   }
 
-  try{ localStorage.removeItem('whereyouat_rails_v1'); }catch(e){} // 廃止した路線描画の保存データを削除
-
   // 路線名はベストエフォートで後追い取得(失敗しても駅表示自体には影響しない)
-  async function fetchStationLines(origin){
+  function markLinesDone(radius){
+    if(radius >= STATION_RADIUS_XFAR) hasFetchedLines = true; else lines4Done = true;
+  }
+  async function fetchStationLines(origin, radius){
+    radius = radius || STATION_RADIUS_XFAR;
     try{
       const stationNodes = cachedStations; // {name, lat, lng, lines, id} の配列(基本取得のレスポンスに依存しない)
       // まずエリア内の駅ノードを.stationsとして取得し、それらのいずれかをメンバーに含む
       // route relationだけに絞り込む(back-reference)。これにより無関係な路線を除外しつつ、
       // 大江戸線のような駅数の多い環状路線でも、対象駅を含むrelationを確実に拾いやすくする。
       const lineQuery = `[out:json][timeout:45];
-        node["railway"="station"](around:${STATION_RADIUS_XFAR},${origin.lat},${origin.lng})->.stations;
+        node["railway"="station"](around:${radius},${origin.lat},${origin.lng})->.stations;
         rel(bn.stations)["type"="route"]["route"~"^(train|subway|light_rail)$"];
         out body;`;
 
@@ -2777,7 +2782,7 @@
       }
       if(!data) return; // 通信失敗(未取得のまま。再試行の対象)
       const routeRelations = (data.elements || []).filter(el => el.type === 'relation');
-      if(routeRelations.length === 0){ hasFetchedLines = true; return; } // 問い合わせは成功(該当路線が無いだけ)なので再試行しない
+      if(routeRelations.length === 0){ markLinesDone(radius); return; } // 問い合わせは成功(該当路線が無いだけ)なので再試行しない
 
       const stationIdToLines = new Map();
       routeRelations.forEach(rel=>{
@@ -2800,7 +2805,7 @@
         }
       });
 
-      if(stationIdToLines.size === 0){ hasFetchedLines = true; return; }
+      if(stationIdToLines.size === 0){ markLinesDone(radius); return; }
 
       // キャッシュと地図上のラベルに路線名を反映
       cachedStations.forEach(s=>{
@@ -2809,7 +2814,8 @@
           lineSet.forEach(l => { if(!s.lines.includes(l)) s.lines.push(l); });
         }
       });
-      hasFetchedLines = true; // 路線名の反映に成功した(次回以降、移動量が少なくても再取得を控えられる)
+      markLinesDone(radius);
+      saveStoredStations(cachedStations); // 路線名も端末に蓄積(次回以降は通信なしで表示できる)
       try{ refreshTickerDistances(); }catch(e){ console.warn('refreshTickerDistances failed (non-critical):', e); }
 
       // 地図上のラベルも路線名付きで再描画(失敗しても既存ラベルが消えたままにならないよう、新規描画が全て成功した場合のみ置き換える)
@@ -2939,9 +2945,35 @@
     storedListOverlayEl.addEventListener('click', ()=>{ closeStoredListModal(); });
   }
 
-  function showStoredStationsFallback(origin){
+  // Overpassが全滅した場合の代替(日本語モードのみ): HeartRails Express(最寄り駅API)からJSONPで近隣の駅と路線名を得る。
+  // CORSに依存しないようscriptタグで読み込む。一時表示用で端末には蓄積しない(Overpassの再試行は継続する)
+  function fetchHeartRailsStations(origin){
+    return new Promise((resolve, reject)=>{
+      const cbName = '__hrCb' + Date.now();
+      const sc = document.createElement('script');
+      const done = (fn, v)=>{ try{ delete window[cbName]; sc.remove(); }catch(e){} clearTimeout(tm); fn(v); };
+      const tm = setTimeout(()=> done(reject, new Error('timeout')), 8000);
+      window[cbName] = (json)=>{
+        try{
+          const list = (json && json.response && json.response.station) || [];
+          const byName = new Map();
+          list.forEach(x=>{
+            const key = x.name + '|' + Math.round(x.x*1000) + '|' + Math.round(x.y*1000);
+            if(!byName.has(key)) byName.set(key, { id:'hr:' + key, name:x.name, lat:Number(x.y), lng:Number(x.x), lines:[] });
+            if(x.line && !byName.get(key).lines.includes(x.line)) byName.get(key).lines.push(x.line);
+          });
+          done(resolve, Array.from(byName.values()));
+        }catch(e){ done(reject, e); }
+      };
+      sc.onerror = ()=> done(reject, new Error('load error'));
+      sc.src = `https://express.heartrails.com/api/json?method=getStations&x=${origin.lng}&y=${origin.lat}&callback=${cbName}`;
+      document.head.appendChild(sc);
+    });
+  }
+
+  function showStoredStationsFallback(origin, listOverride){
     if(cachedStations.length > 0) return false;
-    const stored = getStoredStationsNear(origin, STATION_RADIUS_XFAR);
+    const stored = listOverride || getStoredStationsNear(origin, STATION_RADIUS_XFAR);
     if(stored.length === 0) return false;
     clearStations();
     cachedStations = stored.slice();
@@ -2985,8 +3017,12 @@
       }
       if(!hasFetchedLines){
         setFetchStatus(t('fsFetchingLines'));
-        await fetchStationLines(origin);
+        // まず近い4km圏(軽い問い合わせ)で路線名を確実に反映し、続けて10km圏を取得する
+        if(!lines4Done) await fetchStationLines(origin, 4000);
+        if(lines4Done) await fetchStationLines(origin, STATION_RADIUS_XFAR);
       }
+      if(hasFetchedExtended) extCenter = origin;
+      if(hasFetchedLines) linesCenter = origin;
       if(hasFetchedExtended && hasFetchedLines){
         extRetryFailCount = 0;
         nextExtRetryAt = 0;
@@ -3066,13 +3102,22 @@
           let count = 0;
           const nearby = []; // { name, dist, lines, lat, lng }
           cachedStations = [];
-          hasFetchedLines = false; // 駅データを作り直したので、路線名も改めて未取得の状態に戻す
-          hasFetchedExtended = false; // 拡張取得(2〜10km圏)も改めて未取得の状態に戻す
+          // 拡張(2〜10km)・路線名は、完了済みの中心から3km以内を移動している間は再取得せず、蓄積データを使う
+          if(!extCenter || extCenter.distanceTo(origin) > COVERAGE_REUSE_DIST){
+            hasFetchedExtended = false; extRingDone = [false, false]; extCenter = null;
+          }
+          if(!linesCenter || linesCenter.distanceTo(origin) > COVERAGE_REUSE_DIST){
+            hasFetchedLines = false; lines4Done = false; linesCenter = null;
+          }
+          const storedAll = loadStoredStations();
+          const storedById = new Map(storedAll.map(x => [x.id, x]));
           stationNodes.forEach(el=>{
             const name = getLocalizedName(el.tags);
             if(!name) return;
             const dist = origin.distanceTo([el.lat, el.lon]);
             const lines = (currentLang === 'ja' && el.tags.network) ? [el.tags.network] : [];
+            const stSaved = storedById.get(el.id);
+            if(stSaved && stSaved.lines) stSaved.lines.forEach(l => { if(!lines.includes(l)) lines.push(l); });
             cachedStations.push({ name, lat: el.lat, lng: el.lon, lines, id: el.id });
             if(dist > STATION_RADIUS_XFAR) return; // 10km超は非表示
             const color = colorForStationDistance(dist);
@@ -3081,6 +3126,21 @@
             nearby.push({ name, dist, lines, lat: el.lat, lng: el.lon });
             count++;
           });
+          // 端末に蓄積済みの2〜10km圏の駅(路線名付き)も、再取得を待たずに併せて表示する
+          try{
+            const freshIds = new Set(cachedStations.map(x => x.id));
+            storedAll.forEach(sv=>{
+              if(freshIds.has(sv.id)) return;
+              const dist = origin.distanceTo([sv.lat, sv.lng]);
+              if(dist > STATION_RADIUS_XFAR) return;
+              const lines = (sv.lines || []).slice();
+              cachedStations.push({ name: sv.name, lat: sv.lat, lng: sv.lng, lines, id: sv.id });
+              const m = L.marker([sv.lat, sv.lng], { icon: stationIcon(sv.name, colorForStationDistance(dist), lines), interactive:false }).addTo(map);
+              stationMarkers.push(m);
+              nearby.push({ name: sv.name, dist, lines, lat: sv.lat, lng: sv.lng });
+              count++;
+            });
+          }catch(mergeErr){ console.warn('stored merge failed (non-critical):', mergeErr); }
           mapOverlay.textContent = count > 0 ? t('stationCount', count) : 'MAP VIEW';
           hideMapWaitOverlay(); // 駅名取得(基本)が完了したので待機表示を消す
           saveStoredStations(cachedStations); // 通信削減のため端末に蓄積しておく
@@ -3136,7 +3196,12 @@
         setFetchStatus(t('fsFailedRetry', reason, Math.round(backoff/1000), stationFailCount));
 
         // 通信に失敗し、まだ駅データが無ければ、端末に蓄積済みのデータで代替表示する(通信削減・オフライン対応)
-        showStoredStationsFallback(origin);
+        if(!showStoredStationsFallback(origin) && currentLang === 'ja'){
+          // 蓄積データも無い場合の最終手段: 別系統の最寄り駅APIで近隣の駅を暫定表示する
+          fetchHeartRailsStations(origin).then(list=>{
+            if(list.length > 0) showStoredStationsFallback(origin, list);
+          }).catch(e => console.warn('HeartRails fallback failed (non-critical):', e));
+        }
 
         clearTimeout(stationRetryTimer);
         // 連続失敗するほど間隔を伸ばす(3秒→6秒→12秒...最大30秒): 過度な連打によるレート制限を避ける
@@ -3153,6 +3218,21 @@
       isFetchingStations = false;
     }
   }
+
+  // 回線が復帰した・アプリが前面に戻った(iPhoneはバックグラウンド中にタイマーが止まる)ときは、
+  // 待機中の再試行間隔をリセットして、すぐに取得をやり直す
+  function kickFetchNow(){
+    try{
+      clearTimeout(stationRetryTimer);
+      stationFailCount = 0;
+      nextExtRetryAt = 0;
+      extRetryFailCount = 0;
+      setTimeout(fetchStations, 300);
+    }catch(e){ console.warn('kickFetchNow failed (non-critical):', e); }
+  }
+  window.addEventListener('online', kickFetchNow);
+  window.addEventListener('pageshow', kickFetchNow);
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'visible') kickFetchNow(); });
 
   map.on('moveend', ()=>{
     clearTimeout(stationFetchTimer);
