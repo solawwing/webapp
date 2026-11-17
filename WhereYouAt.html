@@ -2105,8 +2105,9 @@
   }
 
   // 新しく取得した駅データを、既存の蓄積データにマージして保存する(駅IDで重複排除、最新の情報で上書き)
-  // 初めて取得した駅の位置に「〜駅取得」の吹き出しを15秒間表示する
-  const ACQUIRED_BUBBLE_MS = 15000;
+  // 初めて取得した駅の位置に「〜駅取得」の吹き出しをフェードインで表示し、10秒後にフェードアウトして消す
+  const ACQUIRED_BUBBLE_MS = 10000; // 表示してからフェードアウトを始めるまで
+  const ACQUIRED_FADE_MS = 1000;
   function showStationAcquiredBubble(st){
     const esc = (v)=> String(v).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     const text = currentLang === 'ja'
@@ -2115,10 +2116,13 @@
     const icon = L.divIcon({
       className: '',
       iconSize: [0, 0],
-      html: `<div style="position:absolute; left:0; bottom:14px; transform:translateX(-50%); white-space:nowrap; background:#fff; color:#111; font-family:var(--mono); font-size:11px; padding:3px 8px; border-radius:8px; text-shadow:-1px -1px 0 #bbb,1px -1px 0 #bbb,-1px 1px 0 #bbb,1px 1px 0 #bbb,0 -1px 0 #bbb,0 1px 0 #bbb,-1px 0 0 #bbb,1px 0 0 #bbb; filter:drop-shadow(2px 3px 3px rgba(0,0,0,.75));">${text}<span style="position:absolute; left:50%; bottom:-5px; margin-left:-5px; border:5px solid transparent; border-bottom:0; border-top-color:#fff;"></span></div>`
+      html: `<div class="acqBubble" style="opacity:0; transition:opacity ${ACQUIRED_FADE_MS}ms ease; position:absolute; left:0; bottom:14px; transform:translateX(-50%); white-space:nowrap; background:#fff; color:#111; font-family:var(--mono); font-size:11px; padding:3px 8px; border-radius:8px; text-shadow:-1px -1px 0 #bbb,1px -1px 0 #bbb,-1px 1px 0 #bbb,1px 1px 0 #bbb,0 -1px 0 #bbb,0 1px 0 #bbb,-1px 0 0 #bbb,1px 0 0 #bbb; filter:drop-shadow(2px 3px 3px rgba(0,0,0,.75));">${text}<span style="position:absolute; left:50%; bottom:-5px; margin-left:-5px; border:5px solid transparent; border-bottom:0; border-top-color:#fff;"></span></div>`
     });
     const m = L.marker([st.lat, st.lng], { icon, interactive:false, zIndexOffset:1500 }).addTo(map);
-    setTimeout(()=>{ try{ map.removeLayer(m); }catch(e){} }, ACQUIRED_BUBBLE_MS);
+    const el = m.getElement() && m.getElement().querySelector('.acqBubble');
+    if(el){ requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ el.style.opacity = '1'; }); }); } // フェードイン
+    setTimeout(()=>{ if(el) el.style.opacity = '0'; }, ACQUIRED_BUBBLE_MS); // フェードアウト
+    setTimeout(()=>{ try{ map.removeLayer(m); }catch(e){} }, ACQUIRED_BUBBLE_MS + ACQUIRED_FADE_MS + 100);
   }
 
   function saveStoredStations(newStations){
