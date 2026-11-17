@@ -2049,6 +2049,29 @@
     }).finally(()=> clearTimeout(timer));
   }
 
+  // 全てのOverpassサーバーへ同時に問い合わせ、最初に成功した応答を採用する(1つが遅い/落ちていても影響されない)
+  function overpassRace(query, ms){
+    const controllers = [];
+    const tasks = OVERPASS_ENDPOINTS.map(ep => new Promise((resolve, reject)=>{
+      const c = new AbortController();
+      controllers.push(c);
+      const timer = setTimeout(()=> c.abort(), ms);
+      fetch(ep + '?data=' + encodeURIComponent(query), { signal: c.signal, headers: { 'Accept': 'application/json' } })
+        .then(res => { if(!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+        .then(data => { if(!data || !Array.isArray(data.elements)) throw new Error('bad response'); resolve({ data, endpoint: ep }); })
+        .catch(reject)
+        .finally(()=> clearTimeout(timer));
+    }));
+    return Promise.any(tasks).then(r=>{
+      controllers.forEach(c => { try{ c.abort(); }catch(e){} });
+      return r;
+    }, agg => {
+      const errs = agg && agg.errors ? agg.errors : [];
+      const e = errs.find(x => x && x.name !== 'AbortError') || errs[0] || new Error('all endpoints failed');
+      throw e;
+    });
+  }
+
   // --- 住所表示(逆ジオコーディング / Nominatim) ---
   let lastAddressCenter = null;
   let lastAddressFetchTime = 0;
@@ -2998,19 +3021,18 @@
       setFetchStatus(t('fsFetchingBasic') + (stationFailCount > 0 ? ` [${currentLang==='ja'?'再試行':'retry'} ${stationFailCount}: ${lastFailReason}]` : ''));
 
       // まず駅ノードのみを軽量取得(路線リレーションは含めない: レスポンスを軽くして成功率を上げる)
-      const stationQuery = `[out:json][timeout:8];node["railway"="station"](around:${STATION_RADIUS_FAR},${origin.lat},${origin.lng});out body;`;
+      const stationQuery = `[out:json][timeout:15];node["railway"="station"](around:${STATION_RADIUS_FAR},${origin.lat},${origin.lng});out body;`;
 
       let succeeded = false;
       let lastError = null;
-      const endpoints = orderedEndpoints();
+      const endpoints = ['race']; // 全サーバーへ同時に問い合わせる(overpassRace)
+      let usedEndpoint = null;
       for(let i = 0; i < endpoints.length; i++){
-        const endpoint = endpoints[i];
         try{
-          if(i > 0) setFetchStatus(t('fsServerSwitch', i+1, endpoints.length));
-          // クライアント側の待機時間は、クエリ内のサーバー側timeout(10秒)より必ず長くする
-          const res = await fetchWithTimeout(endpoint + '?data=' + encodeURIComponent(stationQuery), 10000);
-          if(!res.ok) throw new Error('HTTP ' + res.status);
-          const data = await res.json();
+          // クライアント側の待機時間は、クエリ内のサーバー側timeoutより必ず長くする
+          const raced = await overpassRace(stationQuery, 20000);
+          const data = raced.data;
+          usedEndpoint = raced.endpoint;
           clearStations();
 
           const stationNodes = (data.elements || []).filter(el => el.type === 'node' && el.tags && el.tags.railway === 'station');
@@ -3057,7 +3079,7 @@
           succeeded = true;
 
           // 使えたエンドポイントを次回優先にする
-          preferredEndpointIndex = OVERPASS_ENDPOINTS.indexOf(endpoint);
+          preferredEndpointIndex = OVERPASS_ENDPOINTS.indexOf(usedEndpoint);
           if(preferredEndpointIndex < 0) preferredEndpointIndex = 0;
 
           // 基本の駅名(1km/2km圏)はここまでで確定・表示済み。以降の拡張取得・路線名取得は
@@ -3086,7 +3108,7 @@
           break;
         }catch(e){
           lastError = e;
-          console.warn('overpass endpoint failed:', endpoint, e);
+          console.warn('overpass race failed:', e);
         }
       }
       if(!succeeded){
