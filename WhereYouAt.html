@@ -2775,9 +2775,9 @@
       }catch(e){
         console.warn('fetchStationLines failed (non-critical):', e);
       }
-      if(!data) return;
+      if(!data) return; // 通信失敗(未取得のまま。再試行の対象)
       const routeRelations = (data.elements || []).filter(el => el.type === 'relation');
-      if(routeRelations.length === 0) return;
+      if(routeRelations.length === 0){ hasFetchedLines = true; return; } // 問い合わせは成功(該当路線が無いだけ)なので再試行しない
 
       const stationIdToLines = new Map();
       routeRelations.forEach(rel=>{
@@ -2800,7 +2800,7 @@
         }
       });
 
-      if(stationIdToLines.size === 0) return;
+      if(stationIdToLines.size === 0){ hasFetchedLines = true; return; }
 
       // キャッシュと地図上のラベルに路線名を反映
       cachedStations.forEach(s=>{
@@ -2969,6 +2969,44 @@
     return true;
   }
 
+  // 拡張(2〜10km圏)→路線名を順番に取得する共通処理。失敗した項目は、再試行間隔を徐々に広げながら(10→20→40→60秒)
+  // やり直す。成功するまで過剰にサーバーへ連続リクエストしないようにしつつ、確実に取得し切ることを狙う。
+  let extRetryFailCount = 0;
+  let nextExtRetryAt = 0;
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  async function runExtendedAndLines(origin, doneStatusKey){
+    if(isFetchingExtended) return;
+    isFetchingExtended = true;
+    try{
+      if(!hasFetchedExtended){
+        setFetchStatus(t('fsFetchingExtended'));
+        await fetchExtendedStations(origin);
+        await sleep(800); // 連続リクエストによるレート制限を避ける
+      }
+      if(!hasFetchedLines){
+        setFetchStatus(t('fsFetchingLines'));
+        await fetchStationLines(origin);
+      }
+      if(hasFetchedExtended && hasFetchedLines){
+        extRetryFailCount = 0;
+        nextExtRetryAt = 0;
+        setFetchStatus(t(doneStatusKey));
+      } else {
+        extRetryFailCount++;
+        const wait = Math.min(60000, 10000 * Math.pow(2, extRetryFailCount - 1));
+        nextExtRetryAt = Date.now() + wait;
+        setFetchStatus(t('fsExtLinesPartialFail') + ` (${Math.round(wait/1000)}s)`);
+      }
+    }catch(e){
+      console.warn('runExtendedAndLines failed (non-critical):', e);
+      extRetryFailCount++;
+      nextExtRetryAt = Date.now() + Math.min(60000, 10000 * Math.pow(2, extRetryFailCount - 1));
+      setFetchStatus(t('fsExtLinesPartialFail'));
+    }finally{
+      isFetchingExtended = false;
+    }
+  }
+
   async function fetchStations(){
     if(isFetchingStations) return; // 既に実行中なら重複実行しない
     isFetchingStations = true;
@@ -2995,17 +3033,8 @@
           // 基本取得はやり直さず(せっかく取得済みのデータが失われないよう)拡張・路線名取得だけ再試行する
           const reason = !hasFetchedExtended ? t('reasonExtNotFetched') : t('reasonLinesNotFetched');
           setFetchStatus(t('fsWaitingExtLines', reason));
-          if(!isFetchingExtended){
-            isFetchingExtended = true;
-            fetchExtendedStations(origin).then(()=>{
-              return fetchStationLines(origin);
-            }).then(()=>{
-              setFetchStatus(t('fsExtLinesReflected'));
-            }).catch(e=>{
-              console.warn('retry fetchExtendedStations/fetchStationLines failed (non-critical):', e);
-            }).finally(()=>{
-              isFetchingExtended = false;
-            });
+          if(!isFetchingExtended && Date.now() >= nextExtRetryAt){
+            runExtendedAndLines(origin, 'fsExtLinesReflected');
           }
           return;
         } else {
@@ -3086,19 +3115,10 @@
           // 2km〜10km圏の駅、路線名は、同じサーバーへの同時リクエストを避けるため順番に実行する
           // (失敗しても基本の駅表示には影響しないベストエフォート処理。Overpassは同時実行数が
           //  厳しく制限されているため、既に実行中なら重複させない)
+          extRetryFailCount = 0;
+          nextExtRetryAt = 0;
           if(!isFetchingExtended){
-            isFetchingExtended = true;
-            setFetchStatus(t('fsFetchingExtended'));
-            fetchExtendedStations(origin).then(()=>{
-              setFetchStatus(t('fsFetchingLines'));
-              return fetchStationLines(origin);
-            }).then(()=>{
-              setFetchStatus(t('fsAllDone'));
-            }).catch(()=>{
-              setFetchStatus(t('fsExtLinesPartialFail'));
-            }).finally(()=>{
-              isFetchingExtended = false;
-            });
+            runExtendedAndLines(origin, 'fsAllDone');
           } else {
             setFetchStatus(t('fsBasicDone'));
           }
