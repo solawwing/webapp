@@ -423,7 +423,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-19 11:45';
+const LAST_UPDATED = '2026-11-19 11:50';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -3145,7 +3145,7 @@ function updateHirogari(dt) {
   for (const e of enemies) {
     if (e.type === 'TURRET') continue;
     e.hiroSlow = test(e, e.def.r || 10);
-    if (e.hiroSlow) e.hiroAng = (e.hiroAng || 0) + dt * 16;
+    if (e.hiroSlow) e.hiroAng = (e.hiroAng || 0) + dt * 11.2;
     else if (e.hiroAng) { e.hiroAng = lerpAngle(e.hiroAng % (Math.PI * 2), 0, Math.min(1, dt * 3)); if (Math.abs(e.hiroAng) < 0.01) e.hiroAng = 0; }
   }
   for (const a of asteroids) a.hiroSlow = test(a, a.r || 10);
@@ -7396,7 +7396,7 @@ function updateAsteroids(fullDt) {
       if (Math.hypot(a.x - scx, a.y - scy) <= ringR + (a.r || 10)) { slowedByShockwave = true; break; }
     }
     const dt = (slowedByShockwave ? fullDt * (1 / 4) : fullDt) * (a.javelinSlow ? 0.25 : 1) * (a.hiroSlow ? 0.2 : 1);
-    if (a.hiroSlow) a.angle += Math.sign(a.spin || 1) * fullDt * 16; // spins
+    if (a.hiroSlow) a.angle += Math.sign(a.spin || 1) * fullDt * 11.2; // spins
     a.gravSlowed = slowedByShockwave; // for the GRAVITY lock-on square
     a.x += (a.vx || 0) * dt;
     a.y += a.vy * dt;
