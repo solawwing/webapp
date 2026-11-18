@@ -316,6 +316,10 @@
         <div class="item-header"><span class="item-icon">7</span><span class="item-name">7THREE</span></div>
         <div class="item-desc">Three laser beams (every 0.5s, damaging a pierced foe every 0.1s) whose damage is set by a slot machine.</div>
       </div>
+      <div class="item-entry" data-weapon="8HIROGARI">
+        <div class="item-header"><span class="item-icon">8</span><span class="item-name">8HIROGARI</span></div>
+        <div class="item-desc">EARTH's ship laser. Foes in a narrow cone ahead slow to 1/5 speed and spin.</div>
+      </div>
       <div class="item-entry" data-weapon="9SHOT">
         <div class="item-header"><span class="item-icon">9</span><span class="item-name">9SHOT</span></div>
         <div class="item-desc">Laser that chases foe after foe, up to 9 times.</div>
@@ -419,7 +423,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-18 23:20';
+const LAST_UPDATED = '2026-11-19 11:45';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -488,7 +492,7 @@ function reportDamage(d) { if (d > 0) { lastHitDamage = Math.round(d * 10) / 10;
 function unleashPulseTime() { return Math.max(0.5, 1.3 - (player.rapidLevel || 0) * 0.1); }
 function weaponMaxLevel(type) {
   // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL/ZAPPER/XCROSS/KURU2/ARROW/QIX/EARTH/WHIPS/INFINITY/FUNNEL uniquely level up to 7, every other weapon caps at 5
-  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS' || type === 'INFINITY' || type === 'FUNNEL' || type === 'UNLEASH' || type === 'YARELY' || type === 'NORMAL' || type === 'JAVELIN' || type === '9SHOT' || type === '1SHOCKS' || type === '2DORAGO' || type === '3RIANGL' || type === '4ORCE' || type === '5ATELLITE' || type === '6OARD' || type === '7THREE') ? 7 : 5;
+  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS' || type === 'INFINITY' || type === 'FUNNEL' || type === 'UNLEASH' || type === 'YARELY' || type === 'NORMAL' || type === 'JAVELIN' || type === '9SHOT' || type === '1SHOCKS' || type === '2DORAGO' || type === '3RIANGL' || type === '4ORCE' || type === '5ATELLITE' || type === '6OARD' || type === '7THREE' || type === '8HIROGARI') ? 7 : 5;
 }
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function formatScore(n) { return Math.round(n).toLocaleString('en-US'); }
@@ -553,9 +557,9 @@ function resetPlayer() {
 }
 
 // ---------- items ----------
-const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL', 'UNLEASH', 'YARELY', 'NORMAL', 'JAVELIN', '9SHOT', '1SHOCKS', '2DORAGO', '3RIANGL', '4ORCE', '5ATELLITE', '6OARD', '7THREE'];
+const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL', 'UNLEASH', 'YARELY', 'NORMAL', 'JAVELIN', '9SHOT', '1SHOCKS', '2DORAGO', '3RIANGL', '4ORCE', '5ATELLITE', '6OARD', '7THREE', '8HIROGARI'];
 document.getElementById('versionLine').textContent = 'version 5.0 (' + ITEM_TYPES.length + ' items)'; // item count follows the item list automatically
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff7a1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff', UNLEASH: '#ff2fd4', YARELY: '#f4ff2e', NORMAL: '#ffffff', JAVELIN: '#9a9a9a', '9SHOT': '#ff3b3b', '1SHOCKS': '#00f5ff', '2DORAGO': '#4aa8ff', '3RIANGL': '#39ff14', '4ORCE': '#bf00ff', '5ATELLITE': '#00e5ff', '6OARD': '#ffffff', '7THREE': '#ff10f0' };
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff7a1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff', UNLEASH: '#ff2fd4', YARELY: '#f4ff2e', NORMAL: '#ffffff', JAVELIN: '#9a9a9a', '9SHOT': '#ff3b3b', '1SHOCKS': '#00f5ff', '2DORAGO': '#4aa8ff', '3RIANGL': '#39ff14', '4ORCE': '#bf00ff', '5ATELLITE': '#00e5ff', '6OARD': '#ffffff', '7THREE': '#ff10f0', '8HIROGARI': '#ff9d00' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -828,7 +832,7 @@ function updateItems(dt) {
     }
   }
 }
-const ITEM_GLYPHS = { LIFE: '+', DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E', WHIPS: 'W', INFINITY: 'I', FUNNEL: 'F', UNLEASH: 'U', YARELY: 'Y', NORMAL: 'N', JAVELIN: 'J', '9SHOT': '9', '1SHOCKS': '1', '2DORAGO': '2', '3RIANGL': '3', '4ORCE': '4', '5ATELLITE': '5', '6OARD': '6', '7THREE': '7' };
+const ITEM_GLYPHS = { LIFE: '+', DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E', WHIPS: 'W', INFINITY: 'I', FUNNEL: 'F', UNLEASH: 'U', YARELY: 'Y', NORMAL: 'N', JAVELIN: 'J', '9SHOT': '9', '1SHOCKS': '1', '2DORAGO': '2', '3RIANGL': '3', '4ORCE': '4', '5ATELLITE': '5', '6OARD': '6', '7THREE': '7', '8HIROGARI': '8' };
 function drawItems() {
   ctx.lineWidth = 1;
   items.forEach(it => {
@@ -909,6 +913,7 @@ function infinityRandomOnScreenTargetPos() {
   const candidates = [];
   const onScreen = (x, y) => x >= 0 && x <= W && y >= 0 && y <= H;
   enemies.forEach(e => {
+    if (e.pillar) return; // pillars are never homing / chain targets
     if (e.type === 'GIANTBOSS') {
       if (e.miniBossHp) {
         for (let vk = 0; vk < e.miniBossHp.length; vk++) {
@@ -929,6 +934,7 @@ function infinityRandomOnScreenTargetPos() {
 function findNearestEnemy(x, y) {
   let best = null, bestD = Infinity;
   enemies.forEach(e => {
+    if (e.pillar) return; // pillars are never homing / chain targets
     const d = dist2(x, y, e.x, e.y);
     if (d < bestD) { bestD = d; best = e; }
   });
@@ -944,6 +950,7 @@ function findNearestLaserTargetExcluding(x, y, excludeSet) {
   // used by LASER's side beams so they can specifically aim at mini-bosses
   let best = null, bestD = Infinity, bestPos = null;
   enemies.forEach(e => {
+    if (e.pillar) return; // pillars are never homing / chain targets
     if (e.type === 'GIANTBOSS') {
       if (e.miniBossHp) {
         e.miniBossMarkers = e.miniBossMarkers || [];
@@ -977,6 +984,7 @@ function findNearestLaserTargetExcluding(x, y, excludeSet) {
 function findNearestEnemyExcluding(x, y, excludeSet) {
   let best = null, bestD = Infinity;
   enemies.forEach(e => {
+    if (e.pillar) return; // pillars are never homing / chain targets
     if (excludeSet.has(e)) return;
     const d = dist2(x, y, e.x, e.y);
     if (d < bestD) { bestD = d; best = e; }
@@ -1022,6 +1030,7 @@ function findZapperTarget(x, y, excludeSet, allowShared) {
     if (d < bestD) { bestD = d; best = obj; }
   };
   enemies.forEach(e => {
+    if (e.pillar) return; // pillars are never homing / chain targets
     if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) return;
     consider(e, e.x, e.y);
   });
@@ -1185,6 +1194,7 @@ function findNearestEnemyAhead(x, y, excludeSet, maxY) {
   // asteroids count as valid targets too (there are no other enemies during the Asteroid Belt)
   let best = null, bestD = Infinity;
   enemies.forEach(e => {
+    if (e.pillar) return; // pillars are never homing / chain targets
     if (excludeSet.has(e)) return;
     if (e.y > maxY) return;
     const d = dist2(x, y, e.x, e.y);
@@ -1204,6 +1214,7 @@ function findTopmostEnemyAhead(excludeSet, maxY) {
   // valid targets too (there are no other enemies during the Asteroid Belt)
   let best = null, bestY = -Infinity;
   enemies.forEach(e => {
+    if (e.pillar) return; // pillars are never homing / chain targets
     if (excludeSet.has(e)) return;
     if (e.y > maxY) return;
     if (e.y > bestY) { bestY = e.y; best = e; }
@@ -1235,7 +1246,7 @@ const SPARK_COOLDOWNS = [0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]; // fixed 0.5s re
 // "wait until the screen is clear of your own bullets" gate for these weapons
 const WEAPON_FIRE_COOLDOWNS = {
   NORMAL: 0.2, DOUBLE: 0.5, MISSILE: 1.0, HOMING: 0.7, LASER: 1.0,
-  GRAVITY: 0.3, BUBBLE: 0.3, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4, QIX: 0.4, INFINITY: 1.0, YARELY: 0.4, JAVELIN: 0.4, '9SHOT': 0.05, '1SHOCKS': 1.0, '2DORAGO': 1.0, '3RIANGL': 0.5, '4ORCE': 0.5, '5ATELLITE': 1.5, '6OARD': 0.5, '7THREE': 0.5,
+  GRAVITY: 0.3, BUBBLE: 0.3, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4, QIX: 0.4, INFINITY: 1.0, YARELY: 0.4, JAVELIN: 0.4, '9SHOT': 0.05, '1SHOCKS': 1.0, '2DORAGO': 1.0, '3RIANGL': 0.5, '4ORCE': 0.5, '5ATELLITE': 1.5, '6OARD': 0.5, '7THREE': 0.5, '8HIROGARI': 0.3,
 };
 const LASER_SPECS = [null,
   { length: 200, pierce: 5, speed: 300 },
@@ -1327,6 +1338,7 @@ function nineShotPick(x, y, exclude) {
     if (d < bestD) { bestD = d; best = key; bestPos = pos; }
   };
   enemies.forEach(e => {
+    if (e.pillar) return; // pillars are never homing / chain targets
     if (e.type === 'GIANTBOSS') {
       if (e.miniBossHp) {
         e.miniBossMarkers = e.miniBossMarkers || [];
@@ -1346,9 +1358,10 @@ function nineShotPick(x, y, exclude) {
   asteroids.forEach(a => consider(a, { x: a.x, y: a.y }));
   return best ? { key: best, pos: bestPos } : null;
 }
-function eachFoe(cb) {
+function eachFoe(cb, skipPillars) {
   // every valid target (enemy, asteroid, mini-boss vertex, vulnerable boss body): cb(key, pos, radius)
   enemies.forEach(e => {
+    if (skipPillars && e.pillar) return;
     if (e.type === 'GIANTBOSS') {
       if (e.miniBossHp) {
         e.miniBossMarkers = e.miniBossMarkers || [];
@@ -1644,6 +1657,8 @@ function fireWeapon() {
   } else if (player.weapon === 'ZAPPER') {
     // no per-trigger action — ZAPPER's drones hunt/attack entirely on their own
     // state machine in updatePlayer, not through this dispatch
+  } else if (player.weapon === '8HIROGARI') {
+    // no per-trigger action — the ship's EARTH-style laser fires on its own timer in updatePlayer
   } else if (player.weapon === 'EARTH') {
     // no per-trigger action — EARTH's pods slide and fire entirely on their own
     // in updatePlayer, not through this dispatch
@@ -3117,6 +3132,32 @@ function checkMiniBossHits(e) {
   }
 }
 
+// 8HIROGARI: every target inside the cone straight ahead of the ship (5 degrees wide at Lv1, +5 per level) is slowed to 1/5 and spins
+function updateHirogari(dt) {
+  const on = player.weapon === '8HIROGARI' && player.alive && !player.warping;
+  const half = on ? (5 * (player.weaponLevel || 1) / 2) * Math.PI / 180 : 0;
+  const test = (o, r) => {
+    if (!on) return false;
+    const dx = o.x - player.x, dy = player.y - o.y;
+    if (dy <= 0) return false;
+    return Math.atan2(Math.abs(dx), dy) <= half + Math.atan2(r, Math.hypot(dx, dy));
+  };
+  for (const e of enemies) {
+    if (e.type === 'TURRET') continue;
+    e.hiroSlow = test(e, e.def.r || 10);
+    if (e.hiroSlow) e.hiroAng = (e.hiroAng || 0) + dt * 16;
+    else if (e.hiroAng) { e.hiroAng = lerpAngle(e.hiroAng % (Math.PI * 2), 0, Math.min(1, dt * 3)); if (Math.abs(e.hiroAng) < 0.01) e.hiroAng = 0; }
+  }
+  for (const a of asteroids) a.hiroSlow = test(a, a.r || 10);
+}
+function drawHirogariCone() {
+  if (player.weapon !== '8HIROGARI' || !player.alive || player.warping || state !== STATE.PLAYING) return;
+  const half = (5 * (player.weaponLevel || 1) / 2) * Math.PI / 180, len = player.y + 20, w = Math.tan(half) * len;
+  ctx.save();
+  ctx.fillStyle = 'rgba(80,200,255,0.1)'; // light blue, 90% transparent
+  ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(player.x - w, player.y - len); ctx.lineTo(player.x + w, player.y - len); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
 function updateEnemies(dt) {
   const fullDt = dt; // preserved before any per-enemy slow-down shadowing below
   formationOffsetT += fullDt;
@@ -3158,7 +3199,7 @@ function updateEnemies(dt) {
       const f = phantomFlashes[pi];
       if (e.x >= f.x && e.x <= f.x + f.w && e.y >= f.y && e.y <= f.y + f.h) { slowedByPhantom = true; break; }
     }
-    const dt = ((slowedByShockwave || slowedByPhantom) ? fullDt * (slowedByShockwave ? (1 / 4) : 0.5) : fullDt) * (e.javelinSlow ? 0.25 : 1); // JAVELIN-pierced enemies stay at quarter speed
+    const dt = ((slowedByShockwave || slowedByPhantom) ? fullDt * (slowedByShockwave ? (1 / 4) : 0.5) : fullDt) * (e.javelinSlow ? 0.25 : 1) * (e.hiroSlow ? 0.2 : 1); // JAVELIN-pierced enemies stay at quarter speed; 8HIROGARI cone: 1/5
     e.gravSlowed = slowedByShockwave; // for the GRAVITY lock-on square
     if (e.state === 'enter') {
       e.t += (dt * (e.type === 'GIANTBOSS' ? 2 : 1.875)) / e.duration; // moves into formation at 1.875x speed (boss 2x)
@@ -3236,6 +3277,19 @@ function updateEnemies(dt) {
         const p = bezier(e.p0, e.p1, e.p2, e.p3, e.t);
         e.x = p.x; e.y = p.y;
       }
+    } else if (e.state === 'wallturret' && e.pillar) {
+      e.ly += WALL_SCROLL * dt;
+      const lx = wallEdgeX(0, e.ly), rx = wallEdgeX(1, e.ly), cx = lx + (rx - lx) * e.u;
+      e.x = cx + (W / 2 - cx) * WALL_VP / 2; e.y = e.ly + (H / 2 - e.ly) * WALL_VP / 2; // hit box sits mid-way between front and base
+      if (e.ly > H + PILLAR || !wallsWanted()) { enemies.splice(i, 1); continue; }
+    } else if (e.state === 'wallturret' && e.deep) {
+      // inner-edge turret: scrolls at 0.7x, sits on the receded edge (pulled toward the centre by WALL_VP), no fire
+      e.ly += WALL_SCROLL * 0.7 * dt;
+      const dir = e.side === 0 ? 1 : -1, ex = wallEdgeX(e.side, e.ly);
+      const hg = WALL_TURRET_SIDE * Math.sqrt(3) / 2;
+      e.x = (ex + dir * hg / 3) + (W / 2 - (ex + dir * hg / 3)) * WALL_VP;
+      e.y = e.ly + (H / 2 - e.ly) * WALL_VP;
+      if (e.ly > H + 30 || !wallsWanted()) { enemies.splice(i, 1); continue; }
     } else if (e.state === 'wallturret') {
       e.baseY += WALL_SCROLL * dt; // rides the wall down...
       // ...while sliding up and down along it: every 0.6-1.4s pick a new random offset within +/-WALL_TURRET_RANGE
@@ -3305,7 +3359,7 @@ let debugStartAtBoss = false; // set via tapping the tier-A icon on the title sc
 let debugSkipEnemyWaves = false; // set via tapping the tier-C icon on the title screen — only ASTEROID/CRYSTAL/BOSS cycle positions play, ENEMY positions are silently skipped
 let debugWallBossOnly = false; // set via double-tapping the tier-D (green) icon on the title screen — only cycle positions 2, 6, 10 (wall stages) and the BOSS play, weapon starts at Lv3
 let debugStartMaxLevel = false; // set via tapping the tier-E icon on the title screen
-const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'JAVELIN', 'KURU2', 'LASER', 'MISSILE', 'NORMAL', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'UNLEASH', 'VULCAN', 'WHIPS', 'XCROSS', 'YARELY', 'ZAPPER', '1SHOCKS', '2DORAGO', '3RIANGL', '4ORCE', '5ATELLITE', '6OARD', '7THREE', '9SHOT']; // no NORMAL — alphabetical order
+const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'JAVELIN', 'KURU2', 'LASER', 'MISSILE', 'NORMAL', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'UNLEASH', 'VULCAN', 'WHIPS', 'XCROSS', 'YARELY', 'ZAPPER', '1SHOCKS', '2DORAGO', '3RIANGL', '4ORCE', '5ATELLITE', '6OARD', '7THREE', '8HIROGARI', '9SHOT']; // no NORMAL — alphabetical order
 function showEquipSelect() {
   showingEquip = true;
   titleScreen.classList.add('hidden');
@@ -3376,6 +3430,8 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["1 satellite.", "2 satellites.", "3 satellites.", "4 satellites.", "5 satellites.", "6 satellites.", "7 satellites."] },
   '6OARD': { intro: "A 50x100px board (1.2x bigger with every level) flies straight up, spinning about its own horizontal axis, and pierces everything in its way, ticking 1 damage every 0.05s while overlapping a foe; while piercing a foe it slows to speed 5, then speeds back up. Each level makes the board 1.2x bigger. Levels to 7.",
     levels: ["50px.", "60px.", "72px.", "86px.", "104px.", "124px.", "149px."] },
+  '8HIROGARI': { intro: "Fires the same straight-up laser as EARTH's ship (no pods), and it pierces (damaging each foe every 0.1s); it deals 1, 2, 3, 4, 5, 1, 2... damage in turn. Every target (enemy, asteroid, crystal, mini-boss, boss) inside a narrow cone straight ahead of the ship is slowed to 1/5 speed and spins fast. The cone is 5 degrees wide at Lv1 and +5 degrees per level. RAPID adds directions: 2 / 3 / 4 lasers, 5 degrees apart. Levels to 7.",
+    levels: ["Cone: 5 degrees.", "Cone: 10 degrees.", "Cone: 15 degrees.", "Cone: 20 degrees.", "Cone: 25 degrees.", "Cone: 30 degrees.", "Cone: 35 degrees."] },
   '7THREE': { intro: "Three LASER-style beams fly straight up from the ship at -30, 0 and +30px. A 3-reel slot machine (its reels shoot down enemy bullets while they are on screen) sets their damage: the left reel is the left laser's damage, the middle reel the centre laser's, the right reel the right laser's (a 0 reel, shown as '-', means that laser does no damage; if all three reels are 0 the slot spins again). The reels (shown in front of the ship only while they spin) spin when the item is picked up and then every 15s; each reel takes 2s to slow to a stop, one after another from the left. If all three reels match on a number other than 0, every laser deals that number x10 and kill points are x10 while the reels stay matched. While the reels are matched (until the next spin has finished turning) the lasers are replaced by eleven lasers at +150, +120 ... -150 (30px steps), each dealing the matched number x10, fired every 0.25s and flying at 2250px/s. After a triple the next 4 spins roll the same triple again (the FEVER always lasts 5 spins), (a reach completes with 80% at 11 down to 20% at 77, and then the right reel takes 5s to stop); after an all-'-' result the next spin is a FEVER with 50% probability. Each level removes the low numbers from the reels. Levels to 7.",
     levels: ["Reels: 0-7.", "Reels: 0, 2-7.", "Reels: 0, 3-7.", "Reels: 0, 4-7.", "Reels: 0, 5-7.", "Reels: 0, 6-7.", "Reels: 0, 7."] },
   JAVELIN: { intro: "Gray 150x1px spears pierce targets without damage, cutting their speed to 1/4 and locking them in blue. Off-screen they turn blue (500px, fast) and hit each locked target for 5 damage.",
@@ -3429,7 +3485,7 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 2000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['NORMAL', 'UNLEASH', 'YARELY', 'INFINITY', 'JAVELIN', 'SPARK', '9SHOT', '5ATELLITE', '6OARD', '7THREE', '3RIANGL', '4ORCE', '1SHOCKS', '2DORAGO']; // shows "NEW"
+const EQUIP_UPDATED = ['NORMAL', 'UNLEASH', 'YARELY', 'INFINITY', 'JAVELIN', 'SPARK', '9SHOT', '5ATELLITE', '6OARD', '7THREE', '3RIANGL', '4ORCE', '1SHOCKS', '2DORAGO', '8HIROGARI']; // shows "NEW"
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -3535,7 +3591,7 @@ function goToTitle() {
 const WALL_MIN = 16; // a wall is never pushed closer than this to the screen edge, so both always show
 function wallL(sh, k) { return k * Math.max(WALL_MIN, WALL_BASE + sh); }
 function wallR(sh, k) { return W - k * Math.max(WALL_MIN, WALL_BASE - sh); }
-const WALL_BASE = 34, WALL_STEP = 20, WALL_MAX_SHIFT = 100, WALL_SCROLL = 130;
+const WALL_BASE = 60, WALL_STEP = 20, WALL_MAX_SHIFT = 60, WALL_SCROLL = 130; // BASE 80 (originally 34, then 110): wide corridor, yet the left wall still shows its bumps for all but the two extreme shifts
 let wallK = 0, wallShiftTarget = 0, wallShiftTimer = 3, wallCps = [];
 function wallStepsForWave() {
   const wm = ((wave - 1) % CYCLE_LEN) + 1; // wall stages: pos 2 → 25/50px, pos 6 → 50/75px, pos 10 → 75/100px
@@ -3584,18 +3640,44 @@ function updateWalls(dt) {
     const spacing = (H / 2) / (wmT === 10 ? 2 : wmT === 6 ? 1.5 : 1);
     for (const side of [0, 1]) {
       let topY = Infinity;
-      for (const e of enemies) if (e.type === 'TURRET' && e.side === side && e.baseY < topY) topY = e.baseY;
+      for (const e of enemies) if (e.type === 'TURRET' && !e.deep && !e.pillar && e.side === side && e.baseY < topY) topY = e.baseY;
       if (topY < spacing) continue; // previous one hasn't moved far enough yet
       if (side === 1 && !wallRightStarted) {
-        const L = enemies.find(e => e.type === 'TURRET' && e.side === 0);
+        const L = enemies.find(e => e.type === 'TURRET' && !e.deep && !e.pillar && e.side === 0);
         if (!L || L.baseY < spacing / 2) continue;
         wallRightStarted = true;
       }
       enemies.push(makeWallTurret(side));
     }
   } else if (!want) wallRightStarted = false;
+  // inner-edge scenery turrets
+  if (want && wallK >= 1) {
+    for (const side of [0, 1]) {
+      deepTurretTimer[side] -= dt;
+      if (deepTurretTimer[side] <= 0) { deepTurretTimer[side] = rand(1.2, 4.0); enemies.push(makeDeepTurret(side)); }
+    }
+  } else if (!want) { deepTurretTimer = [1, 2]; }
+  // pillars: 20x20 columns standing in the corridor (1/4 of the original density), scrolling with the floor; bullets destroy them, touching one hurts
+  if (want && wallK >= 1) {
+    pillarTimer -= dt;
+    while (pillarTimer <= 0) { pillarTimer += rand(0.32, 1.0); enemies.push(makePillar()); }
+  } else if (!want) pillarTimer = 0;
+}
+let pillarTimer = 0;
+const PILLAR = 20;
+function makePillar() {
+  const def = { hp: 15, score: 1, color: '#a0a0a0', r: PILLAR * 0.7, sides: 4, speedMul: 1.0 };
+  return { type: 'TURRET', pillar: true, side: 0, def, hp: 15, maxHp: 15, slot: null, state: 'wallturret', u: rand(0.04, 0.96),
+    x: W / 2, y: -PILLAR, ly: -PILLAR, baseY: 1e9, fireTimer: 1e9, angle: 0, dropsItem: false, dropsRapid: false };
 }
 let wallRightStarted = false;
+// scenery turrets on the wall's receded inner edge: they appear at random heights and scroll slower (0.7x) than the real turrets on the front edge
+let deepTurretTimer = [1, 2];
+function makeDeepTurret(side) {
+  const t = makeWallTurret(side);
+  t.deep = true; t.ly = -10; t.baseY = 1e9; t.fireTimer = 1e9; // baseY huge so front-turret spacing logic ignores it
+  return t;
+}
 const WALL_TURRET_GAP = 420, WALL_TURRET_SIDE = 15, WALL_TURRET_RANGE = 100, WALL_TURRET_SLIDE = 45; // slide range (px) / speed (px/s) along the wall
 function wallEdgeX(side, y) {
   const sh = wallShiftAt(y);
@@ -3610,6 +3692,7 @@ function makeWallTurret(side) {
     x: wallEdgeX(side, y) + (side === 0 ? apothem : -apothem), y, baseY: y, oy: 0, oyTarget: 0, moveTimer: 0, angle: 0,
     fireTimer: rand(3, 5), dropsItem: false, dropsRapid: false };
 }
+const WALL_VP = 0.12; // how far the wall's inner (receded) edge is pulled toward the screen centre
 function drawWalls() {
   if (wallK <= 0.001) return;
   const k = wallK;
@@ -3621,6 +3704,12 @@ function drawWalls() {
   }
   pts.push([wallShiftAt(H), H]);
   ctx.save();
+  // floor: grey panel between the two walls, 80% transparent
+  ctx.fillStyle = 'rgba(128,128,128,0.2)';
+  ctx.beginPath();
+  pts.forEach((p, i) => i ? ctx.lineTo(wallL(p[0], k), p[1]) : ctx.moveTo(wallL(p[0], k), p[1]));
+  for (let i = pts.length - 1; i >= 0; i--) ctx.lineTo(wallR(pts[i][0], k), pts[i][1]);
+  ctx.closePath(); ctx.fill();
   ctx.fillStyle = 'rgba(52,224,255,0.2)'; // 80% transparent
   ctx.strokeStyle = '#a0a0a0'; ctx.lineWidth = 1;
   for (const side of [0, 1]) {
@@ -3632,6 +3721,20 @@ function drawWalls() {
     ctx.closePath();
     ctx.fillStyle = '#000'; ctx.fill(); // hides the background stars outside the walls
     ctx.fillStyle = 'rgba(160,160,160,0.1)'; ctx.fill();
+    // 3D look: the wall's inner face recedes toward the middle of the screen (vanishing point), drawn as a
+    // faint surface strip with depth edges at every corner
+    const VP = WALL_VP, inn = pts.map(p => { const ox = x(p), oy = p[1]; return [ox + (W / 2 - ox) * VP, oy + (H / 2 - oy) * VP]; });
+    ctx.beginPath();
+    pts.forEach((p, i) => i ? ctx.lineTo(x(p), p[1]) : ctx.moveTo(x(p), p[1]));
+    for (let i = inn.length - 1; i >= 0; i--) ctx.lineTo(inn[i][0], inn[i][1]);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(160,160,160,0.16)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(160,160,160,0.45)';
+    ctx.beginPath();
+    inn.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]));
+    pts.forEach((p, i) => { ctx.moveTo(x(p), p[1]); ctx.lineTo(inn[i][0], inn[i][1]); });
+    ctx.stroke();
+    ctx.strokeStyle = '#a0a0a0';
     ctx.beginPath();
     pts.forEach((p, i) => i ? ctx.lineTo(x(p), p[1]) : ctx.moveTo(x(p), p[1]));
     ctx.stroke();
@@ -3927,6 +4030,20 @@ function updatePlayer(dt) {
     }
   } else {
     player.earthPods = null;
+  }
+
+  // 8HIROGARI: EARTH's ship laser (straight up, rapid fire), no pods
+  if (player.weapon === '8HIROGARI') {
+    player.earthShipFireTimer = (player.earthShipFireTimer === undefined ? 0 : player.earthShipFireTimer) - dt;
+    if (player.earthShipFireTimer <= 0 && player.alive) {
+      player.earthShipFireTimer = 0.15;
+      player.hiroCycle = ((player.hiroCycle || 0) % 5) + 1; // damage cycles 1, 2, 3, 4, 5, 1, 2 ...
+      const dirs = 1 + (player.rapidLevel || 0); // RAPID: 2 / 3 / 4 directions, 5 degrees apart
+      for (let k = 0; k < dirs; k++) {
+        const ang = (k - (dirs - 1) / 2) * 5 * Math.PI / 180;
+        playerBullets.push({ x: player.x, y: player.y - 15, vx: Math.sin(ang) * 1215, vy: -Math.cos(ang) * 1215, r: 8, power: player.hiroCycle, earthLaser: true, earthShipLaser: true, tick: 0.1, tickCooldowns: new Map() });
+      }
+    }
   }
 
   // INFINITY: `level` points all trace the same Gerono-lemniscate (∞-shaped) path
@@ -4496,7 +4613,7 @@ function updatePlayer(dt) {
     if (player.alive && player.weaponFireCooldown <= 0) {
       fireWeapon();
       player.weaponFireCooldown = player.weapon === 'NORMAL' ? 0.2 : player.weapon === 'YARELY' ? 1.0 - 0.05 * (player.weaponLevel || 1) : (player.weapon === '7THREE' && threeJackpot() ? 0.25 : (WEAPON_FIRE_COOLDOWNS[player.weapon] || 0.3)); // 7THREE FEVER: twice the fire rate; YARELY: 1.0s - 0.05s x level
-      const rapidCount = (player.weapon === 'YARELY' || player.weapon === '6OARD' || player.weapon === '3RIANGL' || player.weapon === '4ORCE' || player.weapon === '1SHOCKS' || player.weapon === '2DORAGO') ? 1 : (player.rapidLevel === 1 ? 2 : player.rapidLevel === 2 ? 3 : player.rapidLevel === 3 ? 5 : 1); // YARELY never burst-fires; 6OARD uses RAPID as a damage bonus instead
+      const rapidCount = (player.weapon === 'YARELY' || player.weapon === '6OARD' || player.weapon === '3RIANGL' || player.weapon === '4ORCE' || player.weapon === '1SHOCKS' || player.weapon === '2DORAGO' || player.weapon === '8HIROGARI') ? 1 : (player.rapidLevel === 1 ? 2 : player.rapidLevel === 2 ? 3 : player.rapidLevel === 3 ? 5 : 1); // YARELY never burst-fires; 6OARD uses RAPID as a damage bonus instead
       player.burstRemaining = rapidCount - 1;
       player.burstTimer = 0.25; // brief delay before the rapid burst kicks in
     }
@@ -4512,7 +4629,7 @@ function updateTriMarks(dt) {
   eachFoe((key, pos, rad) => {
     if (pos.x < -20 || pos.x > W + 20 || pos.y < -20 || pos.y > H + 20) return;
     live.set(key, { pos, rad, d: Math.hypot(pos.x - player.x, pos.y - player.y) });
-  });
+  }, true); // pillars are never lock-on targets
   for (let i = triMarks.length - 1; i >= 0; i--) {
     const m = triMarks[i], f = live.get(m.key);
     if (!f || f.d > R * 1.3) { triMarks.splice(i, 1); continue; }
@@ -5418,17 +5535,19 @@ function playKillSound(kind) { // a short "pi!" beep: enemy / rock / crystal / m
   } catch (err) { /* sound is optional */ }
 }
 function handleEnemyDeath(e) {
-  playKillSound(e.type === 'GIANTBOSS' ? 'boss' : 'enemy');
+  playKillSound(e.type === 'GIANTBOSS' ? 'boss' : e.pillar ? 'rock' : 'enemy');
   const feverMul = threeJackpot() ? 10 : 1; // 7THREE: while the reels are matched, kill points are x10
   if (e.type === 'GIANTBOSS') {
     score += scoreMultiplier * wave * 10000 * feverMul;
+  } else if (e.pillar) {
+    score += scoreMultiplier * 100 * feverMul; // pillar: flat 100
   } else if (e.type === 'TURRET') {
     score += scoreMultiplier * 5000 * feverMul; // wall turret: flat 5000
   } else {
     score += scoreMultiplier * e.def.score * wave * 10 * feverMul;
   }
   if (e.slot) e.slot.filled = false;
-  killCount += 1;
+  if (!e.pillar) killCount += 1; // pillars are targets, not enemies: not counted as kills
   if (e.countsForPattern) { activeEnterCount--; e.countsForPattern = false; }
   if (e.type === 'GIANTBOSS' && !e.revived && !bossReviveUsed) {
     // first defeat: the boss blows up, then revives out of the explosion (see updateBossRevive)
@@ -6056,7 +6175,7 @@ function handleCollisions() {
             const miniR = (e.def.r / 3) * 0.7;
             const rr = (miniR + b.r) * (miniR + b.r);
             if (dist2(pos.x, pos.y, b.x, b.y) < rr) {
-              b.tickCooldowns.set(marker, 0.05);
+              b.tickCooldowns.set(marker, b.tick || 0.05);
               e.miniBossHp[vk] -= reportDamage(capBossDmg((b.power || 1)));
 
               score += scoreMultiplier * 10;
@@ -6070,7 +6189,8 @@ function handleCollisions() {
         const rr = (e.def.r + b.r) * (e.def.r + b.r);
         if (dist2(e.x, e.y, b.x, b.y) < rr) {
           if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) continue;
-          b.tickCooldowns.set(e, 0.05);
+          b.tickCooldowns.set(e, b.tick || 0.05);
+          if (b.hiro) b._spent = true; // 8HIROGARI's bullet does not pierce
           e.hp -= reportDamage((e.type === 'GIANTBOSS' ? capBossDmg(b.power || 1) : (b.power || 1)));
           score += scoreMultiplier * 10;
           if (e.hp <= 0) {
@@ -6081,6 +6201,7 @@ function handleCollisions() {
           }
         }
       }
+      if (b.hiro && b._spent) { playerBullets.splice(j, 1); b._spent = false; b.hiroDone = true; }
       continue;
     }
     if (b.arrow) {
@@ -7274,7 +7395,8 @@ function updateAsteroids(fullDt) {
       const scx = s.x + s.jitterX, scy = s.y + s.jitterY;
       if (Math.hypot(a.x - scx, a.y - scy) <= ringR + (a.r || 10)) { slowedByShockwave = true; break; }
     }
-    const dt = (slowedByShockwave ? fullDt * (1 / 4) : fullDt) * (a.javelinSlow ? 0.25 : 1);
+    const dt = (slowedByShockwave ? fullDt * (1 / 4) : fullDt) * (a.javelinSlow ? 0.25 : 1) * (a.hiroSlow ? 0.2 : 1);
+    if (a.hiroSlow) a.angle += Math.sign(a.spin || 1) * fullDt * 16; // spins
     a.gravSlowed = slowedByShockwave; // for the GRAVITY lock-on square
     a.x += (a.vx || 0) * dt;
     a.y += a.vy * dt;
@@ -7483,10 +7605,12 @@ function handleAsteroidCollisions() {
     if (b.earthLaser || b.funnelLaser) {
       for (let i = 0; i < asteroids.length; i++) {
         const a = asteroids[i];
+        if (b._spent) break;
         if (b.tickCooldowns.has(a)) continue;
         const rr = (a.r + b.r) * (a.r + b.r);
         if (dist2(a.x, a.y, b.x, b.y) < rr) {
-          b.tickCooldowns.set(a, 0.05);
+          b.tickCooldowns.set(a, b.tick || 0.05);
+          if (b.hiro) b._spent = true;
           score += scoreMultiplier * wave * 20;
           registerAsteroidDamage(b.power || 1, a);
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 3);
@@ -7505,6 +7629,7 @@ function handleAsteroidCollisions() {
           spawnDeathParticles(a.x, a.y, a.isCrystal ? '#7CFFF0' : '#bbbbbb', 3);
         }
       }
+      if (b.hiro && b._spent) playerBullets.splice(j, 1);
       continue;
     }
     if (b.yaw) {
@@ -7750,11 +7875,39 @@ function drawEnemy(e) {
     // equilateral triangle, one side flat against the wall, apex pointing into the corridor
     const dir = e.side === 0 ? 1 : -1;
     const half = WALL_TURRET_SIDE / 2, hgt = WALL_TURRET_SIDE * Math.sqrt(3) / 2;
-    const bx = x - dir * hgt / 3;
+    if (e.pillar) {
+      const lx = wallEdgeX(0, e.ly), rx = wallEdgeX(1, e.ly), cx = lx + (rx - lx) * e.u, h = PILLAR / 2;
+      const pm = (px, py) => [px + (W / 2 - px) * WALL_VP, py + (H / 2 - py) * WALL_VP];
+      const f = [[cx - h, e.ly - h], [cx + h, e.ly - h], [cx + h, e.ly + h], [cx - h, e.ly + h]], bk = f.map(q => pm(q[0], q[1]));
+      // painted like the walls: side faces a faint grey strip, depth edges dimmer, the front (top) face black with a faint grey wash and a #a0a0a0 outline
+      ctx.fillStyle = 'rgba(160,160,160,0.16)';
+      for (let i = 0; i < 4; i++) {
+        const j = (i + 1) % 4;
+        ctx.beginPath(); ctx.moveTo(f[i][0], f[i][1]); ctx.lineTo(f[j][0], f[j][1]); ctx.lineTo(bk[j][0], bk[j][1]); ctx.lineTo(bk[i][0], bk[i][1]); ctx.closePath(); ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(160,160,160,0.45)';
+      ctx.beginPath();
+      bk.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.closePath();
+      f.forEach((q, i) => { ctx.moveTo(q[0], q[1]); ctx.lineTo(bk[i][0], bk[i][1]); });
+      ctx.stroke();
+      ctx.beginPath();
+      f.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])); ctx.closePath();
+      ctx.fillStyle = '#000'; ctx.fill();
+      ctx.fillStyle = 'rgba(160,160,160,0.1)'; ctx.fill();
+      ctx.strokeStyle = '#a0a0a0'; ctx.stroke();
+      return;
+    }
     ctx.beginPath();
-    ctx.moveTo(bx, y - half); ctx.lineTo(bx, y + half); ctx.lineTo(bx + dir * hgt, y);
+    if (e.deep) {
+      const ex = wallEdgeX(e.side, e.ly), m = (px, py) => [px + (W / 2 - px) * WALL_VP, py + (H / 2 - py) * WALL_VP];
+      const v0 = m(ex, e.ly - half), v1 = m(ex, e.ly + half), v2 = m(ex + dir * hgt, e.ly);
+      ctx.moveTo(v0[0], v0[1]); ctx.lineTo(v1[0], v1[1]); ctx.lineTo(v2[0], v2[1]);
+    } else {
+      const bx = x - dir * hgt / 3;
+      ctx.moveTo(bx, y - half); ctx.lineTo(bx, y + half); ctx.lineTo(bx + dir * hgt, y);
+    }
     ctx.closePath();
-    ctx.strokeStyle = e.def.color; // wireframe, no fill
+    ctx.strokeStyle = e.deep ? darkenColor(e.def.color, 0.25) : e.def.color; // wireframe, no fill
     ctx.stroke();
     return;
   }
@@ -7773,7 +7926,7 @@ function drawEnemy(e) {
   }
   ctx.save();
   ctx.translate(x, y);
-  ctx.rotate(e.angle);
+  ctx.rotate(e.angle + (e.hiroAng || 0));
   if (e.type === 'GIANTBOSS') {
     ctx.beginPath();
     drawPolygonDown(0, 0, r, e.def.sides);
@@ -8733,6 +8886,9 @@ function drawStarfield(dt) {
     // ramp up alongside the player's accelerating warp speed
     speedFactor *= 1 + Math.min(1, player.warpT / 1.1) * 5;
   }
+  const starVis = 1 - clamp(wallK, 0, 1); // wall stage: the stars are not shown (the floor takes their place)
+  if (starVis <= 0.001) { starLayers.forEach(l => l.stars.forEach(s => { s.y += l.speed * speedFactor * dt * dir; if (dir > 0 && s.y > H) { s.y = rand(-40, 0); s.x = rand(0, W); } if (dir < 0 && s.y < 0) { s.y = rand(H, H + 40); s.x = rand(0, W); } })); return; }
+  ctx.save(); ctx.globalAlpha = starVis;
   starLayers.forEach(layer => {
     ctx.strokeStyle = layer.color;
     ctx.fillStyle = layer.color;
@@ -8752,6 +8908,7 @@ function drawStarfield(dt) {
       ctx.fillRect(s.x - 1, s.y - 1, 2, 2);
     });
   });
+  ctx.restore();
 }
 let starLayers = [];
 function initStars() {
@@ -9041,6 +9198,7 @@ function frameBody(now) {
   if (damagePopupTimer > 0) damagePopupTimer = Math.max(0, damagePopupTimer - dt);
   drawStarfield(dt);
   drawEarthHorizon();
+  drawHirogariCone();
   updateSpecialStars(dt);
   drawSpecialStars();
   updateInfinityRings(dt); // keeps the ring's contact-damage mechanic; the ring itself is no longer drawn (removed per-request lingering afterimage)
@@ -9048,6 +9206,7 @@ function frameBody(now) {
   if (state === STATE.PLAYING && !paused) {
     updateSpawns(dt);
     updatePlayer(dt);
+    updateHirogari(dt);
     updateEnemies(dt);
     updateBullets(dt);
     updateItems(dt);
