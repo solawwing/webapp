@@ -292,6 +292,10 @@
         <div class="item-header"><span class="item-icon">1</span><span class="item-name">1SHOCKS</span></div>
         <div class="item-desc">Tiny cyan balls fly out in 6 directions around the ship (more with every level), slowing down to a stop.</div>
       </div>
+      <div class="item-entry" data-weapon="2DORAGO">
+        <div class="item-header"><span class="item-icon">2</span><span class="item-name">2DORAGO</span></div>
+        <div class="item-desc">Two parallel blue lines fly the same homing path and hit everything on or between them.</div>
+      </div>
       <div class="item-entry" data-weapon="3RIANGL">
         <div class="item-header"><span class="item-icon">3</span><span class="item-name">3RIANGL</span></div>
         <div class="item-desc">Spinning triangles drop onto every foe near the ship, lock on, and green homing lasers destroy them.</div>
@@ -415,7 +419,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-17 07:20';
+const LAST_UPDATED = '2026-11-18 23:20';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -484,7 +488,7 @@ function reportDamage(d) { if (d > 0) { lastHitDamage = Math.round(d * 10) / 10;
 function unleashPulseTime() { return Math.max(0.5, 1.3 - (player.rapidLevel || 0) * 0.1); }
 function weaponMaxLevel(type) {
   // VULCAN/PHANTOM/THUNDER/LASER/HOMING/BUBBLE/CURVE/GRAVITY/MISSILE/DOUBLE/SPARK/REFECT/ORBITAL/ZAPPER/XCROSS/KURU2/ARROW/QIX/EARTH/WHIPS/INFINITY/FUNNEL uniquely level up to 7, every other weapon caps at 5
-  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS' || type === 'INFINITY' || type === 'FUNNEL' || type === 'UNLEASH' || type === 'YARELY' || type === 'NORMAL' || type === 'JAVELIN' || type === '9SHOT' || type === '1SHOCKS' || type === '3RIANGL' || type === '4ORCE' || type === '5ATELLITE' || type === '6OARD' || type === '7THREE') ? 7 : 5;
+  return (type === 'VULCAN' || type === 'PHANTOM' || type === 'THUNDER' || type === 'LASER' || type === 'HOMING' || type === 'BUBBLE' || type === 'CURVE' || type === 'GRAVITY' || type === 'MISSILE' || type === 'DOUBLE' || type === 'SPARK' || type === 'REFECT' || type === 'ORBITAL' || type === 'ZAPPER' || type === 'XCROSS' || type === 'KURU2' || type === 'ARROW' || type === 'QIX' || type === 'EARTH' || type === 'WHIPS' || type === 'INFINITY' || type === 'FUNNEL' || type === 'UNLEASH' || type === 'YARELY' || type === 'NORMAL' || type === 'JAVELIN' || type === '9SHOT' || type === '1SHOCKS' || type === '2DORAGO' || type === '3RIANGL' || type === '4ORCE' || type === '5ATELLITE' || type === '6OARD' || type === '7THREE') ? 7 : 5;
 }
 function choice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function formatScore(n) { return Math.round(n).toLocaleString('en-US'); }
@@ -549,9 +553,9 @@ function resetPlayer() {
 }
 
 // ---------- items ----------
-const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL', 'UNLEASH', 'YARELY', 'NORMAL', 'JAVELIN', '9SHOT', '1SHOCKS', '3RIANGL', '4ORCE', '5ATELLITE', '6OARD', '7THREE'];
+const ITEM_TYPES = ['DOUBLE', 'MISSILE', 'HOMING', 'LASER', 'GRAVITY', 'BUBBLE', 'VULCAN', 'PHANTOM', 'CURVE', 'SPARK', 'THUNDER', 'REFECT', 'ORBITAL', 'ZAPPER', 'XCROSS', 'KURU2', 'ARROW', 'QIX', 'EARTH', 'WHIPS', 'INFINITY', 'FUNNEL', 'UNLEASH', 'YARELY', 'NORMAL', 'JAVELIN', '9SHOT', '1SHOCKS', '2DORAGO', '3RIANGL', '4ORCE', '5ATELLITE', '6OARD', '7THREE'];
 document.getElementById('versionLine').textContent = 'version 5.0 (' + ITEM_TYPES.length + ' items)'; // item count follows the item list automatically
-const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff7a1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff', UNLEASH: '#ff2fd4', YARELY: '#f4ff2e', NORMAL: '#ffffff', JAVELIN: '#9a9a9a', '9SHOT': '#ff3b3b', '1SHOCKS': '#00f5ff', '3RIANGL': '#39ff14', '4ORCE': '#bf00ff', '5ATELLITE': '#00e5ff', '6OARD': '#ffffff', '7THREE': '#ff10f0' };
+const ITEM_COLORS = { DOUBLE: '#4ef0ff', MISSILE: '#ccff00', HOMING: '#7CFF7C', LASER: '#39fff3', RAPID: '#ffffff', GRAVITY: '#1f6bff', BUBBLE: '#fc0fc0', VULCAN: '#ff7a1a', PHANTOM: '#ffffff', CURVE: '#b967ff', SPARK: '#ffe93a', THUNDER: '#faff00', ORBITAL: '#1560bd', ZAPPER: '#ff2fd4', XCROSS: '#ffffff', KURU2: '#ff8000', ARROW: '#faff00', QIX: '#ffffff', EARTH: '#00ff9f', WHIPS: '#ff10f0', INFINITY: '#ffffff', FUNNEL: '#00b7ff', UNLEASH: '#ff2fd4', YARELY: '#f4ff2e', NORMAL: '#ffffff', JAVELIN: '#9a9a9a', '9SHOT': '#ff3b3b', '1SHOCKS': '#00f5ff', '2DORAGO': '#4aa8ff', '3RIANGL': '#39ff14', '4ORCE': '#bf00ff', '5ATELLITE': '#00e5ff', '6OARD': '#ffffff', '7THREE': '#ff10f0' };
 let items = [];
 let killCount = 0;
 let pickupTexts = [];
@@ -824,7 +828,7 @@ function updateItems(dt) {
     }
   }
 }
-const ITEM_GLYPHS = { LIFE: '+', DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E', WHIPS: 'W', INFINITY: 'I', FUNNEL: 'F', UNLEASH: 'U', YARELY: 'Y', NORMAL: 'N', JAVELIN: 'J', '9SHOT': '9', '1SHOCKS': '1', '3RIANGL': '3', '4ORCE': '4', '5ATELLITE': '5', '6OARD': '6', '7THREE': '7' };
+const ITEM_GLYPHS = { LIFE: '+', DOUBLE: 'D', MISSILE: 'M', HOMING: 'H', LASER: 'L', RAPID: '^', GRAVITY: 'G', BUBBLE: 'B', VULCAN: 'V', PHANTOM: 'P', CURVE: 'C', SPARK: 'S', THUNDER: 'T', REFECT: 'R', ORBITAL: 'O', ZAPPER: 'Z', XCROSS: 'X', KURU2: 'K', ARROW: 'A', QIX: 'Q', EARTH: 'E', WHIPS: 'W', INFINITY: 'I', FUNNEL: 'F', UNLEASH: 'U', YARELY: 'Y', NORMAL: 'N', JAVELIN: 'J', '9SHOT': '9', '1SHOCKS': '1', '2DORAGO': '2', '3RIANGL': '3', '4ORCE': '4', '5ATELLITE': '5', '6OARD': '6', '7THREE': '7' };
 function drawItems() {
   ctx.lineWidth = 1;
   items.forEach(it => {
@@ -1231,7 +1235,7 @@ const SPARK_COOLDOWNS = [0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]; // fixed 0.5s re
 // "wait until the screen is clear of your own bullets" gate for these weapons
 const WEAPON_FIRE_COOLDOWNS = {
   NORMAL: 0.2, DOUBLE: 0.5, MISSILE: 1.0, HOMING: 0.7, LASER: 1.0,
-  GRAVITY: 0.3, BUBBLE: 0.3, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4, QIX: 0.4, INFINITY: 1.0, YARELY: 0.4, JAVELIN: 0.4, '9SHOT': 0.05, '1SHOCKS': 1.0, '3RIANGL': 0.5, '4ORCE': 0.5, '5ATELLITE': 1.5, '6OARD': 0.5, '7THREE': 0.5,
+  GRAVITY: 0.3, BUBBLE: 0.3, CURVE: 0.5, THUNDER: 0.5, REFECT: 0.8, XCROSS: 0.3, KURU2: 0.3, ARROW: 0.4, QIX: 0.4, INFINITY: 1.0, YARELY: 0.4, JAVELIN: 0.4, '9SHOT': 0.05, '1SHOCKS': 1.0, '2DORAGO': 1.0, '3RIANGL': 0.5, '4ORCE': 0.5, '5ATELLITE': 1.5, '6OARD': 0.5, '7THREE': 0.5,
 };
 const LASER_SPECS = [null,
   { length: 200, pierce: 5, speed: 300 },
@@ -1702,6 +1706,10 @@ function fireWeapon() {
     // one 100px ring (with an orbiting 10px satellite) straight up; it drifts slowly up, piercing foes until it has hit (2 + level) of them
     playerBullets.push({ x: player.x, y: player.y - player.r - 5, vx: 0, vy: -200, r: 50, power: 2, ball: true, n: lvl, sats: Array.from({ length: lvl }, (_, k) => -Math.PI / 2 + k * Math.PI * 2 / lvl), // satellites evenly spaced around the ring, first one at the top
        left: 2 + lvl, hitSet: new Set(), life: 0 });
+  } else if (player.weapon === '2DORAGO') {
+    // one 'dragon': two parallel lines (gap 10px at Lv1, +2px per level) that move identically and home in on targets
+    const a0 = -Math.PI / 2 + (Math.random() - 0.5) * 0.8;
+    playerBullets.push({ x: player.x, y: player.y - player.r - 5, ang: a0, vx: 0, vy: 0, r: 2, dragon: true, gap: 10 + 2 * (Math.max(1, Math.min(7, lvl)) - 1), len: 400 + 50 * (Math.max(1, Math.min(7, lvl)) - 1), power: 1, rapid: player.rapidLevel || 0, target: null, trail: [], life: 0, cd: new Map() }); // RAPID level = number of pieces it splits into on its first hit (no power bonus)
   } else if (player.weapon === '1SHOCKS') {
     // copy of 4ORCE without the bounce: 4x4px fluorescent-cyan balls fired evenly all around the ship (6 at Lv1, +1 per level: 7 ... 12 at Lv7); each is used up by the first target (or wall) it hits
     const n = 6 + (Math.max(1, Math.min(7, lvl)) - 1);
@@ -3067,7 +3075,7 @@ function checkMiniBossHits(e) {
       if (b.kuru2) continue; // KURU2 has its own dedicated mini-boss handling elsewhere
       if (b.arrow) continue; // ARROW has its own dedicated mini-boss handling elsewhere
       if (b.javelin) continue; // JAVELIN has its own mini-boss handling in handleCollisions
-      if (b.nineShot || b.ball || b.satLaser || b.board || b.three || b.tri || b.force) continue; // 9SHOT / 5ATELLITE do their own hit handling in updateBullets
+      if (b.nineShot || b.ball || b.satLaser || b.board || b.three || b.tri || b.force || b.dragon) continue; // 9SHOT / 5ATELLITE do their own hit handling in updateBullets
       if (b.earthLaser) continue; // EARTH has its own dedicated mini-boss handling elsewhere
       if (b.funnelLaser) continue; // FUNNEL has its own dedicated mini-boss handling elsewhere
       if (b.qix) continue; // QIX has its own dedicated mini-boss handling elsewhere
@@ -3297,7 +3305,7 @@ let debugStartAtBoss = false; // set via tapping the tier-A icon on the title sc
 let debugSkipEnemyWaves = false; // set via tapping the tier-C icon on the title screen — only ASTEROID/CRYSTAL/BOSS cycle positions play, ENEMY positions are silently skipped
 let debugWallBossOnly = false; // set via double-tapping the tier-D (green) icon on the title screen — only cycle positions 2, 6, 10 (wall stages) and the BOSS play, weapon starts at Lv3
 let debugStartMaxLevel = false; // set via tapping the tier-E icon on the title screen
-const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'JAVELIN', 'KURU2', 'LASER', 'MISSILE', 'NORMAL', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'UNLEASH', 'VULCAN', 'WHIPS', 'XCROSS', 'YARELY', 'ZAPPER', '1SHOCKS', '3RIANGL', '4ORCE', '5ATELLITE', '6OARD', '7THREE', '9SHOT']; // no NORMAL — alphabetical order
+const EQUIP_CHOICES = ['ARROW', 'BUBBLE', 'CURVE', 'DOUBLE', 'EARTH', 'FUNNEL', 'GRAVITY', 'HOMING', 'INFINITY', 'JAVELIN', 'KURU2', 'LASER', 'MISSILE', 'NORMAL', 'ORBITAL', 'PHANTOM', 'QIX', 'REFECT', 'SPARK', 'THUNDER', 'UNLEASH', 'VULCAN', 'WHIPS', 'XCROSS', 'YARELY', 'ZAPPER', '1SHOCKS', '2DORAGO', '3RIANGL', '4ORCE', '5ATELLITE', '6OARD', '7THREE', '9SHOT']; // no NORMAL — alphabetical order
 function showEquipSelect() {
   showingEquip = true;
   titleScreen.classList.add('hidden');
@@ -3358,6 +3366,8 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["1 bolt.", "2 bolts.", "3 bolts.", "4 bolts.", "5 bolts.", "6 bolts.", "7 bolts, up to 63 hits."] },
   '1SHOCKS': { intro: "Fires 4x4px fluorescent-cyan balls evenly in all directions around the ship: 6 at Lv1, +1 per level. They start fast, slow down to a stop after 2s; a random 1.5-2.5s later each bursts into a ring that grows to 150px (+10px per level) while fading out and damages every target inside it every 0.1s (piercing walls and foes). The balls pass through everything and deal no contact damage.",
     levels: ["6 directions.", "7 directions.", "8 directions.", "9 directions.", "10 directions.", "11 directions.", "12 directions."] },
+  '2DORAGO': { intro: "Two parallel lines that move exactly alike chase the targets on screen, moving on to another target once they reach one. Anything touching either line, or standing between them, takes 1 damage every 0.1s while it is touched or pierced. The gap between the lines is 10px at Lv1, +2px per level; the lines are 400px long at Lv1, +50px per level, get brighter and more vivid blue toward the head, and fade out over the rear half. RAPID: on its first hit a dragon splits into as many dragons as your RAPID level.",
+    levels: ["Gap 10px, length 400px.", "Gap 12px, length 450px.", "Gap 14px, length 500px.", "Gap 16px, length 550px.", "Gap 18px, length 600px.", "Gap 20px, length 650px.", "Gap 22px, length 700px."] },
   '3RIANGL': { intro: "Every foe (enemy, asteroid, crystal, mini-boss, boss) inside a circle around the ship (radius 200px, +25px per level) gets a spinning triangle dropped onto it. Once locked, fluorescent-green homing lasers keep flying at it until it is destroyed.",
     levels: ["Radius 200.", "Radius 225.", "Radius 250.", "Radius 275.", "Radius 300.", "Radius 325.", "Radius 350."] },
   '4ORCE': { intro: "Fires 4x4px fluorescent-purple balls evenly in all directions around the ship: 8 at Lv1, +4 per level. They speed up and bounce off targets and corridor walls (not the screen edges).",
@@ -3419,7 +3429,7 @@ function startEquipDescCycle() {
   equipDescInterval = setInterval(updateEquipDesc, 2000);
 }
 const equipRow = document.getElementById('equipRow');
-const EQUIP_UPDATED = ['NORMAL', 'UNLEASH', 'YARELY', 'INFINITY', 'JAVELIN', 'SPARK', '9SHOT', '5ATELLITE', '6OARD', '7THREE', '3RIANGL', '4ORCE', '1SHOCKS']; // shows "NEW"
+const EQUIP_UPDATED = ['NORMAL', 'UNLEASH', 'YARELY', 'INFINITY', 'JAVELIN', 'SPARK', '9SHOT', '5ATELLITE', '6OARD', '7THREE', '3RIANGL', '4ORCE', '1SHOCKS', '2DORAGO']; // shows "NEW"
 EQUIP_CHOICES.forEach(type => {
   const item = document.createElement('div');
   item.className = 'equip-item';
@@ -4486,7 +4496,7 @@ function updatePlayer(dt) {
     if (player.alive && player.weaponFireCooldown <= 0) {
       fireWeapon();
       player.weaponFireCooldown = player.weapon === 'NORMAL' ? 0.2 : player.weapon === 'YARELY' ? 1.0 - 0.05 * (player.weaponLevel || 1) : (player.weapon === '7THREE' && threeJackpot() ? 0.25 : (WEAPON_FIRE_COOLDOWNS[player.weapon] || 0.3)); // 7THREE FEVER: twice the fire rate; YARELY: 1.0s - 0.05s x level
-      const rapidCount = (player.weapon === 'YARELY' || player.weapon === '6OARD' || player.weapon === '3RIANGL' || player.weapon === '4ORCE' || player.weapon === '1SHOCKS') ? 1 : (player.rapidLevel === 1 ? 2 : player.rapidLevel === 2 ? 3 : player.rapidLevel === 3 ? 5 : 1); // YARELY never burst-fires; 6OARD uses RAPID as a damage bonus instead
+      const rapidCount = (player.weapon === 'YARELY' || player.weapon === '6OARD' || player.weapon === '3RIANGL' || player.weapon === '4ORCE' || player.weapon === '1SHOCKS' || player.weapon === '2DORAGO') ? 1 : (player.rapidLevel === 1 ? 2 : player.rapidLevel === 2 ? 3 : player.rapidLevel === 3 ? 5 : 1); // YARELY never burst-fires; 6OARD uses RAPID as a damage bonus instead
       player.burstRemaining = rapidCount - 1;
       player.burstTimer = 0.25; // brief delay before the rapid burst kicks in
     }
@@ -4574,6 +4584,81 @@ function drawTriLaser(b) {
   ctx.restore();
 }
 
+// ---- 2DORAGO: a pair of parallel lines flying the same homing path; anything touching either line or the space between takes damage ----
+function updateDragon(b, i, dt) {
+  b.life += dt;
+  let tp = null;
+  if (b.target) eachFoe((k, pos) => { if (k === b.target && pos.y > -10 && pos.y < H + 10) tp = pos; });
+  if (!tp) { // acquire a new target (prefer one no other dragon is chasing)
+    const claimed = new Set();
+    for (const o of playerBullets) if (o.dragon && o !== b && o.target) claimed.add(o.target);
+    b.seen = b.seen || new Set();
+    const ex1 = new Set([...claimed, ...b.seen]);
+    let pk = nineShotPick(b.x, b.y, ex1) || nineShotPick(b.x, b.y, b.seen);
+    if (!pk && b.seen.size) { b.seen.clear(); pk = nineShotPick(b.x, b.y, claimed) || nineShotPick(b.x, b.y, new Set()); } // everything already visited: start over
+    if (pk) { b.target = pk.key; tp = pk.pos; } else b.target = null;
+  }
+  const sp = 600;
+  if (tp) {
+    const want = Math.atan2(tp.y - b.y, tp.x - b.x), d = Math.hypot(tp.x - b.x, tp.y - b.y);
+    let da = want - b.ang; while (da > Math.PI) da -= Math.PI * 2; while (da < -Math.PI) da += Math.PI * 2;
+    const tr = Math.max(5, sp / Math.max(d * 0.4, 1)) * dt;
+    b.ang += Math.max(-tr, Math.min(tr, da));
+  }
+  b.x += Math.cos(b.ang) * sp * dt; b.y += Math.sin(b.ang) * sp * dt;
+  b.trail.push({ x: b.x, y: b.y });
+  { // keep only the last b.len px of path (line length: 400px at Lv1, +50px per level)
+    let tot = 0, cut = 0;
+    for (let k = b.trail.length - 1; k > 0; k--) { tot += Math.hypot(b.trail[k].x - b.trail[k - 1].x, b.trail[k].y - b.trail[k - 1].y); if (tot > b.len) { cut = k - 1; break; } }
+    if (cut > 0) b.trail.splice(0, cut);
+  }
+  // damage (every 0.1s per target): target touches either line or lies between them (distance to the centre path <= gap/2 + radius)
+  const tr = b.trail, n = tr.length, half = b.gap / 2;
+  if (n >= 2) {
+    eachFoe((key, pos, rad) => {
+      let hit = false;
+      for (let k = 1; k < n && !hit; k++) {
+        const ax = tr[k - 1].x, ay = tr[k - 1].y, bx = tr[k].x, by = tr[k].y, vx = bx - ax, vy = by - ay, l2 = vx * vx + vy * vy;
+        const t = l2 > 0 ? Math.max(0, Math.min(1, ((pos.x - ax) * vx + (pos.y - ay) * vy) / l2)) : 0;
+        if (Math.hypot(pos.x - (ax + vx * t), pos.y - (ay + vy * t)) <= half + rad) hit = true;
+      }
+      if (!hit) return;
+      if (key === b.target) { b.seen = b.seen || new Set(); b.seen.add(key); b.target = null; } // reached its target: head for another one next
+      const last = b.cd.get(key);
+      if (last === undefined || b.life - last >= 0.1) { b.cd.set(key, b.life); nineShotDamage(key, b.power, true); } // 1 damage every 0.1s while a target is touched / pierced
+      if (!b.splitDone && b.rapid > 0) { // RAPID: on the first target hit, split into `rapid` new dragons (each takes a fresh heading and picks its own target)
+        b.splitDone = true;
+        for (let c = 0; c < b.rapid && playerBullets.length < 300; c++) {
+          playerBullets.push({ x: b.x, y: b.y, ang: Math.random() * Math.PI * 2, vx: 0, vy: 0, r: 2, dragon: true, gap: b.gap, len: b.len, power: b.power, rapid: 0, splitDone: true, target: null, trail: [{ x: b.x, y: b.y }], life: b.life, cd: new Map([[key, b.life]]) });
+        }
+      }
+    });
+  }
+  if (b.life > 8 || b.x < -80 || b.x > W + 80 || b.y < -80 || b.y > H + 80) playerBullets.splice(i, 1);
+}
+function drawDragon(b) {
+  // PHANTOM-style look: 1px lines at 50% opacity, the space between them filled (80% transparent), no glow
+  const tr = b.trail, n = tr.length; if (n < 2) return;
+  const half = b.gap / 2, L = [], R = [];
+  for (let k = 0; k < n; k++) {
+    const p0 = tr[Math.max(0, k - 1)], p1 = tr[Math.min(n - 1, k + 1)];
+    const dx = p1.x - p0.x, dy = p1.y - p0.y, l = Math.hypot(dx, dy) || 1, nx = -dy / l * half, ny = dx / l * half;
+    L.push({ x: tr[k].x + nx, y: tr[k].y + ny }); R.push({ x: tr[k].x - nx, y: tr[k].y - ny });
+  }
+  ctx.save(); ctx.lineWidth = 1; ctx.lineCap = 'butt';
+  const T = [58, 95, 143], H = [30, 144, 255]; // tail: dull blue -> head: vivid bright blue
+  for (let k = 1; k < n; k++) { // everything fades toward the tail: head 100% -> tail 0% of the PHANTOM-style opacities (fill 20%, lines 50%)
+    const f = k / (n - 1), col = `rgb(${Math.round(T[0] + (H[0] - T[0]) * f)},${Math.round(T[1] + (H[1] - T[1]) * f)},${Math.round(T[2] + (H[2] - T[2]) * f)})`;
+    ctx.fillStyle = col; ctx.strokeStyle = col;
+    const fa = Math.min(1, f * 2); // full opacity along the head half; fades only over the tail half
+    ctx.globalAlpha = 0.2 * fa;
+    ctx.beginPath(); ctx.moveTo(L[k - 1].x, L[k - 1].y); ctx.lineTo(L[k].x, L[k].y); ctx.lineTo(R[k].x, R[k].y); ctx.lineTo(R[k - 1].x, R[k - 1].y); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 0.5 * fa;
+    ctx.beginPath(); ctx.moveTo(L[k - 1].x, L[k - 1].y); ctx.lineTo(L[k].x, L[k].y); ctx.moveTo(R[k - 1].x, R[k - 1].y); ctx.lineTo(R[k].x, R[k].y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function updateBullets(dt) {
   updateTriMarks(dt);
   for (let i = playerBullets.length - 1; i >= 0; i--) {
@@ -4608,6 +4693,7 @@ function updateBullets(dt) {
       if (b.age > 8 || b.x < -20 || b.x > W + 20 || b.y < -20 || b.y > H + 20) playerBullets.splice(i, 1);
       continue;
     }
+    if (b.dragon) { updateDragon(b, i, dt); continue; }
     if (b.tri) { updateTriLaser(b, i, dt); continue; }
     if (b.three) {
       // 7THREE laser (LASER-style long beam growing out of the muzzle): pierces everything, damaging each foe it overlaps every 0.1s (damage = its reel value)
@@ -5904,7 +5990,7 @@ function handleCollisions() {
       if (stop) playerBullets.splice(j, 1);
       continue;
     }
-    if (b.nineShot || b.ball || b.satLaser || b.board || b.three || b.tri || b.force) continue; // 9SHOT / 5ATELLITE do their own hit handling in updateBullets
+    if (b.nineShot || b.ball || b.satLaser || b.board || b.three || b.tri || b.force || b.dragon) continue; // 9SHOT / 5ATELLITE do their own hit handling in updateBullets
     if (b.chaining) continue; // thunder: handled entirely in updateBullets once chaining starts
     if (b.javelin) {
       // phase 1 (gray): pierce enemies / boss / mini-boss vertices without damage, permanently halving
@@ -7388,7 +7474,7 @@ function handleAsteroidCollisions() {
       }
       continue;
     }
-    if (b.nineShot || b.ball || b.satLaser || b.board || b.three || b.tri || b.force) continue;
+    if (b.nineShot || b.ball || b.satLaser || b.board || b.three || b.tri || b.force || b.dragon) continue;
     if (b.chaining) continue; // thunder: handled entirely in updateBullets once chaining starts
     if (b.javelin) {
       if (b.phase === 1) for (let i = 0; i < asteroids.length; i++) javelinSlowTarget(b, asteroids[i], { x: asteroids[i].x, y: asteroids[i].y });
@@ -7904,6 +7990,7 @@ function drawBullets() {
       ctx.restore();
       return;
     }
+    if (b.dragon) { drawDragon(b); return; }
     if (b.force && b.bt !== undefined) { // 1SHOCKS burst ring
       ctx.save(); ctx.globalAlpha = 0.8 * Math.max(0, 1 - b.bt / 2); ctx.strokeStyle = b.col; ctx.shadowColor = b.col; ctx.shadowBlur = 6; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(b.x, b.y, b.rr * Math.min(1, b.bt / 2), 0, Math.PI * 2); ctx.stroke(); ctx.restore(); return;
