@@ -423,7 +423,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-19 11:50';
+const LAST_UPDATED = '2026-11-20 08:35';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -913,7 +913,7 @@ function infinityRandomOnScreenTargetPos() {
   const candidates = [];
   const onScreen = (x, y) => x >= 0 && x <= W && y >= 0 && y <= H;
   enemies.forEach(e => {
-    if (e.pillar) return; // pillars are never homing / chain targets
+    if (e.pillar && hasRealFoe()) return; // pillars are homing / chain targets only when nothing else is on screen
     if (e.type === 'GIANTBOSS') {
       if (e.miniBossHp) {
         for (let vk = 0; vk < e.miniBossHp.length; vk++) {
@@ -934,7 +934,7 @@ function infinityRandomOnScreenTargetPos() {
 function findNearestEnemy(x, y) {
   let best = null, bestD = Infinity;
   enemies.forEach(e => {
-    if (e.pillar) return; // pillars are never homing / chain targets
+    if (e.pillar && hasRealFoe()) return; // pillars are homing / chain targets only when nothing else is on screen
     const d = dist2(x, y, e.x, e.y);
     if (d < bestD) { bestD = d; best = e; }
   });
@@ -950,7 +950,7 @@ function findNearestLaserTargetExcluding(x, y, excludeSet) {
   // used by LASER's side beams so they can specifically aim at mini-bosses
   let best = null, bestD = Infinity, bestPos = null;
   enemies.forEach(e => {
-    if (e.pillar) return; // pillars are never homing / chain targets
+    if (e.pillar && hasRealFoe()) return; // pillars are homing / chain targets only when nothing else is on screen
     if (e.type === 'GIANTBOSS') {
       if (e.miniBossHp) {
         e.miniBossMarkers = e.miniBossMarkers || [];
@@ -984,7 +984,7 @@ function findNearestLaserTargetExcluding(x, y, excludeSet) {
 function findNearestEnemyExcluding(x, y, excludeSet) {
   let best = null, bestD = Infinity;
   enemies.forEach(e => {
-    if (e.pillar) return; // pillars are never homing / chain targets
+    if (e.pillar && hasRealFoe()) return; // pillars are homing / chain targets only when nothing else is on screen
     if (excludeSet.has(e)) return;
     const d = dist2(x, y, e.x, e.y);
     if (d < bestD) { bestD = d; best = e; }
@@ -1030,7 +1030,7 @@ function findZapperTarget(x, y, excludeSet, allowShared) {
     if (d < bestD) { bestD = d; best = obj; }
   };
   enemies.forEach(e => {
-    if (e.pillar) return; // pillars are never homing / chain targets
+    if (e.pillar && hasRealFoe()) return; // pillars are homing / chain targets only when nothing else is on screen
     if (e.type === 'GIANTBOSS' && !isBossVulnerable(e)) return;
     consider(e, e.x, e.y);
   });
@@ -1194,7 +1194,7 @@ function findNearestEnemyAhead(x, y, excludeSet, maxY) {
   // asteroids count as valid targets too (there are no other enemies during the Asteroid Belt)
   let best = null, bestD = Infinity;
   enemies.forEach(e => {
-    if (e.pillar) return; // pillars are never homing / chain targets
+    if (e.pillar && hasRealFoe()) return; // pillars are homing / chain targets only when nothing else is on screen
     if (excludeSet.has(e)) return;
     if (e.y > maxY) return;
     const d = dist2(x, y, e.x, e.y);
@@ -1214,7 +1214,7 @@ function findTopmostEnemyAhead(excludeSet, maxY) {
   // valid targets too (there are no other enemies during the Asteroid Belt)
   let best = null, bestY = -Infinity;
   enemies.forEach(e => {
-    if (e.pillar) return; // pillars are never homing / chain targets
+    if (e.pillar && hasRealFoe()) return; // pillars are homing / chain targets only when nothing else is on screen
     if (excludeSet.has(e)) return;
     if (e.y > maxY) return;
     if (e.y > bestY) { bestY = e.y; best = e; }
@@ -1338,7 +1338,7 @@ function nineShotPick(x, y, exclude) {
     if (d < bestD) { bestD = d; best = key; bestPos = pos; }
   };
   enemies.forEach(e => {
-    if (e.pillar) return; // pillars are never homing / chain targets
+    if (e.pillar && hasRealFoe()) return; // pillars are homing / chain targets only when nothing else is on screen
     if (e.type === 'GIANTBOSS') {
       if (e.miniBossHp) {
         e.miniBossMarkers = e.miniBossMarkers || [];
@@ -1358,10 +1358,11 @@ function nineShotPick(x, y, exclude) {
   asteroids.forEach(a => consider(a, { x: a.x, y: a.y }));
   return best ? { key: best, pos: bestPos } : null;
 }
+function hasRealFoe() { return asteroids.length > 0 || enemies.some(e => !e.pillar); }
 function eachFoe(cb, skipPillars) {
   // every valid target (enemy, asteroid, mini-boss vertex, vulnerable boss body): cb(key, pos, radius)
   enemies.forEach(e => {
-    if (skipPillars && e.pillar) return;
+    if (skipPillars && e.pillar && hasRealFoe()) return;
     if (e.type === 'GIANTBOSS') {
       if (e.miniBossHp) {
         e.miniBossMarkers = e.miniBossMarkers || [];
@@ -3134,6 +3135,7 @@ function checkMiniBossHits(e) {
 
 // 8HIROGARI: every target inside the cone straight ahead of the ship (5 degrees wide at Lv1, +5 per level) is slowed to 1/5 and spins
 function updateHirogari(dt) {
+  hiroPhase = (hiroPhase + dt / 3) % 1; // one slow sweep every 3 seconds
   const on = player.weapon === '8HIROGARI' && player.alive && !player.warping;
   const half = on ? (5 * (player.weaponLevel || 1) / 2) * Math.PI / 180 : 0;
   const test = (o, r) => {
@@ -3145,16 +3147,23 @@ function updateHirogari(dt) {
   for (const e of enemies) {
     if (e.type === 'TURRET') continue;
     e.hiroSlow = test(e, e.def.r || 10);
-    if (e.hiroSlow) e.hiroAng = (e.hiroAng || 0) + dt * 11.2;
+    if (e.hiroSlow) e.hiroAng = (e.hiroAng || 0) + dt * 2.5;
     else if (e.hiroAng) { e.hiroAng = lerpAngle(e.hiroAng % (Math.PI * 2), 0, Math.min(1, dt * 3)); if (Math.abs(e.hiroAng) < 0.01) e.hiroAng = 0; }
   }
   for (const a of asteroids) a.hiroSlow = test(a, a.r || 10);
 }
+let hiroPhase = 0;
 function drawHirogariCone() {
   if (player.weapon !== '8HIROGARI' || !player.alive || player.warping || state !== STATE.PLAYING) return;
   const half = (5 * (player.weaponLevel || 1) / 2) * Math.PI / 180, len = player.y + 20, w = Math.tan(half) * len;
+  // 60% transparent at peak; a soft band of light fades in and out while travelling from the ship (bottom) to the top, repeating
+  const g = ctx.createLinearGradient(0, player.y, 0, player.y - len);
+  for (let i = 0; i <= 16; i++) {
+    const u = i / 16, a = 0.4 * (0.5 - 0.5 * Math.cos(2 * Math.PI * (u - hiroPhase)));
+    g.addColorStop(u, 'rgba(80,200,255,' + a.toFixed(3) + ')');
+  }
   ctx.save();
-  ctx.fillStyle = 'rgba(80,200,255,0.1)'; // light blue, 90% transparent
+  ctx.fillStyle = g;
   ctx.beginPath(); ctx.moveTo(player.x, player.y); ctx.lineTo(player.x - w, player.y - len); ctx.lineTo(player.x + w, player.y - len); ctx.closePath(); ctx.fill();
   ctx.restore();
 }
@@ -3281,7 +3290,7 @@ function updateEnemies(dt) {
       e.ly += WALL_SCROLL * dt;
       const lx = wallEdgeX(0, e.ly), rx = wallEdgeX(1, e.ly), cx = lx + (rx - lx) * e.u;
       e.x = cx + (W / 2 - cx) * WALL_VP / 2; e.y = e.ly + (H / 2 - e.ly) * WALL_VP / 2; // hit box sits mid-way between front and base
-      if (e.ly > H + PILLAR || !wallsWanted()) { enemies.splice(i, 1); continue; }
+      if (e.ly > H + e.size || !wallsWanted()) { enemies.splice(i, 1); continue; }
     } else if (e.state === 'wallturret' && e.deep) {
       // inner-edge turret: scrolls at 0.7x, sits on the receded edge (pulled toward the centre by WALL_VP), no fire
       e.ly += WALL_SCROLL * 0.7 * dt;
@@ -3430,7 +3439,7 @@ const EQUIP_LONG_DESCRIPTIONS = {
     levels: ["1 satellite.", "2 satellites.", "3 satellites.", "4 satellites.", "5 satellites.", "6 satellites.", "7 satellites."] },
   '6OARD': { intro: "A 50x100px board (1.2x bigger with every level) flies straight up, spinning about its own horizontal axis, and pierces everything in its way, ticking 1 damage every 0.05s while overlapping a foe; while piercing a foe it slows to speed 5, then speeds back up. Each level makes the board 1.2x bigger. Levels to 7.",
     levels: ["50px.", "60px.", "72px.", "86px.", "104px.", "124px.", "149px."] },
-  '8HIROGARI': { intro: "Fires the same straight-up laser as EARTH's ship (no pods), and it pierces (damaging each foe every 0.1s); it deals 1, 2, 3, 4, 5, 1, 2... damage in turn. Every target (enemy, asteroid, crystal, mini-boss, boss) inside a narrow cone straight ahead of the ship is slowed to 1/5 speed and spins fast. The cone is 5 degrees wide at Lv1 and +5 degrees per level. RAPID adds directions: 2 / 3 / 4 lasers, 5 degrees apart. Levels to 7.",
+  '8HIROGARI': { intro: "Fires the same straight-up laser as EARTH's ship (no pods), and it pierces (damaging each foe every 0.1s); it deals 1, 2, 3, 4, 5, 6, 7, 1, 2... damage in turn. Every target (enemy, asteroid, crystal, mini-boss, boss) inside a narrow cone straight ahead of the ship is slowed to 1/5 speed and spins slowly. The cone is 5 degrees wide at Lv1 and +5 degrees per level. RAPID adds directions: 2 / 3 / 4 lasers, 5 degrees apart. Levels to 7.",
     levels: ["Cone: 5 degrees.", "Cone: 10 degrees.", "Cone: 15 degrees.", "Cone: 20 degrees.", "Cone: 25 degrees.", "Cone: 30 degrees.", "Cone: 35 degrees."] },
   '7THREE': { intro: "Three LASER-style beams fly straight up from the ship at -30, 0 and +30px. A 3-reel slot machine (its reels shoot down enemy bullets while they are on screen) sets their damage: the left reel is the left laser's damage, the middle reel the centre laser's, the right reel the right laser's (a 0 reel, shown as '-', means that laser does no damage; if all three reels are 0 the slot spins again). The reels (shown in front of the ship only while they spin) spin when the item is picked up and then every 15s; each reel takes 2s to slow to a stop, one after another from the left. If all three reels match on a number other than 0, every laser deals that number x10 and kill points are x10 while the reels stay matched. While the reels are matched (until the next spin has finished turning) the lasers are replaced by eleven lasers at +150, +120 ... -150 (30px steps), each dealing the matched number x10, fired every 0.25s and flying at 2250px/s. After a triple the next 4 spins roll the same triple again (the FEVER always lasts 5 spins), (a reach completes with 80% at 11 down to 20% at 77, and then the right reel takes 5s to stop); after an all-'-' result the next spin is a FEVER with 50% probability. Each level removes the low numbers from the reels. Levels to 7.",
     levels: ["Reels: 0-7.", "Reels: 0, 2-7.", "Reels: 0, 3-7.", "Reels: 0, 4-7.", "Reels: 0, 5-7.", "Reels: 0, 6-7.", "Reels: 0, 7."] },
@@ -3657,18 +3666,19 @@ function updateWalls(dt) {
       if (deepTurretTimer[side] <= 0) { deepTurretTimer[side] = rand(1.2, 4.0); enemies.push(makeDeepTurret(side)); }
     }
   } else if (!want) { deepTurretTimer = [1, 2]; }
-  // pillars: 20x20 columns standing in the corridor (1/4 of the original density), scrolling with the floor; bullets destroy them, touching one hurts
+  // pillars: 20x20 columns standing in the corridor (1/8 of the original density), scrolling with the floor; bullets destroy them, touching one hurts
   if (want && wallK >= 1) {
     pillarTimer -= dt;
-    while (pillarTimer <= 0) { pillarTimer += rand(0.32, 1.0); enemies.push(makePillar()); }
+    while (pillarTimer <= 0) { pillarTimer += rand(0.64, 2.0); enemies.push(makePillar()); }
   } else if (!want) pillarTimer = 0;
 }
 let pillarTimer = 0;
 const PILLAR = 20;
 function makePillar() {
-  const def = { hp: 15, score: 1, color: '#a0a0a0', r: PILLAR * 0.7, sides: 4, speedMul: 1.0 };
-  return { type: 'TURRET', pillar: true, side: 0, def, hp: 15, maxHp: 15, slot: null, state: 'wallturret', u: rand(0.04, 0.96),
-    x: W / 2, y: -PILLAR, ly: -PILLAR, baseY: 1e9, fireTimer: 1e9, angle: 0, dropsItem: false, dropsRapid: false };
+  const size = Math.random() < 0.2 ? PILLAR * 2 : PILLAR; // 20% of the pillars are 40x40
+  const def = { hp: 500, score: 1, color: '#a0a0a0', r: size * 0.7, sides: 4, speedMul: 1.0 };
+  return { type: 'TURRET', pillar: true, side: 0, def, hp: 500, maxHp: 500, slot: null, state: 'wallturret', u: rand(0.04, 0.96),
+    size, x: W / 2, y: -size, ly: -size, baseY: 1e9, fireTimer: 1e9, angle: 0, dropsItem: false, dropsRapid: false };
 }
 let wallRightStarted = false;
 // scenery turrets on the wall's receded inner edge: they appear at random heights and scroll slower (0.7x) than the real turrets on the front edge
@@ -4037,7 +4047,7 @@ function updatePlayer(dt) {
     player.earthShipFireTimer = (player.earthShipFireTimer === undefined ? 0 : player.earthShipFireTimer) - dt;
     if (player.earthShipFireTimer <= 0 && player.alive) {
       player.earthShipFireTimer = 0.15;
-      player.hiroCycle = ((player.hiroCycle || 0) % 5) + 1; // damage cycles 1, 2, 3, 4, 5, 1, 2 ...
+      player.hiroCycle = ((player.hiroCycle || 0) % 7) + 1; // damage cycles 1..7, 1..7 ...
       const dirs = 1 + (player.rapidLevel || 0); // RAPID: 2 / 3 / 4 directions, 5 degrees apart
       for (let k = 0; k < dirs; k++) {
         const ang = (k - (dirs - 1) / 2) * 5 * Math.PI / 180;
@@ -7396,7 +7406,7 @@ function updateAsteroids(fullDt) {
       if (Math.hypot(a.x - scx, a.y - scy) <= ringR + (a.r || 10)) { slowedByShockwave = true; break; }
     }
     const dt = (slowedByShockwave ? fullDt * (1 / 4) : fullDt) * (a.javelinSlow ? 0.25 : 1) * (a.hiroSlow ? 0.2 : 1);
-    if (a.hiroSlow) a.angle += Math.sign(a.spin || 1) * fullDt * 11.2; // spins
+    if (a.hiroSlow) a.angle += Math.sign(a.spin || 1) * fullDt * 2.5; // spins
     a.gravSlowed = slowedByShockwave; // for the GRAVITY lock-on square
     a.x += (a.vx || 0) * dt;
     a.y += a.vy * dt;
@@ -7876,7 +7886,7 @@ function drawEnemy(e) {
     const dir = e.side === 0 ? 1 : -1;
     const half = WALL_TURRET_SIDE / 2, hgt = WALL_TURRET_SIDE * Math.sqrt(3) / 2;
     if (e.pillar) {
-      const lx = wallEdgeX(0, e.ly), rx = wallEdgeX(1, e.ly), cx = lx + (rx - lx) * e.u, h = PILLAR / 2;
+      const lx = wallEdgeX(0, e.ly), rx = wallEdgeX(1, e.ly), cx = lx + (rx - lx) * e.u, h = e.size / 2;
       const pm = (px, py) => [px + (W / 2 - px) * WALL_VP, py + (H / 2 - py) * WALL_VP];
       const f = [[cx - h, e.ly - h], [cx + h, e.ly - h], [cx + h, e.ly + h], [cx - h, e.ly + h]], bk = f.map(q => pm(q[0], q[1]));
       // painted like the walls: side faces a faint grey strip, depth edges dimmer, the front (top) face black with a faint grey wash and a #a0a0a0 outline
