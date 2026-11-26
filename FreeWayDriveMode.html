@@ -74,7 +74,7 @@ function pickSeg0(){
   if(TH==='C')r=0.2+r*0.8;
   if(trk.length<30){G.type='str';G.left=30;G.tk=0;G.tsl=0;return;}
   if(TH==='B'){
-    const ix=trk.length,rem=125-(ix%125),br=Math.floor(ix/125)%2===0;
+    const ix=trk.length,m250=ix%250,br=m250<188,rem=br?188-m250:250-m250;
     G.type=br?'bri':'cur';G.left=Math.min(rem,br?50+(Math.random()*40|0):40+(Math.random()*30|0));G.tk=rnd(-1,1)*0.0012;
     G.tsl=(G.y>40?-1:G.y<0?1:(Math.random()<.5?-1:1))*rnd(0.005,0.025);return;
   }
@@ -156,7 +156,7 @@ function basis(s,l,dir,yaw){
 /* ================= STATE ================= */
 const LANES=[-6.3,-2.1,2.1,6.3];
 const ACC=[8.5,6.8,5.4,4.5,4.0,3.8,3.6];
-const GMAX=[14,25,36,46,56,64,72];
+const GMAX=[11.7,21,30,38,46.7,53.3,60];
 const P={s:40,l:-6.3,lv:0,v:0,gear:1,rpm:0.15,thr:0,brk:false,steer:0,camL:-6.3,pass:0,crash:0,inv:0,shake:0,flash:0,msg:'',msgT:0};
 let cars=[];
 let state='title';
@@ -242,15 +242,15 @@ function update(dt){
   /* 縦方向 */
   let a=evMode?thr*9*(1-P.v/110):thr*ACC[P.gear-1];
   a-=0.0006*P.v*P.v+0.12;
-  a-=tr.sl*7;
+  a-=(evMode&&thr>=0.05)?Math.min(tr.sl,0)*7:tr.sl*7;
   if(thr<0.05)a-=0.9;
   if(brk)a-=17;
-  P.v=clamp(P.v+a*dt,0,66.67);
+  P.v=clamp(P.v+a*dt,0,55.56);
   /* オートマ */
   if(evMode)P.gear=1;
   else if(P.gear<7&&P.v>GMAX[P.gear-1]*0.96)P.gear++;
   else if(P.gear>1&&P.v<GMAX[P.gear-2]*0.7)P.gear--;
-  const rt=clamp(0.18+0.78*P.v/(evMode?66.67:GMAX[P.gear-1]),0.18,1)+thr*0.04;
+  const rt=clamp(0.18+0.78*P.v/(evMode?55.56:GMAX[P.gear-1]),0.18,1)+thr*0.04;
   P.rpm+=(rt-P.rpm)*Math.min(1,dt*10);
   /* 横方向（遠心力でカーブ外側へ流れる） */
   const maxLat=1.2*Math.max(3.8,9-0.1*P.v)*Math.min(1,P.v/5);
@@ -530,9 +530,12 @@ function ringPts(k,s){return TUN.map(p=>pt(k,p[0]*s,p[1]));}
 function render(dt){
   ctx.globalAlpha=1;ctx.fillStyle=BG;ctx.fillRect(0,0,W,H);
   setCamera(dt);
-  drawMountains();
   const sC=Math.max(0,P.s-9.5),i0=Math.floor(sC/DS),i1=i0+NSEG;
   prepTrack(i0,i1);prepGhost(i0,i1);
+  {const fp=pt(Math.min(40,NSEG-2),0,0),q=fp[2]>1?fp[0]/fp[2]:0,tr=clamp(q*0.55,-0.12,0.12)*Math.min(1,P.v/15);
+   P.roll=(P.roll||0)+(tr-(P.roll||0))*Math.min(1,dt*3);
+   ctx.save();ctx.translate(W/2,H/2);ctx.rotate(P.roll);ctx.translate(-W/2,-H/2);}
+  drawMountains();
   const bk=new Map();
   const addB=c=>{const idx=Math.floor((c.s-(c.hl||2.1)-0.5)/DS);if(idx>=i0&&idx<=i1){let a=bk.get(idx);if(!a){a=[];bk.set(idx,a);}a.push(c);}};
   cars.forEach(addB);addB({s:P.s,player:true});
@@ -639,6 +642,7 @@ function render(dt){
     }
   }
   ctx.globalAlpha=1;
+  ctx.restore();
   drawHUD();
 }
 
@@ -676,6 +680,7 @@ function drawHUD(){
   ctx.textBaseline='alphabetic';
   ctx.textAlign='left';ctx.fillStyle='#3fe';
   ctx.font='400 13px '+FONT;ctx.fillText('FREE WAY DRIVE MODE',px,py);
+  ctx.fillStyle='#fff';ctx.font='400 10.4px '+FONT;ctx.fillText((RNAME[chgIdx>0?courseChg[chgIdx-1].th:'S'])+' ROUTE',px,py+14);ctx.fillStyle='#3fe';
   const kmh=Math.round(P.v*3.6);
   const R=70,KY=1,gcx=px+R,gcy=py+34+R*KY,N=40,rp=clamp(P.rpm,0,1);
   ctx.textAlign='right';
