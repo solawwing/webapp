@@ -49,16 +49,16 @@ const newG=()=>({h:0,x:0,y:0,z:0,k:0,sl:0,tk:0,tsl:0,left:0,type:'str'});
 const newSC=()=>({type:'none',left:40,c:0,side:-1,cs:1});
 function useR(R){CUR=R;trk=R.trk;G=R.G;SC=R.SC;TH=R.th;}
 function inR(R,fn){const o=CUR;useR(R);try{return fn();}finally{useR(o);}}
-let FP={};
+let FP={},courseChg=[],chgIdx=0;
 function planFor(n){
   if(!FP[n]){const T=['S','C','M','U'],a=T[Math.random()*4|0],o=T.filter(x=>x!==a);FP[n]={a,b:o[Math.random()*3|0]};}
   return FP[n];
 }
-function initWorld(){useR({trk:[],G:newG(),SC:newSC(),th:'S'});FK=null;nextFork=1;FP={};}
+function initWorld(){useR({trk:[],G:newG(),SC:newSC(),th:'S'});FK=null;nextFork=1;FP={};courseChg=[];chgIdx=0;}
 /* 3kmごとに道が二手に分かれる（左=COAST / 右=MOUNTAIN） */
 const FK_IDX=750;
-const noRail=i=>{const m=i%FK_IDX;return i>=744&&(m>=744||m<=90);};
-const quiet=i=>{const n=Math.floor((i+25)/FK_IDX);return n>=1&&(i-n*FK_IDX)>=-100&&(i-n*FK_IDX)<55;};
+const noRail=i=>false;
+const quiet=i=>false;
 initWorld();
 const RNAME={S:'STANDARD',C:'COAST',M:'MOUNTAIN',U:'UPDOWN'};
 const SLM={S:1,C:0.6,M:1,U:2.5};
@@ -110,7 +110,12 @@ function genNext(){
   trk.push({x:G.x,y:G.y,z:G.z,h:G.h,k:G.k,sl:G.sl,tn:G.type==='tun',br:G.type==='bri',sea:SC.type==='sea'?SC.side:0,cl:SC.c,cs:SC.cs});
   G.x+=Math.sin(G.h)*DS;G.z+=Math.cos(G.h)*DS;G.y+=G.sl*DS;G.h+=G.k*DS;
   if(G.shl>0){G.shl--;G.x-=Math.cos(G.h)*1.5;G.z+=Math.sin(G.h)*1.5;}
-  if(!FK&&trk.length-1===nextFork*FK_IDX)makeFork();
+  if(trk.length-1===nextFork*FK_IDX){
+    nextFork++;
+    const T=['S','C','M','U'].filter(x=>x!==CUR.th);
+    CUR.th=T[Math.random()*3|0];TH=CUR.th;SC.left=0;
+    courseChg.push({s:(trk.length-1)*DS,th:CUR.th});
+  }
 }
 function makeFork(){
   const A=CUR,B={trk:A.trk.slice(),G:Object.assign({},A.G),SC:Object.assign({},A.SC),th:'C'};
@@ -251,7 +256,7 @@ function update(dt){
   }
   P.s+=P.v*dt;
   P.shake=Math.max(0,P.shake-dt*2.5);P.inv=Math.max(0,P.inv-dt);P.flash=Math.max(0,P.flash-dt*2.2);P.msgT=Math.max(0,P.msgT-dt);
-  forkUpdate();
+  while(chgIdx<courseChg.length&&P.s>=courseChg[chgIdx].s){P.msg=RNAME[courseChg[chgIdx].th]+' ROUTE';P.msgT=1.8;P.msgC='#3fe';chgIdx++;}
   updTraffic(dt,true);
 }
 let WK=null,dyT=0;
@@ -537,7 +542,6 @@ function render(dt){
       if(!(i&1))seg(pt(k,sd,0),pt(k,sd,.85));
     }
     ctx.stroke();
-    if(i>=700&&(i%FK_IDX===700||i%FK_IDX===725))drawGantry(k,Math.floor(i/FK_IDX)+1);
     if(t.br){
       ctx.strokeStyle='#8cf';ctx.beginPath();
       seg(pt(k,-10.6,0),pt(k1,-10.6,0));seg(pt(k,10.6,0),pt(k1,10.6,0));
