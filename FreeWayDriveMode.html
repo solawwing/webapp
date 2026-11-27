@@ -20,7 +20,7 @@ canvas{position:fixed;left:0;top:0;width:100%;height:100%;display:block}
 <body>
 <canvas id="c"></canvas>
 <div id="brake" class="btn">BRAKE</div>
-<div id="view" class="btn">VIEW LOW</div>
+<div id="view" class="btn">VIEW</div>
 <script>
 (()=>{
 'use strict';
@@ -192,13 +192,17 @@ function startGame(){
   if(state!=='title')return;
   state='run';
 }
+let qrOpen=false;const QRN=33,QRD='111111101111101111100111001111111100000100001100010111000001000001101110100110110001001100101011101101110101100101100100001001011101101110101011111001000011001011101100000101011010010111110101000001111111101010101010101010101111111000000001100001111011100000000000100010111000100011000110011111001100010011011011110000001010001100011101110011000101101001110001010011010010000001001000111010000000011110111100111101001110001011011001001000001110010101101001100100101010110001111011101111011011010010010000010011001101101111011000001111110100000101011110101010010011011000001010101100001000001100110010100000101101101101010101010111101011011011001111101111100010001111111000101111011011101011011111100001000110000100100010101010000010110101111100000001100100110000011001110011111001111011110000111010111111101001111111111110110000000001000111111100100100010110111111101101000101100100101011010100000100000100111011100100010001101110101101001100101110111111011101110100111011011100001001111100101110100100100010101000101111100100000100100010001011100100000000111111101101101101001101101001001';
 let paused=false,lastTap=0,lastTapX=0,lastTapY=0,evMode=false,titleTapT=0,startTimer=null;
 addEventListener('pointerdown',e=>{
   if(e.target.closest&&e.target.closest('.btn'))return;
   e.preventDefault();
   if(state==='title'){
     const tn=performance.now();
-    if(startTimer&&tn-titleTapT<320){clearTimeout(startTimer);startTimer=null;evMode=true;startGame();}
+    if(qrOpen){qrOpen=false;return;}
+    if(startTimer&&tn-titleTapT<320){clearTimeout(startTimer);startTimer=null;
+      const fs=Math.min(W*0.09,32);
+      if(e.clientY>H*0.27-fs*1.1&&e.clientY<H*0.27+fs*1.6){qrOpen=true;}else{evMode=true;startGame();}}
     else{titleTapT=tn;startTimer=setTimeout(()=>{startTimer=null;evMode=false;startGame();},300);}
     return;
   }
@@ -227,7 +231,7 @@ addEventListener('keyup',e=>{keys[e.code]=false;});
 
 const CAMH=[2,4,6],CAMN=['LOW','MIDDLE','TOP'],CAMSEQ=[0,1,2,1];let camP=0,camI=0;
 const viewEl=document.getElementById('view');
-viewEl.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();camP=(camP+1)%CAMSEQ.length;camI=CAMSEQ[camP];viewEl.textContent='VIEW '+CAMN[camI];});
+viewEl.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();camP=(camP+1)%CAMSEQ.length;camI=CAMSEQ[camP];viewEl.textContent='VIEW';});
 
 /* ================= UPDATE ================= */
 function update(dt){
@@ -532,7 +536,7 @@ function render(dt){
   setCamera(dt);
   const sC=Math.max(0,P.s-9.5),i0=Math.floor(sC/DS),i1=i0+NSEG;
   prepTrack(i0,i1);prepGhost(i0,i1);
-  {const fp=pt(Math.min(40,NSEG-2),0,0),q=fp[2]>1?fp[0]/fp[2]:0,tr=clamp(q*0.55,-0.12,0.12)*Math.min(1,P.v/15);
+  {const fp=pt(Math.min(40,NSEG-2),0,0),q=fp[2]>1?fp[0]/fp[2]:0,tr=clamp(q*0.8,-0.17,0.17)*Math.min(1,P.v/15);
    P.roll=(P.roll||0)+(tr-(P.roll||0))*Math.min(1,dt*3);
    ctx.save();ctx.translate(W/2,H/2);ctx.rotate(P.roll);ctx.translate(-W/2,-H/2);}
   drawMountains();
@@ -643,7 +647,7 @@ function render(dt){
   }
   ctx.globalAlpha=1;
   ctx.restore();
-  drawHUD();
+  drawHUD();drawNav();
 }
 
 function drawTree(k,lat,tr,hp,w){
@@ -671,6 +675,32 @@ function drawSea(i,k,k1,fa,m){
           }
         }
         ctx.globalAlpha=fa;
+}
+/* ナビ（道のみ・縦長） */
+function drawNav(){
+  const vr=viewEl.getBoundingClientRect(),w=60,h=125,x0=Math.round(vr.left+vr.width/2-w/2),y0=vr.bottom+10,cx=x0+w/2,by=y0+h-12,sc=115/600;
+  const i0=Math.floor(P.s/DS);ensure(i0+180);
+  const a=trk[i0],b=trk[i0+1];let fx=b.x-a.x,fz=b.z-a.z;const fl=Math.hypot(fx,fz)||1;fx/=fl;fz/=fl;
+  const rx=fz,rz=-fx;
+  ctx.save();ctx.globalAlpha=1;
+  ctx.fillStyle='rgba(0,0,0,0.35)';ctx.fillRect(x0,y0,w,h);
+  ctx.beginPath();ctx.rect(x0,y0,w,h);ctx.clip();
+  ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.lineJoin='round';
+  for(const sd of[-1,1]){
+    ctx.beginPath();
+    for(let i=i0-3;i<=i0+165;i++){
+      const t=trk[Math.max(0,i)],t2=trk[Math.max(0,i)+1];
+      let tx=t2.x-t.x,tz=t2.z-t.z;const tl=Math.hypot(tx,tz)||1;tx/=tl;tz/=tl;
+      const dx=t.x+tz*sd*7-a.x,dz=t.z-tx*sd*7-a.z;
+      const X=cx+(dx*rx+dz*rz)*sc,Y=by-(dx*fx+dz*fz)*sc;
+      if(i===i0-3)ctx.moveTo(X,Y);else ctx.lineTo(X,Y);
+    }
+    ctx.stroke();
+  }
+  {const tt=performance.now()/1000;ctx.strokeStyle='#aff';ctx.lineWidth=1;
+   for(let j=0;j<2;j++){const ph=(tt*0.4+j*0.5)%1;ctx.globalAlpha=1-ph*0.6;ctx.beginPath();ctx.arc(cx,by,2+ph*12,0,6.2832);ctx.stroke();}
+   ctx.globalAlpha=1;ctx.beginPath();ctx.arc(cx,by,3,0,6.2832);ctx.stroke();}
+  ctx.restore();
 }
 /* ================= HUD ================= */
 function drawHUD(){
@@ -732,6 +762,14 @@ function drawHUD(){
     const fs=Math.min(W*0.09,32);
     ctx.font='400 '+fs+'px '+FONT;ctx.fillText('FREEWAY',W/2,H*0.27);ctx.fillText('DRIVE MODE',W/2,H*0.27+fs*1.25);
     if((tAcc*1.6|0)%2===0){ctx.font='400 '+Math.min(W*0.045,16)+'px '+FONT;ctx.fillText('TAP TO START',W/2,H*0.45);}
+    if(qrOpen){
+      ctx.fillStyle='rgba(0,0,0,.85)';ctx.fillRect(0,0,W,H);
+      const q=Math.floor(Math.min(W*0.7,300)/(QRN+4))/2,z=Math.round(q*(QRN+4)),x0=Math.round((W-z)/2),y0=Math.round(H*0.5-z/2);
+      ctx.fillStyle='#fff';ctx.fillRect(x0,y0,z,z);ctx.fillStyle='#000';
+      for(let r=0;r<QRN;r++)for(let c=0;c<QRN;c++)if(QRD.charCodeAt(r*QRN+c)===49){const ax=Math.round(x0+(c+2)*q),ay=Math.round(y0+(r+2)*q);ctx.fillRect(ax,ay,Math.round(x0+(c+3)*q)-ax,Math.round(y0+(r+3)*q)-ay);}
+      ctx.fillStyle='#3fe';ctx.font='400 '+Math.min(W*0.04,14)+'px '+FONT;ctx.textAlign='center';
+      ctx.fillText('TAP TO CLOSE',W/2,y0+z+26);
+    }
   }
 }
 
