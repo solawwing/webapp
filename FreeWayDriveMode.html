@@ -87,7 +87,7 @@ function pickSeg0(){
     G.tsl=sg*rnd(0.22,0.3);G.tk=rnd(-1,1)*0.002;
   }
   else if(r<0.13&&prev!=='tun'){G.type='tun';G.left=40+(Math.random()*40|0);G.tk=rnd(-1,1)*0.0025;G.tsl=0;}
-  else if(r<0.26&&prev!=='bri'){G.type='bri';G.left=32+(Math.random()*30|0);G.tk=rnd(-1,1)*0.003;G.tsl=0;}
+  else if(r<0.26&&prev!=='bri'&&TH!=='F'){G.type='bri';G.left=32+(Math.random()*30|0);G.tk=rnd(-1,1)*0.003;G.tsl=0;}
   else if(r<0.56){G.type='cur';G.left=25+(Math.random()*35|0);G.tk=(Math.random()<.5?-1:1)/rnd(110,380);G.tsl=rnd(-0.05,0.05);}
   else if(r<0.82){
     G.type='hill';G.left=36+(Math.random()*40|0);
@@ -155,7 +155,7 @@ function basis(s,l,dir,yaw){
 
 /* ================= STATE ================= */
 const LANES=[-6.3,-2.1,2.1,6.3];
-const ACC=[8.5,6.8,5.4,4.5,4.0,3.8,3.6];
+const ACC=[8.5,6.8,5.4,4.5,4.0,4.0,4.2];
 const GMAX=[11.7,21,30,38,46.7,53.3,60];
 const P={s:40,l:-6.3,lv:0,v:0,gear:1,rpm:0.15,thr:0,brk:false,steer:0,camL:-6.3,pass:0,crash:0,inv:0,shake:0,flash:0,msg:'',msgT:0};
 let cars=[];
@@ -244,7 +244,7 @@ function update(dt){
   P.thr=thr;P.brk=brk;P.steer=steer;
   const tr=trkAt(P.s);
   /* 縦方向 */
-  let a=evMode?thr*9*(1-P.v/110):thr*ACC[P.gear-1];
+  let a=evMode?thr*9*(1-P.v/120):thr*ACC[P.gear-1];
   a-=0.0006*P.v*P.v+0.12;
   a-=(evMode&&thr>=0.05)?Math.min(tr.sl,0)*7:tr.sl*7;
   if(thr<0.05)a-=0.9;
@@ -478,16 +478,45 @@ function drawCar(B,col,brk,fa,M){
 }
 const BODY=[[-.9,.25,-2.1],[.9,.25,-2.1],[.9,.85,-2.1],[-.9,.85,-2.1],[-.9,.25,2.1],[.9,.25,2.1],[.9,.5,2.1],[-.9,.5,2.1]];
 const BODYF=[[[0,1,2,3],[0,0,-1]],[[4,5,6,7],[0,0,1]],[[0,3,7,4],[-1,0,0]],[[1,2,6,5],[1,0,0]],[[3,2,6,7],[0,1,.2]]];
-const CAB=[[-.8,.77,-1.1],[.8,.77,-1.1],[.8,.6,.9],[-.8,.6,.9],[-.65,1.24,-.8],[.65,1.24,-.8],[.65,1.14,.4],[-.65,1.14,.4]];
-const CABF=[[[0,1,5,4],[0,.4,-1]],[[3,2,6,7],[0,.8,1]],[[0,3,7,4],[-1,.3,0]],[[1,2,6,5],[1,.3,0]],[[4,5,6,7],[0,1,.083]]];
-const CARM={parts:[{v:BODY,f:BODYF},{v:CAB,f:CABF}],wheels:{x:.93,zs:[-1.35,1.35],hw:.38,h:.62},
-  rear:{part:0,face:0,z:-2.11,q:[[-.73,-.33,.48,.74],[.33,.73,.48,.74]],bar:[-.33,.33,.62,.68]},
-  front:{part:0,face:1,z:2.11,q:[[-.73,-.33,.3,.46],[.33,.73,.3,.46]]}};
+/* 車体：断面を並べて滑らかな輪郭を作る */
+const loft=rings=>{
+  const n=rings[0].length,v=[].concat(...rings),f=[];
+  let cx=0,cy=0,cz=0;for(const p of v){cx+=p[0];cy+=p[1];cz+=p[2];}cx/=v.length;cy/=v.length;cz/=v.length;
+  const face=idx=>{
+    const a=v[idx[0]],b=v[idx[1]],c=v[idx[2]];
+    let ux=b[0]-a[0],uy=b[1]-a[1],uz=b[2]-a[2],wx=c[0]-a[0],wy=c[1]-a[1],wz=c[2]-a[2];
+    let nx=uy*wz-uz*wy,ny=uz*wx-ux*wz,nz=ux*wy-uy*wx,mx=0,my=0,mz=0;
+    for(const k of idx){mx+=v[k][0];my+=v[k][1];mz+=v[k][2];}
+    mx/=idx.length;my/=idx.length;mz/=idx.length;
+    if(nx*(mx-cx)+ny*(my-cy)+nz*(mz-cz)<0){nx=-nx;ny=-ny;nz=-nz;}
+    f.push([idx,[nx,ny,nz]]);
+  };
+  face([...Array(n).keys()]);
+  face([...Array(n).keys()].map(k=>(rings.length-1)*n+k));
+  for(let i=0;i<rings.length-1;i++)for(let j=0;j<n;j++){const j2=(j+1)%n;face([i*n+j,i*n+j2,(i+1)*n+j2,(i+1)*n+j]);}
+  return{v,f};
+};
+/* 断面: z, 底y, 底幅, 腰y, 腰幅, 上面y, 上面幅 */
+const BS=[[-2.1,.40,.62,.58,.86,.86,.70],[-1.8,.30,.74,.54,.90,.90,.78],[-0.9,.27,.80,.52,.92,.86,.80],[0.3,.27,.80,.50,.92,.76,.76],[1.3,.28,.76,.46,.90,.64,.62],[2.1,.32,.62,.42,.82,.52,.46]];
+const BODY2=loft(BS.map(([z,yb,b,yw,w,yt,t])=>[[-b,yb,z],[b,yb,z],[w,yw,z],[t,yt,z],[-t,yt,z],[-w,yw,z]]));
+const CS=[[-1.8,.88,.60,.90,.54],[-1.0,.84,.76,1.14,.52],[-0.1,.80,.78,1.24,.58],[0.55,.78,.78,1.15,.54],[1.1,.76,.72,.80,.62]];
+const CAB2=loft(CS.map(([z,yb,b,yt,t])=>[[-b,yb,z],[b,yb,z],[t,yt,z],[-t,yt,z]]));
+const SPL=loft([
+  [[-.8,.86,-2.1],[.8,.86,-2.1],[.8,1.0,-2.1],[-.8,1.0,-2.1]],
+  [[-.8,.86,-1.78],[.8,.86,-1.78],[.8,.96,-1.78],[-.8,.96,-1.78]]]);
+const CARM={parts:[{v:BODY2.v,f:BODY2.f},{v:SPL.v,f:SPL.f},{v:CAB2.v,f:CAB2.f}],wheels:{x:.93,zs:[-1.35,1.35],hw:.38,h:.66},
+  rear:{part:0,face:0,z:-2.11,q:[[-.78,-.3,.56,.76],[.3,.78,.56,.76]],bar:[-.3,.3,.7,.76]},
+  front:{part:0,face:1,z:2.11,q:[[-.62,-.28,.36,.48],[.28,.62,.36,.48]]}};
 const mkBox=(x0,x1,y0,y1,z0,z1)=>[[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0],[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]];
-const TRLM={parts:[{v:mkBox(-1.25,1.25,0.6,3.5,-6.6,3.4),f:BODYF},{v:mkBox(-1.1,1.1,0.5,2.6,3.6,6.4),f:BODYF}],sort:true,ext:7,
+/* トラック：荷台(コンテナ)＋キャブオーバーの運転席 */
+const TRL_BOX=loft([[-6.6,.97],[-6.3,1],[3.4,1]].map(([z,k])=>[[-1.12*k,.62,z],[1.12*k,.62,z],[1.25*k,.92,z],[1.25*k,3.2,z],[1.1*k,3.5,z],[-1.1*k,3.5,z],[-1.25*k,3.2,z],[-1.25*k,.92,z]]));
+const TRL_BAR=loft([[[-1.1,.5,-6.6],[1.1,.5,-6.6],[1.1,.72,-6.6],[-1.1,.72,-6.6]],[[-1.1,.5,-6.8],[1.1,.5,-6.8],[1.1,.72,-6.8],[-1.1,.72,-6.8]]]);
+const TRL_CON=loft([[[-.55,.5,3.3],[.55,.5,3.3],[.55,1.0,3.3],[-.55,1.0,3.3]],[[-.55,.5,3.7],[.55,.5,3.7],[.55,1.0,3.7],[-.55,1.0,3.7]]]);
+const TRL_CAB=loft([[3.6,.55,1.05,.9,1.12,2.75,1.0],[4.8,.55,1.05,.9,1.12,2.72,1.0],[5.8,.55,1.0,.95,1.1,2.45,.95],[6.4,.6,.95,1.0,1.05,1.65,.9]].map(([z,yb,b,yw,w,yt,t])=>[[-b,yb,z],[b,yb,z],[w,yw,z],[t,yt,z],[-t,yt,z],[-w,yw,z]]));
+const TRLM={parts:[{v:TRL_BOX.v,f:TRL_BOX.f},{v:TRL_BAR.v,f:TRL_BAR.f},{v:TRL_CON.v,f:TRL_CON.f},{v:TRL_CAB.v,f:TRL_CAB.f}],sort:true,ext:7,
   wheels:{x:1.3,zs:[-5.2,-3.8,4.9],hw:.5,h:1.0},
   rear:{part:0,face:0,z:-6.61,q:[[-1.0,-.55,.9,1.25],[.55,1.0,.9,1.25]],bar:[-.55,.55,1.1,1.18]},
-  front:{part:1,face:1,z:6.41,q:[[-.9,-.45,.9,1.25],[.45,.9,.9,1.25]]}};
+  front:{part:3,face:1,z:6.41,q:[[-.8,-.35,.72,1.02],[.35,.8,.72,1.02]]}};
 
 let GH=null,GB=[],GR=[];
 function prepGhost(i0,i1){
@@ -696,6 +725,16 @@ function drawNav(){
       if(i===i0-3)ctx.moveTo(X,Y);else ctx.lineTo(X,Y);
     }
     ctx.stroke();
+  }
+  {/* カーブの向きと大きさの矢印 */
+    const tj=trk[i0+55],tj2=trk[i0+56];let gx=tj2.x-tj.x,gz=tj2.z-tj.z;const gl=Math.hypot(gx,gz)||1;gx/=gl;gz/=gl;
+    const ang=clamp(Math.atan2(gx*rx+gz*rz,gx*fx+gz*fz),-1.3,1.3),ay=y0+36,L=26;
+    const ex=cx+Math.sin(ang)*L*0.9,ey=ay-Math.cos(ang)*L*0.55-L*0.45;
+    const mx=cx,my=ay-L*0.6;
+    ctx.strokeStyle='#3fe';ctx.lineWidth=1.5;ctx.lineCap='round';ctx.lineJoin='round';ctx.globalAlpha=1;
+    ctx.beginPath();ctx.moveTo(cx,ay);ctx.quadraticCurveTo(mx,my,ex,ey);ctx.stroke();
+    const tx=ex-mx,ty=ey-my,tl=Math.hypot(tx,ty)||1,ux=tx/tl,uy=ty/tl,hs=6;
+    ctx.beginPath();ctx.moveTo(ex-ux*hs-uy*hs*0.6,ey-uy*hs+ux*hs*0.6);ctx.lineTo(ex,ey);ctx.lineTo(ex-ux*hs+uy*hs*0.6,ey-uy*hs-ux*hs*0.6);ctx.stroke();
   }
   {const tt=performance.now()/1000;ctx.strokeStyle='#aff';ctx.lineWidth=1;
    for(let j=0;j<2;j++){const ph=(tt*0.4+j*0.5)%1;ctx.globalAlpha=1-ph*0.6;ctx.beginPath();ctx.arc(cx,by,2+ph*12,0,6.2832);ctx.stroke();}
