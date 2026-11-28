@@ -240,7 +240,7 @@ document.addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='KeyP'&&state!=='title'&&state!=='over')paused=!paused;if(state==='title'&&e.code==='KeyE'){evMode=true;startGame();}else if(state==='title'&&(e.code==='Space'||e.code==='Enter'||e.code==='ArrowUp')){evMode=false;startGame();}else if(state==='over'&&overT>0.8&&(e.code==='Space'||e.code==='Enter'))resetGame();if(e.code.startsWith('Arrow')||e.code==='Space')e.preventDefault();});
 addEventListener('keyup',e=>{keys[e.code]=false;});
 
-const CAMH=[2,4,6,1.5],CAMB=[9.5,9.5,9.5,0],CAMN=['LOW','MIDDLE','TOP','FRONT'],CAMSEQ=[3,0,1,2,1,0];let camP=1,camI=0;
+const CAMH=[2,4,6,1.5],CAMB=[9.5,9.5,9.5,0],CAMN=['LOW','MIDDLE','TOP','FRONT'],CAMSEQ=[0,1,2,3];let camP=0,camI=0;
 const viewEl=document.getElementById('view');
 viewEl.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();camP=(camP+1)%CAMSEQ.length;camI=CAMSEQ[camP];viewEl.textContent='VIEW';});
 
