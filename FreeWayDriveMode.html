@@ -44,7 +44,7 @@ const hash=n=>{const x=Math.sin(n*12.9898+78.233)*43758.5453;return x-Math.floor
 
 /* ================= TRACK ================= */
 let trk=[],G,SC,TH='';
-let CUR=null,FK=null,nextFork=1;
+let CUR=null,FK=null,nextFork=1,VIS=new Set();
 const newG=()=>({h:0,x:0,y:0,z:0,k:0,sl:0,tk:0,tsl:0,left:0,type:'str'});
 const newSC=()=>({type:'none',left:40,c:0,side:-1,cs:1});
 function useR(R){CUR=R;trk=R.trk;G=R.G;SC=R.SC;TH=R.th;}
@@ -54,7 +54,7 @@ function planFor(n){
   if(!FP[n]){const T=['S','C','M','U'],a=T[Math.random()*4|0],o=T.filter(x=>x!==a);FP[n]={a,b:o[Math.random()*3|0]};}
   return FP[n];
 }
-function initWorld(){useR({trk:[],G:newG(),SC:newSC(),th:'S'});FK=null;nextFork=1;FP={};courseChg=[];chgIdx=0;}
+function initWorld(){useR({trk:[],G:newG(),SC:newSC(),th:'S'});FK=null;nextFork=1;VIS=new Set();FP={};courseChg=[];chgIdx=0;}
 /* 3kmごとに道が二手に分かれる（左=COAST / 右=MOUNTAIN） */
 const FK_IDX=750;
 const noRail=i=>false;
@@ -127,7 +127,8 @@ function genNext(){
   if(G.shl>0){G.shl--;G.x-=Math.cos(G.h)*1.5;G.z+=Math.sin(G.h)*1.5;}
   if(trk.length-1===nextFork*FK_IDX){
     nextFork++;
-    const T=['S','C','M','U','F','B','T','D'].filter(x=>x!==CUR.th);
+    VIS.add(CUR.th);let T=['S','C','M','U','F','B','T','D'].filter(x=>x!==CUR.th&&!VIS.has(x));
+    if(!T.length){VIS=new Set([CUR.th]);T=['S','C','M','U','F','B','T','D'].filter(x=>x!==CUR.th);}
     CUR.th=T[Math.random()*T.length|0];TH=CUR.th;SC.left=0;if(TH==='B'||TH==='F'||TH==='D')G.left=0;
     courseChg.push({s:(trk.length-1)*DS,th:CUR.th});
   }
@@ -713,7 +714,7 @@ function render(dt){
         const zc=pt(k,0,0)[2],wx=Math.max(29,W*0.5/F*zc*1.8),o=[pt(k,-wx,-1),pt(k,wx,-1),pt(k,wx,18),pt(k,-wx,18)],n=ringPts(k,1);
         if(o.every(p=>p[2]>=NEAR)&&n.every(p=>p[2]>=NEAR)){
           ctx.beginPath();polyPath(o);polyPath(n);ctx.fillStyle=BG;ctx.fill('evenodd');
-          ctx.strokeStyle='#fa4';ctx.lineWidth=1;ctx.beginPath();polyPath(o);polyPath(n);ctx.stroke();ctx.lineWidth=1.6;
+          ctx.strokeStyle='#fa4';ctx.lineWidth=1;ctx.beginPath();polyPath(n);ctx.stroke();ctx.lineWidth=1.6;
         }
       }
     }else{
