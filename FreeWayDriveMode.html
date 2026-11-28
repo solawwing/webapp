@@ -167,7 +167,7 @@ function basis(s,l,dir,yaw){
 const LANES=[-6.3,-2.1,2.1,6.3];
 const ACC=[8.5,6.8,5.4,4.5,4.0,4.0,4.2];
 const GMAX=[11.7,21,30,38,46.7,53.3,60];
-const P={s:40,l:-6.3,lv:0,v:0,gear:1,rpm:0.15,thr:0,brk:false,steer:0,camL:-6.3,pass:0,crash:0,inv:0,shake:0,flash:0,msg:'',msgT:0};
+const P={s:40,l:-6.3,lv:0,v:0,gear:1,rpm:0.15,thr:0,brk:false,steer:0,camL:-6.3,pass:0,score:0,sct:0,crash:0,inv:0,shake:0,flash:0,msg:'',msgT:0};
 let cars=[];
 let state='title';
 let tAcc=0,overT=0;
@@ -195,7 +195,7 @@ const R_STICK=70;
 function stickSteer(){const dx=inp.x-inp.ox;return Math.abs(dx)<6?0:clamp(dx/48,-1,1);}
 function stickThr(){return clamp((inp.oy-inp.y-8)/46,0,1);}
 function resetGame(){
-  Object.assign(P,{s:40,l:-6.3,lv:0,v:0,gear:1,rpm:0.15,thr:0,brk:false,steer:0,camL:-6.3,pass:0,crash:0,inv:0,shake:0,flash:0,msg:'',msgT:0});
+  Object.assign(P,{s:40,l:-6.3,lv:0,v:0,gear:1,rpm:0.15,thr:0,brk:false,steer:0,camL:-6.3,pass:0,score:0,sct:0,crash:0,inv:0,shake:0,flash:0,msg:'',msgT:0});
   initWorld();initTraffic();WK=null;state='run';overT=0;
 }
 function startGame(){
@@ -264,6 +264,7 @@ function update(dt){
   if(thr<0.05)a-=0.9;
   if(brk)a-=17;
   P.v=clamp(P.v+a*dt,0,72);
+  P.sct+=dt;while(P.sct>=0.5){P.sct-=0.5;P.score+=Math.round(P.v*3.6);}
   /* オートマ */
   if(evMode)P.gear=1;
   else if(P.gear<7&&P.v>GMAX[P.gear-1]*0.96)P.gear++;
@@ -961,6 +962,7 @@ function drawHUD(){
     ctx.beginPath();ctx.moveTo(n0[0],n0[1]);ctx.lineTo(n1[0],n1[1]);ctx.stroke();
   }
   ctx.textAlign='right';ctx.fillStyle='#3fe';
+  ctx.font='400 11px '+FONT;ctx.fillText('SCORE '+P.score,W-16,py-4);
   ctx.font='400 18px '+FONT;
   ctx.fillText(((P.s-40)/1000).toFixed(2)+' km',W-16,py+16);
   ctx.font='400 13px '+FONT;
