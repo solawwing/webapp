@@ -635,7 +635,7 @@ function render(dt){
   setCamera(dt);
   const sC=Math.max(0,P.s-CAMB[camI]),i0=Math.floor(sC/DS),i1=i0+NSEG;
   prepTrack(i0,i1);prepGhost(i0,i1);
-  {const fp=pt(Math.min(40,NSEG-2),0,0),q=fp[2]>1?fp[0]/fp[2]:0,tr=(trk[Math.floor(P.s/DS)].th==='D'?clamp(q*5.6,-0.45,0.45):clamp(q*0.8,-0.17,0.17))*Math.min(1,P.v/15);
+  {const fp=pt(Math.min(40,NSEG-2),0,0),q=fp[2]>1?fp[0]/fp[2]:0,tr=clamp(q*0.8,-0.17,0.17)*Math.min(1,P.v/15);
    P.roll=(P.roll||0)+(tr-(P.roll||0))*Math.min(1,dt*3);
    ctx.save();ctx.translate(W/2,H/2);ctx.rotate(P.roll);ctx.translate(-W/2,-H/2);}
   drawStars();if(trk[Math.floor(P.s/DS)].th!=="T")drawMountains();
@@ -713,7 +713,7 @@ function render(dt){
       if(!prevT){
         const zc=pt(k,0,0)[2],wx=Math.max(29,W*0.5/F*zc*1.8),o=[pt(k,-wx,-1),pt(k,wx,-1),pt(k,wx,18),pt(k,-wx,18)],n=ringPts(k,1);
         if(o.every(p=>p[2]>=NEAR)&&n.every(p=>p[2]>=NEAR)){
-          ctx.beginPath();polyPath(o);polyPath(n);ctx.fillStyle=BG;ctx.fill('evenodd');
+          ctx.beginPath();polyPath(o);polyPath(n);{const gy0=CY-F*o[0][1]/o[0][2],gy1=CY-F*o[3][1]/o[3][2],gr=ctx.createLinearGradient(0,gy0,0,gy1);gr.addColorStop(0,'#7a4a1a');gr.addColorStop(1,'#000');ctx.fillStyle=gr;}ctx.fill('evenodd');
           ctx.strokeStyle='#fa4';ctx.lineWidth=1;ctx.beginPath();polyPath(n);ctx.stroke();ctx.lineWidth=1.6;
         }
       }
