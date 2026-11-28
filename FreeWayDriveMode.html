@@ -414,6 +414,29 @@ function fillPoly(pts,style){
 
 /* ================= DRAW ================= */
 const TUN=[[-10.6,0],[-10.6,4.6],[-6.6,6.0],[0,6.6],[6.6,6.0],[10.6,4.6],[10.6,0]];
+/* 星：山の上の空に点で表示。ごくたまに1つだけ点滅する */
+function drawStars(){
+  const dx=FC[0],dz=FC[2],n=Math.hypot(dx,dz)||1,hx=dx/n,hz=dz/n;
+  const yc=UC[0]*hx+UC[2]*hz,zc=FC[0]*hx+FC[2]*hz,hy=CY-F*yc/zc,yaw=Math.atan2(dx,dz);
+  const st=0.035,vn=x=>{const i=Math.floor(x),f=x-i,u=f*f*(3-2*f);return hash(i*1.7+3.1)*(1-u)+hash((i+1)*1.7+3.1)*u;};
+  const my=g=>hy-(0.08+0.9*(0.7*vn(g*0.28)+0.3*hash(g*3.7+1)))*F*0.2;
+  const slot=Math.floor(tAcc/0.5),half=Math.atan(W/2/F)+0.1;
+  ctx.fillStyle='#cfe';
+  for(let j=0;j<160;j++){
+    const az=hash(j*1.37+0.3)*6.2832,el=0.03+Math.pow(hash(j*2.11+5.1),1.5)*0.75;
+    let d=az-yaw;d=Math.atan2(Math.sin(d),Math.cos(d));
+    if(Math.abs(d)>half)continue;
+    const x=CX+F*Math.tan(d),y=hy-F*Math.tan(el);
+    if(y<0||y>hy)continue;
+    const g=(yaw+d)/st,g0=Math.floor(g),m=my(g0)+(my(g0+1)-my(g0))*(g-g0);
+    if(y>m-3)continue;
+    const blink=hash(j*7.3+slot*1.93)<0.006;
+    ctx.globalAlpha=blink?0.08:0.35+0.55*hash(j*3.3);
+    const sz=hash(j*5.7)<0.15?2:1.3;
+    ctx.fillRect(x-sz/2,y-sz/2,sz,sz);
+  }
+  ctx.globalAlpha=1;
+}
 function drawMountains(){
   const dx=FC[0],dz=FC[2],n=Math.hypot(dx,dz)||1,hx=dx/n,hz=dz/n;
   const yc=UC[0]*hx+UC[2]*hz,zc=FC[0]*hx+FC[2]*hz;
@@ -602,7 +625,7 @@ function render(dt){
   {const fp=pt(Math.min(40,NSEG-2),0,0),q=fp[2]>1?fp[0]/fp[2]:0,tr=clamp(q*0.8,-0.17,0.17)*Math.min(1,P.v/15);
    P.roll=(P.roll||0)+(tr-(P.roll||0))*Math.min(1,dt*3);
    ctx.save();ctx.translate(W/2,H/2);ctx.rotate(P.roll);ctx.translate(-W/2,-H/2);}
-  if(trk[Math.floor(P.s/DS)].th!=="T")drawMountains();
+  drawStars();if(trk[Math.floor(P.s/DS)].th!=="T")drawMountains();
   const bk=new Map();
   const addB=c=>{const idx=Math.floor((c.s-(c.hl||2.1)-0.5)/DS);if(idx>=i0&&idx<=i1){let a=bk.get(idx);if(!a){a=[];bk.set(idx,a);}a.push(c);}};
   cars.forEach(addB);addB({s:P.s,player:true});
