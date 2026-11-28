@@ -60,9 +60,17 @@ const FK_IDX=750;
 const noRail=i=>false;
 const quiet=i=>false;
 initWorld();
-const RNAME={S:'STANDARD',C:'COAST',M:'MOUNTAIN',U:'UPDOWN',F:'FOREST',B:'BAY BRIDGE',T:'CITY'};
-const SLM={S:1,C:0.6,M:1,U:2.5,F:1,B:1,T:1};
+const RNAME={S:'STANDARD',C:'COAST',M:'MOUNTAIN',U:'HILLY TOWN',F:'FOREST',B:'BAY BRIDGE',T:'METROPOLITAN',D:'DESERT'};
+const SLM={S:1,C:0.6,M:1,U:2.5,F:1,B:1,T:1,D:1};
 function pickSeg(){
+  if(TH==='D'){
+    /* 約6割が直線、残りは非常にゆるいカーブ。坂もゆるい */
+    const q=Math.random();
+    if(q<0.6){G.type='str';G.left=40+(Math.random()*70|0);G.tk=0;G.tsl=rnd(-0.012,0.012);}
+    else if(q<0.9){G.type='cur';G.left=30+(Math.random()*40|0);G.tk=(Math.random()<.5?-1:1)/rnd(700,1400);G.tsl=rnd(-0.015,0.015);}
+    else{G.type='hill';G.left=40+(Math.random()*40|0);const sg=G.y>60?-1:G.y<-10?1:(Math.random()<.5?-1:1);G.tsl=sg*rnd(0.025,0.04);G.tk=0;}
+    return;
+  }
   pickSeg0();G.tsl*=SLM[TH]||1;
   if(TH==='M'&&G.tsl!==0&&G.type!=='fork'){
     const up=G.y>110?false:G.y<-15?true:Math.random()<0.8;
@@ -99,7 +107,7 @@ function pickSeg0(){
 function sceneStep(){
   if(quiet(trk.length)||TH==='F'||TH==='B'||TH==='T'){SC.type='none';SC.left=Math.max(SC.left,5);}
   if(SC.left<=0){
-    const q0=Math.random(),q=TH==='C'?(q0<0.06?0.1:q0<0.97?0.7:0.9):TH==='M'?(q0<0.06?0.1:q0<0.1?0.7:0.9):q0;
+    const q0=Math.random(),q=TH==='D'?(q0<0.9?0.1:0.9):TH==='C'?(q0<0.06?0.1:q0<0.97?0.7:0.9):TH==='M'?(q0<0.06?0.1:q0<0.1?0.7:0.9):q0;
     if(q<0.6){SC.type='none';SC.left=40+(Math.random()*80|0);}
     else if(q<0.8){SC.type='sea';SC.side=Math.random()<.5?-1:1;SC.left=50+(Math.random()*60|0);}
     else{SC.type='cliff';SC.cs=TH==='M'&&Math.random()<0.65?0:(Math.random()<.5?-1:1);SC.left=40+(Math.random()*60|0);SC.tt=TH==='M'&&Math.random()<0.5?1.8:1;}
@@ -119,8 +127,8 @@ function genNext(){
   if(G.shl>0){G.shl--;G.x-=Math.cos(G.h)*1.5;G.z+=Math.sin(G.h)*1.5;}
   if(trk.length-1===nextFork*FK_IDX){
     nextFork++;
-    const T=['S','C','M','U','F','B','T'].filter(x=>x!==CUR.th);
-    CUR.th=T[Math.random()*T.length|0];TH=CUR.th;SC.left=0;if(TH==='B'||TH==='F')G.left=0;
+    const T=['S','C','M','U','F','B','T','D'].filter(x=>x!==CUR.th);
+    CUR.th=T[Math.random()*T.length|0];TH=CUR.th;SC.left=0;if(TH==='B'||TH==='F'||TH==='D')G.left=0;
     courseChg.push({s:(trk.length-1)*DS,th:CUR.th});
   }
 }
@@ -549,8 +557,11 @@ const loft=rings=>{
   return{v,f};
 };
 /* 断面: z, 底y, 底幅, 腰y, 腰幅, 上面y, 上面幅 */
-const BS=[[-2.1,.40,.62,.58,.86,.86,.70],[-1.8,.30,.74,.54,.90,.90,.78],[-0.9,.27,.80,.52,.92,.86,.80],[0.3,.27,.80,.50,.92,.76,.76],[1.3,.28,.76,.46,.90,.64,.62],[2.1,.32,.62,.42,.82,.52,.46]];
+const BS=[[-2.1,.40,.62,.58,.86,.86,.70],[-1.8,.30,.74,.54,.90,.90,.78],[-0.9,.27,.80,.52,.92,.86,.80],[0.3,.27,.82,.52,.95,.80,.78],[1.3,.28,.80,.50,.95,.72,.68],[2.1,.30,.68,.46,.86,.58,.52]];
 const BODY2=loft(BS.map(([z,yb,b,yw,w,yt,t])=>[[-b,yb,z],[b,yb,z],[w,yw,z],[t,yt,z],[-t,yt,z],[-w,yw,z]]));
+const bodyAt0=z=>{let i=0;while(i<BS.length-2&&z>BS[i+1][0])i++;const A=BS[i],B=BS[i+1],u=clamp((z-A[0])/(B[0]-A[0]),0,1);return A[5]+(B[5]-A[5])*u;};
+/* ボンネットの盛り上がり（パワードーム） */
+const HOOD=loft([[0.4,.05],[1.0,.12],[1.6,.09],[2.0,.01]].map(([z,hgt])=>{const y=bodyAt0(z)-0.02;return[[-.42,y,z],[.42,y,z],[.24,y+hgt+.02,z],[-.24,y+hgt+.02,z]];}));
 const CS=[[-1.8,.88,.60,.90,.54],[-1.0,.84,.76,1.14,.52],[-0.1,.80,.78,1.24,.58],[0.55,.78,.78,1.15,.54],[1.1,.76,.72,.80,.62]];
 /* キャビンの底を車体上面にぴったり合わせる（隙間を作らない） */
 const bodyAt=z=>{let i=0;while(i<BS.length-2&&z>BS[i+1][0])i++;const A=BS[i],B=BS[i+1],u=clamp((z-A[0])/(B[0]-A[0]),0,1);return{yt:A[5]+(B[5]-A[5])*u,t:A[6]+(B[6]-A[6])*u};};
@@ -561,9 +572,9 @@ const CAB2=loft(CS.map(([z,yb0,b0,yt0,t0],ci)=>{
 const SPL=loft([
   [[-.7,.84,-2.1],[.7,.84,-2.1],[.7,1.0,-2.1],[-.7,1.0,-2.1]],
   [[-.7,.84,-1.78],[.7,.84,-1.78],[.7,.96,-1.78],[-.7,.96,-1.78]]]);
-const CARM={parts:[{v:BODY2.v,f:BODY2.f},{v:SPL.v,f:SPL.f},{v:CAB2.v,f:CAB2.f}],wheels:{x:.8,zs:[-1.35,1.35],hw:.3,h:.66},
+const CARM={parts:[{v:BODY2.v,f:BODY2.f},{v:SPL.v,f:SPL.f},{v:HOOD.v,f:HOOD.f},{v:CAB2.v,f:CAB2.f}],wheels:{x:.8,zs:[-1.35,1.35],hw:.3,h:.66},
   rear:{part:0,face:0,z:-2.11,q:[[-.78,-.3,.56,.76],[.3,.78,.56,.76]],bar:[-.3,.3,.7,.76]},
-  front:{part:0,face:1,z:2.11,q:[[-.62,-.28,.36,.48],[.28,.62,.36,.48]]}};
+  front:{part:0,face:1,z:2.11,q:[[-.62,-.28,.43,.55],[.28,.62,.43,.55]]}};
 const mkBox=(x0,x1,y0,y1,z0,z1)=>[[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0],[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]];
 /* トラック：荷台(コンテナ)＋キャブオーバーの運転席 */
 const TRL_BOX=loft([[-6.6,.97],[-6.3,1],[3.4,1]].map(([z,k])=>[[-1.12*k,.62,z],[1.12*k,.62,z],[1.25*k,.92,z],[1.25*k,3.2,z],[1.1*k,3.5,z],[-1.1*k,3.5,z],[-1.25*k,3.2,z],[-1.25*k,.92,z]]));
@@ -622,7 +633,7 @@ function render(dt){
   setCamera(dt);
   const sC=Math.max(0,P.s-CAMB[camI]),i0=Math.floor(sC/DS),i1=i0+NSEG;
   prepTrack(i0,i1);prepGhost(i0,i1);
-  {const fp=pt(Math.min(40,NSEG-2),0,0),q=fp[2]>1?fp[0]/fp[2]:0,tr=clamp(q*0.8,-0.17,0.17)*Math.min(1,P.v/15);
+  {const fp=pt(Math.min(40,NSEG-2),0,0),q=fp[2]>1?fp[0]/fp[2]:0,tr=(trk[Math.floor(P.s/DS)].th==='D'?clamp(q*5.6,-0.45,0.45):clamp(q*0.8,-0.17,0.17))*Math.min(1,P.v/15);
    P.roll=(P.roll||0)+(tr-(P.roll||0))*Math.min(1,dt*3);
    ctx.save();ctx.translate(W/2,H/2);ctx.rotate(P.roll);ctx.translate(-W/2,-H/2);}
   drawStars();if(trk[Math.floor(P.s/DS)].th!=="T")drawMountains();
@@ -658,7 +669,7 @@ function render(dt){
     }
     /* ガードレール */
     ctx.strokeStyle='#bcd';ctx.beginPath();
-    if(!t.tn&&!noRail(i))for(const sd of[-9.8,9.8]){
+    if(!t.tn&&t.th!=='D'&&!noRail(i))for(const sd of[-9.8,9.8]){
       seg(pt(k,sd,.85),pt(k1,sd,.85));seg(pt(k,sd,.4),pt(k1,sd,.4));
       if(!(i&1))seg(pt(k,sd,0),pt(k,sd,.85));
     }
@@ -722,13 +733,14 @@ function render(dt){
         ctx.stroke();
       }
       /* 街灯 */
-      if(i%8===0&&!noRail(i)){
+      if(i%8===0&&t.th!=='D'&&!noRail(i)){
         const sd=((i>>3)&1)?11.3:-11.3,e=sd-Math.sign(sd)*2.6;
         if(!((t.sea&&Math.sign(sd)===t.sea)||(t.cl>0.3&&(t.cs===0||Math.sign(sd)===t.cs)))){ctx.strokeStyle='#8a9';ctx.beginPath();
         seg(pt(k,sd,0),pt(k,sd,7.5));seg(pt(k,sd,7.5),pt(k,e,7.5));ctx.stroke();
         ctx.strokeStyle='#f4ff70';ctx.lineWidth=Math.max(0.5,F*0.12/Math.max(pt(k,e,7.3)[2],1));ctx.globalAlpha=fa;ctx.beginPath();seg(pt(k,e-0.9,7.3),pt(k,e+0.9,7.3));ctx.stroke();ctx.lineWidth=1.6;ctx.globalAlpha=fa;}
       }
       if(t.th==='T')drawCity(i,k,fa);
+      if(t.th==='D')drawDesert(i,k,fa);
       /* 木 */
       if(t.th==='F'){
         for(const side of[-1,1])for(let n=0;n<2;n++){
@@ -736,7 +748,7 @@ function render(dt){
           if(hh>0.55)continue;
           drawTree(k,side*(12.5+hash(i*1.9+n*7+side)*22),3.5,14+hash(i*3.1+n*5+side)*10,3.0);
         }
-      }else if(t.th!=='B'&&t.th!=='T'&&hash(i)<0.3&&!noRail(i)&&!((t.sea&&(hash(i+99)<.5?-1:1)===t.sea)||(t.cl>0.3&&(t.cs===0||(hash(i+99)<.5?-1:1)===t.cs)))){
+      }else if(t.th!=='B'&&t.th!=='T'&&t.th!=='D'&&hash(i)<0.3&&!noRail(i)&&!((t.sea&&(hash(i+99)<.5?-1:1)===t.sea)||(t.cl>0.3&&(t.cs===0||(hash(i+99)<.5?-1:1)===t.cs)))){
         if(t.th==='C')drawPalm(k,(hash(i+99)<.5?-1:1)*(13+hash(i+7)*26),6.5+hash(i*1.3)*2.5,hash(i*2.1)*6.28);
         else drawTree(k,(hash(i+99)<.5?-1:1)*(13+hash(i+7)*26),1.6,7.5,2.2);
       }
@@ -796,7 +808,7 @@ function drawSea(i,k,k1,fa,m){
         ctx.globalAlpha=fa;
 }
 
-/* ===== CITY：高層ビル群と頭上の高速道路 ===== */
+/* ===== METROPOLITAN：高層ビル群と頭上の高速道路 ===== */
 function cityFace(pts,col,al,fa){
   fillPoly(pts,BG);
   ctx.globalAlpha=fa*al;ctx.strokeStyle=col;ctx.beginPath();
@@ -848,6 +860,33 @@ function drawCity(i,k,fa){
     }else if(hash(i*3.77+1.2)<0.07){
       const hv=12+hash(i*6.3)*44,d=hash(i*1.1)<0.5?1:-1,a=d>0?-90:90,b=-a;
       cityFace([pt(k,a,hv),pt(k+8,b,hv),pt(k+10,b,hv),pt(k+2,a,hv)],'#f8c',0.9,fa);
+    }
+  }
+  ctx.globalAlpha=fa;
+}
+
+/* ===== DESERT：サボテンと草 ===== */
+function drawDesert(i,k,fa){
+  ctx.lineWidth=1;
+  for(const sd of[-1,1]){
+    /* サボテン */
+    if(hash(i*1.91+sd*4.3)<0.1){
+      const lat=sd*(13+hash(i*3.1+sd)*30),h=3.5+hash(i*0.37+sd)*4,a1=h*(0.35+hash(i*2.2)*0.25),a2=h*(0.25+hash(i*5.3)*0.25);
+      ctx.globalAlpha=fa;ctx.strokeStyle='#5c6';ctx.beginPath();
+      seg(pt(k,lat,0),pt(k,lat,h));
+      seg(pt(k,lat-0.45,0),pt(k,lat-0.45,h*0.92));seg(pt(k,lat+0.45,0),pt(k,lat+0.45,h*0.92));
+      seg(pt(k,lat-0.45,h*0.92),pt(k,lat,h));seg(pt(k,lat+0.45,h*0.92),pt(k,lat,h));
+      const ah=h*0.55,bh=h*0.4;
+      seg(pt(k,lat-0.45,ah),pt(k,lat-1.6,ah));seg(pt(k,lat-1.6,ah),pt(k,lat-1.6,ah+a1));
+      seg(pt(k,lat+0.45,bh),pt(k,lat+1.5,bh));seg(pt(k,lat+1.5,bh),pt(k,lat+1.5,bh+a2));
+      ctx.stroke();
+    }
+    /* 草 */
+    if(hash(i*2.71+sd*1.7)<0.28){
+      const lat=sd*(10.6+hash(i*4.3+sd)*28),h=0.5+hash(i*1.3+sd)*0.7;
+      ctx.globalAlpha=fa*0.9;ctx.strokeStyle='#ca6';ctx.beginPath();
+      for(let j=-2;j<=2;j++)seg(pt(k,lat,0),pt(k,lat+j*0.22,h*(1-Math.abs(j)*0.15)));
+      ctx.stroke();
     }
   }
   ctx.globalAlpha=fa;
@@ -947,15 +986,19 @@ function drawHUD(){
     {
       const n=Math.min(Math.floor(P.s/DS),trk.length-1),st=Math.max(1,Math.ceil(n/500));
       if(n>3){
-        const YS=3,PX=t=>t.x,PY=t=>-(t.z*0.55+t.y*YS*0.6);
-        let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,gmin=1e9;
-        for(let i=0;i<=n;i+=st){const t=trk[i];x0=Math.min(x0,PX(t));x1=Math.max(x1,PX(t));y0=Math.min(y0,PY(t));y1=Math.max(y1,PY(t));gmin=Math.min(gmin,t.y);}
-        y1=Math.max(y1,y1+0);const gy=t=>-(t.z*0.55+gmin*YS*0.6);
-        for(let i=0;i<=n;i+=st){y1=Math.max(y1,gy(trk[i]));}
-        const bw=W*0.76,bh=H*0.5,bx=W*0.05,by=H*0.37,sc=Math.min(bw/Math.max(x1-x0,1),bh/Math.max(y1-y0,1)),
-          ox=bx+bw/2-(x0+x1)/2*sc,oy=by+bh/2-(y0+y1)/2*sc;
-        const TC={S:'#3fe',C:'#4af',M:'#f96',U:'#fd3',F:'#4d8',B:'#8cf',T:'#f8c'};
-        const X=t=>ox+PX(t)*sc,Y=t=>oy+PY(t)*sc,GY=t=>oy+gy(t)*sc;
+        const YS=3,HK=YS*0.6;
+        /* 回転しても大きさが変わらないよう、重心からの最大距離で縮尺を決める */
+        let cx=0,cz=0,cnt=0,gmin=1e9,gmax=-1e9;
+        for(let i=0;i<=n;i+=st){const t=trk[i];cx+=t.x;cz+=t.z;cnt++;gmin=Math.min(gmin,t.y);gmax=Math.max(gmax,t.y);}
+        cx/=cnt;cz/=cnt;
+        let R=1;for(let i=0;i<=n;i+=st){const t=trk[i];R=Math.max(R,Math.hypot(t.x-cx,t.z-cz));}
+        const ym=(gmin+gmax)/2,hh=(gmax-gmin)*HK/2;
+        const bw=W*0.76,bh=H*0.5,bx=W*0.05,by=H*0.37,
+          sc=Math.min(bw/2/R*1.1,bh/2/(R*0.55+hh+2)*1.05),
+          ang=overT*0.3,ca=Math.cos(ang),sa=Math.sin(ang),mx=bx+bw/2,my=by+bh/2;
+        const rz=t=>(t.x-cx)*sa+(t.z-cz)*ca;
+        const X=t=>mx+((t.x-cx)*ca-(t.z-cz)*sa)*sc,Y=t=>my+(-(rz(t)*0.55)-(t.y-ym)*HK)*sc,GY=t=>my+(-(rz(t)*0.55)-(gmin-ym)*HK)*sc;
+        const TC={S:'#3fe',C:'#4af',M:'#f96',U:'#fd3',F:'#4d8',B:'#8cf',T:'#f8c',D:'#fb6'};
         ctx.lineJoin='round';ctx.lineCap='round';
         /* 地面側の影と、高さを示す細い縦線 */
         ctx.globalAlpha=0.18;ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.beginPath();
