@@ -423,7 +423,7 @@ const hiScoreLine2 = document.getElementById('hiScoreLine2');
 const finalScoreLine = document.getElementById('finalScoreLine');
 // this timestamp is hardcoded in the source and updated by hand every time a code
 // change is made — not derived from the browser/file's own save time
-const LAST_UPDATED = '2026-11-20 08:35';
+const LAST_UPDATED = '2026-11-28 22:15';
 (function () {
   document.getElementById('updatedLine').textContent = 'UPDATED ' + LAST_UPDATED;
 })();
@@ -3660,14 +3660,14 @@ function updateWalls(dt) {
     }
   } else if (!want) wallRightStarted = false;
   // inner-edge scenery turrets
-  if (want && wallK >= 1) {
+  if (want && wallK >= 1 && asteroidWaveTimer < 40) { // stop at TIME 0 like the front turrets, or the stage can never clear
     for (const side of [0, 1]) {
       deepTurretTimer[side] -= dt;
       if (deepTurretTimer[side] <= 0) { deepTurretTimer[side] = rand(1.2, 4.0); enemies.push(makeDeepTurret(side)); }
     }
   } else if (!want) { deepTurretTimer = [1, 2]; }
   // pillars: 20x20 columns standing in the corridor (1/8 of the original density), scrolling with the floor; bullets destroy them, touching one hurts
-  if (want && wallK >= 1) {
+  if (want && wallK >= 1 && asteroidWaveTimer < 40) {
     pillarTimer -= dt;
     while (pillarTimer <= 0) { pillarTimer += rand(0.64, 2.0); enemies.push(makePillar()); }
   } else if (!want) pillarTimer = 0;
@@ -6772,7 +6772,7 @@ function checkWaveClear() {
     ? asteroidWaveTimer >= 62 // 60s belt + 2s extra so the Bonus banner (triggered at 1s remaining, shown 3s) finishes before the actual clear/warp
     : asteroidWaveTimer >= 40);
   if (timeUp) spawnQueue = [];
-  const cleared = kind === 'BOSS' ? bossDefeated : (timeUp && enemies.length === 0);
+  const cleared = kind === 'BOSS' ? bossDefeated : (timeUp && enemies.every(e => e.pillar || e.deep)); // pillars / inner turrets are scenery: they never hold up the clear
   if (cleared) {
     // clean transition: clear anything left over regardless of wave kind
     if ((isAsteroidKind(kind) || isCrystalKind(kind)) && !beltDamageBonusApplied) {
