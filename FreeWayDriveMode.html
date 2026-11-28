@@ -915,6 +915,50 @@ function drawHUD(){
     ctx.fillStyle='#3fe';ctx.font='400 '+Math.min(W*0.045,16)+'px '+FONT;
     ctx.fillText(((P.s-40)/1000).toFixed(2)+' km   PASS '+P.pass,W/2,H*0.42);
     if(overT>0.8&&(tAcc*1.6|0)%2===0)ctx.fillText('TAP TO RESTART',W/2,H*0.52);
+    /* 走ってきた軌跡（斜め上から見た立体表示、高さも反映、コースごとに色分け） */
+    {
+      const n=Math.min(Math.floor(P.s/DS),trk.length-1),st=Math.max(1,Math.ceil(n/500));
+      if(n>3){
+        const YS=3,PX=t=>t.x,PY=t=>-(t.z*0.55+t.y*YS*0.6);
+        let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,gmin=1e9;
+        for(let i=0;i<=n;i+=st){const t=trk[i];x0=Math.min(x0,PX(t));x1=Math.max(x1,PX(t));y0=Math.min(y0,PY(t));y1=Math.max(y1,PY(t));gmin=Math.min(gmin,t.y);}
+        y1=Math.max(y1,y1+0);const gy=t=>-(t.z*0.55+gmin*YS*0.6);
+        for(let i=0;i<=n;i+=st){y1=Math.max(y1,gy(trk[i]));}
+        const bw=W*0.66,bh=H*0.25,bx=W*0.08,by=H*0.585,sc=Math.min(bw/Math.max(x1-x0,1),bh/Math.max(y1-y0,1)),
+          ox=bx+bw/2-(x0+x1)/2*sc,oy=by+bh/2-(y0+y1)/2*sc;
+        const TC={S:'#3fe',C:'#4af',M:'#f96',U:'#fd3',F:'#4d8',B:'#8cf',T:'#f8c'};
+        const X=t=>ox+PX(t)*sc,Y=t=>oy+PY(t)*sc,GY=t=>oy+gy(t)*sc;
+        ctx.lineJoin='round';ctx.lineCap='round';
+        /* 地面側の影と、高さを示す細い縦線 */
+        ctx.globalAlpha=0.18;ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.beginPath();
+        for(let i=0;i<=n;i+=st){const t=trk[i];if(i===0)ctx.moveTo(X(t),GY(t));else ctx.lineTo(X(t),GY(t));}
+        ctx.stroke();
+        ctx.globalAlpha=0.12;ctx.beginPath();
+        for(let i=0;i<=n;i+=st*4){const t=trk[i];ctx.moveTo(X(t),Y(t));ctx.lineTo(X(t),GY(t));}
+        ctx.stroke();
+        /* 軌跡（透明度50%） */
+        ctx.globalAlpha=0.5;ctx.lineWidth=2.5;
+        let cur=null;
+        for(let i=0;i<=n;i+=st){
+          const t=trk[i];
+          if(t.th!==cur){
+            if(cur!==null){ctx.lineTo(X(t),Y(t));ctx.stroke();}
+            ctx.strokeStyle=TC[t.th]||'#3fe';ctx.beginPath();ctx.moveTo(X(t),Y(t));cur=t.th;
+          }else ctx.lineTo(X(t),Y(t));
+        }
+        ctx.stroke();
+        ctx.globalAlpha=1;ctx.lineCap='butt';
+        /* START / END とコース名（線の右側に、小さめの文字） */
+        ctx.textAlign='left';
+        const t0=trk[0],t1=trk[n],fz=Math.min(W*0.024,9),gx=6;
+        ctx.font='400 '+fz+'px '+FONT;
+        ctx.strokeStyle='#fff';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(X(t0),Y(t0),2.5,0,7);ctx.stroke();ctx.beginPath();ctx.arc(X(t1),Y(t1),2.5,0,7);ctx.stroke();
+        ctx.fillStyle='#fff';ctx.fillText('START',X(t0)+gx,Y(t0)+fz*0.4);
+        ctx.fillStyle=TC.S;ctx.fillText(RNAME.S,X(t0)+gx,Y(t0)+fz*1.6);
+        for(const c of courseChg){const ci=Math.round(c.s/DS);if(ci>0&&ci<n){const t=trk[ci];ctx.fillStyle=TC[c.th]||'#3fe';ctx.fillText(RNAME[c.th],X(t)+gx,Y(t)+fz*0.4);}}
+        ctx.fillStyle='#fff';ctx.fillText('END',X(t1)+gx,Y(t1)+fz*0.4);
+      }
+    }
   }
   if(state==='title'){
     ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(0,0,W,H);
