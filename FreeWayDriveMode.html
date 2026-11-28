@@ -425,6 +425,52 @@ function fillPoly(pts,style){
 /* ================= DRAW ================= */
 const TUN=[[-10.6,0],[-10.6,4.6],[-6.6,6.0],[0,6.6],[6.6,6.0],[10.6,4.6],[10.6,0]];
 /* 星：山の上の空に点で表示。ごくたまに1つだけ点滅する */
+/* ===== 雨 ===== */
+const RN={on:false,kind:'rain',lv:0,t:rnd(25,60),d:[],force:null,fk:null,ph:0};
+for(let i=0;i<700;i++)RN.d.push({x:rnd(-16,16),y:rnd(-6,10),z:rnd(1.5,46),v:rnd(18,26),p:rnd(0,6.3),w:rnd(0.6,1.4)});
+function drawRain(dt){
+  RN.t-=dt;if(RN.t<=0){RN.on=!RN.on;if(RN.on){const t0=trk[Math.floor(P.s/DS)],ns=t0&&(t0.th==='D'||t0.th==='C');RN.kind=!ns&&Math.random()<0.5?'snow':'rain';}RN.t=RN.on?rnd(30,70):rnd(40,100);}
+  const tn=trk[Math.floor(P.s/DS)];
+  const noSn=tn&&(tn.th==='D'||tn.th==='C');
+  const want=RN.force!==null?RN.force:(RN.on&&!(tn&&tn.tn)&&!(RN.kind==='snow'&&noSn)?1:0);
+  RN.lv+=(want-RN.lv)*Math.min(1,dt*0.8);
+  if(RN.lv<0.02)return;
+  const kind=RN.force!==null&&RN.fk?RN.fk:RN.kind;
+  if(kind==='snow'){
+    const n=Math.floor(RN.d.length*RN.lv),v=Math.min(P.v,72);RN.ph+=dt;
+    ctx.save();ctx.globalAlpha=0.12*RN.lv;ctx.fillStyle='#0a1424';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#fff';
+    for(let i=0;i<n;i++){
+      const d=RN.d[i];
+      d.y-=(1.6+d.w*1.2)*dt;d.z-=v*dt;
+      if(d.z<1.2){d.y=rnd(-6,10);d.z=rnd(25,46);d.x=rnd(-16,16);}else if(d.y<-6){d.y=rnd(8,11);}
+      const sx=d.x+Math.sin(RN.ph*d.w+d.p)*0.7,x=CX+F*sx/d.z,y=CY-F*d.y/d.z;
+      if(x<-5||x>W+5||y<-5||y>H+5)continue;
+      const r=Math.max(1,Math.min(4.5,F*0.07*d.w/d.z));
+      ctx.globalAlpha=Math.min(1,(1.2-d.z/46))*0.85*RN.lv;
+      ctx.beginPath();ctx.arc(x,y,r,0,6.283);ctx.fill();
+    }
+    ctx.restore();return;
+  }
+  const n=Math.floor(340*RN.lv),v=Math.min(P.v,72);
+  ctx.save();
+  ctx.globalAlpha=0.22*RN.lv;ctx.fillStyle='#02060e';ctx.fillRect(0,0,W,H);
+  ctx.lineCap='round';
+  for(let b=0;b<2;b++){
+    ctx.strokeStyle=b?'#cfe6ff':'#7fa8d8';ctx.lineWidth=b?1.2:0.8;ctx.beginPath();
+    for(let i=b;i<n;i+=2){
+      const d=RN.d[i];
+      d.y-=d.v*dt;d.z-=v*dt;d.x-=v*dt*0.0;
+      if(d.y<-6||d.z<1.2){d.y=rnd(8,11);d.z=rnd(30,46);d.x=rnd(-16,16);}
+      const z1=d.z,z0=d.z+Math.min(v,28)*0.03+0.3,y0=d.y+d.v*0.035+0.5;
+      const x1=CX+F*d.x/z1,y1=CY-F*d.y/z1,x0=CX+F*d.x/z0,yy0=CY-F*y0/z0;
+      if(x1<-20||x1>W+20||y1<0||y1>H+20)continue;
+      ctx.moveTo(x0,yy0);ctx.lineTo(x1,y1);
+    }
+    ctx.globalAlpha=(b?0.55:0.4)*RN.lv;ctx.stroke();
+  }
+  ctx.restore();
+}
 function drawStars(){
   const dx=FC[0],dz=FC[2],n=Math.hypot(dx,dz)||1,hx=dx/n,hz=dz/n;
   const yc=UC[0]*hx+UC[2]*hz,zc=FC[0]*hx+FC[2]*hz,hy=CY-F*yc/zc,yaw=Math.atan2(dx,dz);
@@ -765,6 +811,7 @@ function render(dt){
   }
   ctx.globalAlpha=1;
   ctx.restore();
+  drawRain(dt);
   drawHUD();drawNav();
 }
 
@@ -1069,7 +1116,7 @@ function frame(ts){
   render(dt);
   requestAnimationFrame(frame);
 }
-window.__wd={setTh(x){CUR.th=x;TH=x;},get WK(){return WK;},P,get trk(){return trk;},get FK(){return FK;},get cur(){return CUR;},get cars(){return cars;},update,get state(){return state;},set state(v){state=v;},ensure,inp};
+window.__wd={RN,setTh(x){CUR.th=x;TH=x;},get WK(){return WK;},P,get trk(){return trk;},get FK(){return FK;},get cur(){return CUR;},get cars(){return cars;},update,get state(){return state;},set state(v){state=v;},ensure,inp};
 requestAnimationFrame(frame);
 })();
 </script>
