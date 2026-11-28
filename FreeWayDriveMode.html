@@ -529,10 +529,15 @@ const loft=rings=>{
 const BS=[[-2.1,.40,.62,.58,.86,.86,.70],[-1.8,.30,.74,.54,.90,.90,.78],[-0.9,.27,.80,.52,.92,.86,.80],[0.3,.27,.80,.50,.92,.76,.76],[1.3,.28,.76,.46,.90,.64,.62],[2.1,.32,.62,.42,.82,.52,.46]];
 const BODY2=loft(BS.map(([z,yb,b,yw,w,yt,t])=>[[-b,yb,z],[b,yb,z],[w,yw,z],[t,yt,z],[-t,yt,z],[-w,yw,z]]));
 const CS=[[-1.8,.88,.60,.90,.54],[-1.0,.84,.76,1.14,.52],[-0.1,.80,.78,1.24,.58],[0.55,.78,.78,1.15,.54],[1.1,.76,.72,.80,.62]];
-const CAB2=loft(CS.map(([z,yb,b,yt,t])=>[[-b,yb,z],[b,yb,z],[t,yt,z],[-t,yt,z]]));
+/* キャビンの底を車体上面にぴったり合わせる（隙間を作らない） */
+const bodyAt=z=>{let i=0;while(i<BS.length-2&&z>BS[i+1][0])i++;const A=BS[i],B=BS[i+1],u=clamp((z-A[0])/(B[0]-A[0]),0,1);return{yt:A[5]+(B[5]-A[5])*u,t:A[6]+(B[6]-A[6])*u};};
+const CAB2=loft(CS.map(([z,yb0,b0,yt0,t0],ci)=>{
+  const bd=bodyAt(z),yb=bd.yt-0.03,b=Math.min(b0,bd.t+0.02),last=ci===CS.length-1,yt=last?yb+0.03:yt0,t=last?b-0.04:Math.min(t0,b-0.04);
+  return[[-b,yb,z],[b,yb,z],[t,yt,z],[-t,yt,z]];
+}));
 const SPL=loft([
-  [[-.8,.86,-2.1],[.8,.86,-2.1],[.8,1.0,-2.1],[-.8,1.0,-2.1]],
-  [[-.8,.86,-1.78],[.8,.86,-1.78],[.8,.96,-1.78],[-.8,.96,-1.78]]]);
+  [[-.7,.84,-2.1],[.7,.84,-2.1],[.7,1.0,-2.1],[-.7,1.0,-2.1]],
+  [[-.7,.84,-1.78],[.7,.84,-1.78],[.7,.96,-1.78],[-.7,.96,-1.78]]]);
 const CARM={parts:[{v:BODY2.v,f:BODY2.f},{v:SPL.v,f:SPL.f},{v:CAB2.v,f:CAB2.f}],wheels:{x:.8,zs:[-1.35,1.35],hw:.3,h:.66},
   rear:{part:0,face:0,z:-2.11,q:[[-.78,-.3,.56,.76],[.3,.78,.56,.76]],bar:[-.3,.3,.7,.76]},
   front:{part:0,face:1,z:2.11,q:[[-.62,-.28,.36,.48],[.28,.62,.36,.48]]}};
@@ -898,7 +903,7 @@ function drawHUD(){
   ctx.fillText(((P.s-40)/1000).toFixed(2)+' km',W-16,py+16);
   ctx.font='400 13px '+FONT;
   ctx.fillText('PASS '+P.pass+'   CRASH '+P.crash+'/3',W-16,py+38);
-  if(P.msgT>0){
+  if(P.msgT>0&&state!=='over'){
     ctx.textAlign='center';ctx.fillStyle=P.msgC||'#f55';ctx.globalAlpha=clamp(P.msgT*2,0,1)*(P.msgC==='#fff'&&Math.floor(P.msgT/0.4)%2?0.12:1);
     ctx.font='400 '+Math.min(W*0.1,46)*(P.msgC==='#fff'?0.45:1)+'px '+FONT;ctx.fillText(P.msg,W/2,H*0.3);ctx.globalAlpha=1;
   }
@@ -911,10 +916,10 @@ function drawHUD(){
   if(state==='over'){
     ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(0,0,W,H);
     ctx.textAlign='center';ctx.fillStyle='#f55';
-    ctx.font='400 '+Math.min(W*0.09,32)+'px '+FONT;ctx.fillText('GAME OVER',W/2,H*0.32);
+    ctx.font='400 '+Math.min(W*0.09,32)+'px '+FONT;ctx.fillText('GAME OVER',W/2,H*0.2);
     ctx.fillStyle='#3fe';ctx.font='400 '+Math.min(W*0.045,16)+'px '+FONT;
-    ctx.fillText(((P.s-40)/1000).toFixed(2)+' km   PASS '+P.pass,W/2,H*0.42);
-    if(overT>0.8&&(tAcc*1.6|0)%2===0)ctx.fillText('TAP TO RESTART',W/2,H*0.52);
+    if(overT>0.8&&(tAcc*1.6|0)%2===0)ctx.fillText('TAP TO RESTART',W/2,H*0.255);
+    ctx.fillText(((P.s-40)/1000).toFixed(2)+' km   PASS '+P.pass,W/2,H*0.31);
     /* 走ってきた軌跡（斜め上から見た立体表示、高さも反映、コースごとに色分け） */
     {
       const n=Math.min(Math.floor(P.s/DS),trk.length-1),st=Math.max(1,Math.ceil(n/500));
@@ -924,7 +929,7 @@ function drawHUD(){
         for(let i=0;i<=n;i+=st){const t=trk[i];x0=Math.min(x0,PX(t));x1=Math.max(x1,PX(t));y0=Math.min(y0,PY(t));y1=Math.max(y1,PY(t));gmin=Math.min(gmin,t.y);}
         y1=Math.max(y1,y1+0);const gy=t=>-(t.z*0.55+gmin*YS*0.6);
         for(let i=0;i<=n;i+=st){y1=Math.max(y1,gy(trk[i]));}
-        const bw=W*0.66,bh=H*0.25,bx=W*0.08,by=H*0.585,sc=Math.min(bw/Math.max(x1-x0,1),bh/Math.max(y1-y0,1)),
+        const bw=W*0.76,bh=H*0.5,bx=W*0.05,by=H*0.37,sc=Math.min(bw/Math.max(x1-x0,1),bh/Math.max(y1-y0,1)),
           ox=bx+bw/2-(x0+x1)/2*sc,oy=by+bh/2-(y0+y1)/2*sc;
         const TC={S:'#3fe',C:'#4af',M:'#f96',U:'#fd3',F:'#4d8',B:'#8cf',T:'#f8c'};
         const X=t=>ox+PX(t)*sc,Y=t=>oy+PY(t)*sc,GY=t=>oy+gy(t)*sc;
